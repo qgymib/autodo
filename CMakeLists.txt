@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.2)
 project(autodo)
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
 function(setup_target_wall name)
     if (CMAKE_C_COMPILER_ID STREQUAL "MSVC")
         target_compile_options(${name} PRIVATE /W4 /WX)
@@ -9,12 +11,28 @@ function(setup_target_wall name)
     endif ()
 endfunction()
 
-find_package(Lua REQUIRED)
-
 add_executable(${PROJECT_NAME}
     src/lua_api.c
+    src/lua_screenshot.c
     src/main.c
     src/utils.c)
+
+find_package(Lua REQUIRED)
+
+if (WIN32)
+else ()
+    find_package(X11)
+    find_package(Cairo)
+    target_include_directories(${PROJECT_NAME}
+        PRIVATE
+            ${X11_INCLUDE_DIR}
+            ${CAIRO_INCLUDE_DIRS})
+    target_link_libraries(${PROJECT_NAME}
+        PRIVATE
+            ${X11_LIBRARIES}
+            ${CAIRO_LIBRARIES})
+endif ()
+
 
 target_include_directories(${PROJECT_NAME}
     PUBLIC
