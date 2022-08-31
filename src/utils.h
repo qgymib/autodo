@@ -29,6 +29,10 @@ int aeda_find(const void* data, size_t dataLen, const void* key, size_t keyLen, 
 
 const char* get_filename_ext(const char *filename);
 
+const char* auto_strerror(int errcode, char* buffer, size_t size);
+
+char* auto_strdup(const char* s);
+
 #ifdef __cplusplus
 }
 #endif

@@ -1,6 +1,31 @@
 #include "lua_screenshot.h"
 #include <string.h>
 
+#if defined(_WIN32)
+
+#include <windows.h>
+
+int auto_take_screenshot(lua_State* L)
+{
+    int screenHeight = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+    int screenWidth = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+
+    HDC hdc = GetDC(NULL);              // get a desktop dc 
+    HDC hDest = CreateCompatibleDC(hdc); // create a dc to use for capture
+
+    BITMAP hbCapture = CreateCompatibleBitmap(hdc, screenWidth, screenHeight);
+    SelectObject(hDest, hbCapture);
+
+    // the following line effectively copies the screen into the capture bitamp 
+    BitBlt(hDest, 0, 0, screenWidth, screenHeight, hdc, 0, 0, SRCCOPY);
+
+    // clean up - release unused resources! 
+    ReleaseDC(NULL, hdc);
+    DeleteDC(hDest);
+}
+
+#else
+
 #include <X11/Xlib.h>
 #include <cairo/cairo.h>
 #include <cairo/cairo-xlib.h>
@@ -42,3 +67,5 @@ int auto_take_screenshot(lua_State *L)
 
     return 1;
 }
+
+#endif
