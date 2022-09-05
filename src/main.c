@@ -12,28 +12,28 @@
 
 typedef struct runtime_s
 {
-    lua_State*  L;              /**< Lua VM */
-    char        probe[1024];    /**< Probe */
+    lua_State*      L;              /**< Lua VM */
+    char            probe[1024];    /**< Probe */
 
     struct
     {
-        void*   data;           /**< Executable content */
-        size_t  size;           /**< Executable size */
-        ssize_t script_offset;
+        void*       data;           /**< Executable content */
+        size_t      size;           /**< Executable size */
+        ssize_t     script_offset;
     } exe;
 
     struct
     {
-        int     argc;
-        char**  argv;
+        int         argc;
+        char**      argv;
     } startup;
 
-    const char* script_path;
-    const char* compile_path;
-    char*       output_path;
+    const char*     script_path;
+    const char*     compile_path;
+    char*           output_path;
 } runtime_t;
 
-static runtime_t g_rt;
+static runtime_t    g_rt;
 
 static void _print_usage(const char* name)
 {

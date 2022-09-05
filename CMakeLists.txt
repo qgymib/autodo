@@ -3,6 +3,12 @@ project(autodo)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
+set(auto_src_list
+    src/lua_api.c
+    src/lua_screenshot.c
+    src/main.c
+    src/utils.c)
+
 function(setup_target_wall name)
     if (CMAKE_C_COMPILER_ID STREQUAL "MSVC")
         target_compile_options(${name} PRIVATE /W4 /WX)
@@ -12,10 +18,8 @@ function(setup_target_wall name)
 endfunction()
 
 add_executable(${PROJECT_NAME}
-    src/lua_api.c
-    src/lua_screenshot.c
-    src/main.c
-    src/utils.c)
+    ${auto_src_list}
+    ${CMAKE_CURRENT_SOURCE_DIR}/share/appicon.rc)
 
 find_package(Lua REQUIRED)
 
