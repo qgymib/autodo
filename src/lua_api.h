@@ -8,6 +8,10 @@ extern "C" {
 #include <lauxlib.h>
 #include <lualib.h>
 
+/**
+ * @brief Initialize builtin library.
+ * @param[in] L     Lua VM.
+ */
 void auto_init_libs(lua_State *L);
 
 #ifdef __cplusplus
