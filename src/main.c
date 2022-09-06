@@ -1,6 +1,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <assert.h>
 #include "lua/api.h"
 #include "utils.h"
 
@@ -14,12 +15,13 @@ typedef struct runtime_s
 {
     lua_State*      L;              /**< Lua VM */
     char            probe[1024];    /**< Probe */
+    char            errbuf[1024];
 
     struct
     {
         void*       data;           /**< Executable content */
         size_t      size;           /**< Executable size */
-        ssize_t     script_offset;
+        int         script_offset;
     } exe;
 
     struct
@@ -65,16 +67,17 @@ static void _init_parse_args_finalize(void)
     if (g_rt.compile_path != NULL && g_rt.output_path == NULL)
     {
         const char* ext = get_filename_ext(g_rt.compile_path);
-        size_t offset = ext - g_rt.compile_path;
 
 #if defined(_WIN32)
         size_t path_len = strlen(g_rt.compile_path);
         size_t ext_len = strlen(ext);
         size_t malloc_size = path_len - ext_len + 4;
         g_rt.output_path = malloc(malloc_size);
+        assert(g_rt.output_path != NULL);
         memcpy(g_rt.output_path, g_rt.compile_path, path_len - ext_len);
         memcpy(g_rt.output_path + path_len - ext_len, "exe", 4);
 #else
+        size_t offset = ext - g_rt.compile_path;
         g_rt.output_path = strdup(g_rt.compile_path);
         g_rt.output_path[offset - 1] = '\0';
 #endif
@@ -119,7 +122,7 @@ static void _init_parse_args(int argc, char* argv[])
             {
                 free(g_rt.output_path);
             }
-            g_rt.output_path = strdup(argv[i]);
+            g_rt.output_path = auto_strdup(argv[i]);
             continue;
         }
 
@@ -142,9 +145,18 @@ static void _init_probe(void)
  * @param[out] data File content
  * @return          File size.
  */
-static ssize_t _read_file(const char* path, void** data)
+static int _read_file(const char* path, void** data)
 {
-    FILE* exe = fopen(path, "rb");
+    FILE* exe;
+    int errcode;
+
+#if defined(_WIN32)
+    errcode = fopen_s(&exe, path, "rb");
+#else
+    exe = fopen(path, "rb");
+    errcode = errno;
+#endif
+
     if (exe == NULL)
     {
         return -1;
@@ -158,12 +170,12 @@ static ssize_t _read_file(const char* path, void** data)
     fread(*data, size, 1, exe);
     fclose(exe);
 
-    return (ssize_t)size;
+    return (int)size;
 }
 
 static void _init_read_exe(void)
 {
-    ssize_t ret = _read_file("/proc/self/exe", &g_rt.exe.data);
+    int ret = _read_file("/proc/self/exe", &g_rt.exe.data);
     if (ret < 0)
     {
         fprintf(stderr, "open self failed.\n");
@@ -173,7 +185,7 @@ static void _init_read_exe(void)
 
     int32_t fsm[sizeof(g_rt.probe)];
     g_rt.exe.script_offset = aeda_find(g_rt.exe.data, g_rt.exe.size, g_rt.probe, sizeof(g_rt.probe),
-        fsm, ARRAY_SIZE(fsm));
+        fsm, sizeof(g_rt.probe));
     if (g_rt.exe.script_offset > 0)
     {
         g_rt.exe.script_offset += sizeof(g_rt.probe);
@@ -195,10 +207,20 @@ static void _init(int argc, char* argv[])
 
 static int _write_executable(lua_State* L, const char* dst)
 {
-    FILE* dst_file = fopen(dst, "wb");
+    FILE* dst_file;
+    int errcode;
+
+#if defined(_WIN32)
+    errcode = fopen_s(&dst_file, dst, "wb");
+#else
+    dst_file = fopen(dst, "wb");
+    errcode = errno;
+#endif
+
     if (dst_file == NULL)
     {
-        return luaL_error(L, "open `%s` failed: %s(%d).", dst, strerror(errno), errno);
+        return luaL_error(L, "open `%s` failed: %s(%d).", dst,
+            auto_strerror(errno, g_rt.errbuf, sizeof(g_rt.errbuf)), errno);
     }
 
     size_t size;

@@ -2,7 +2,10 @@
 
 #if defined(_WIN32)
 
-int auto_sleep(lua_State *L)
+#include <windows.h>
+#include <stdint.h>
+
+int auto_lua_sleep(lua_State *L)
 {
     uint32_t timeout = (uint32_t)lua_tointeger(L, -1);
     Sleep(timeout);

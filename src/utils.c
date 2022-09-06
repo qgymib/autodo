@@ -6,12 +6,12 @@ static void _BINARY_BM_PreBmBc(int32_t* bc, size_t bcLen, const uint8_t* key, si
     size_t i = 0;
     for (i = 0; i < bcLen; i++)
     {
-        bc[i] = keyLen;
+        bc[i] = (int32_t)keyLen;
     }
 
     for (i = 0; i < keyLen - 1; i++)
     {
-        bc[key[i]] = keyLen - 1 - i;
+        bc[key[i]] = (int32_t)(keyLen - 1 - i);
     }
 }
 
@@ -87,7 +87,7 @@ int aeda_find(const void* data, size_t dataLen, const void* key, size_t keyLen, 
     /************************************************************************/
     int32_t bmBc[(1 << (sizeof(uint8_t) * 8))];
     _BINARY_BM_PreBmBc(bmBc, ARRAY_SIZE(bmBc), p_key, keyLen);
-    _BINARY_BM_PreFSM(fsm, p_key, keyLen);
+    _BINARY_BM_PreFSM(fsm, p_key, (int32_t)keyLen);
 
     /************************************************************************/
     /* search                                                               */
@@ -95,7 +95,7 @@ int aeda_find(const void* data, size_t dataLen, const void* key, size_t keyLen, 
     size_t i = keyLen - 1;
     while (i < dataLen)
     {
-        int32_t j = keyLen - 1;
+        int32_t j = (int32_t)(keyLen - 1);
         while (j >= 0 && (p_data[i] == p_key[j]))
         {
             --i;
@@ -117,4 +117,23 @@ const char* get_filename_ext(const char *filename)
     const char *dot = strrchr(filename, '.');
     if(!dot || dot == filename) return "";
     return dot + 1;
+}
+
+const char* auto_strerror(int errcode, char* buffer, size_t size)
+{
+#if defined(_WIN32)
+    strerror_s(buffer, size, errcode);
+#else
+    strerror_r(errcode, buffer, size);
+#endif
+    return buffer;
+}
+
+char* auto_strdup(const char* s)
+{
+#if defined(_WIN32)
+    return _strdup(s);
+#else
+    return strdup(s);
+#endif
 }

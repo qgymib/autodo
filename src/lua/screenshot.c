@@ -1,6 +1,17 @@
 #include "screenshot.h"
 #include <string.h>
 
+#if defined(_WIN32)
+
+int auto_lua_take_screenshot(lua_State* L)
+{
+    (void)L;
+    // TODO
+    return 0;
+}
+
+#else
+
 #include <X11/Xlib.h>
 #include <cairo/cairo.h>
 #include <cairo/cairo-xlib.h>
@@ -42,3 +53,5 @@ int auto_lua_take_screenshot(lua_State *L)
 
     return 1;
 }
+
+#endif
