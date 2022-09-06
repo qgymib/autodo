@@ -1,10 +1,10 @@
-#include "lua_api.h"
-#include "lua_screenshot.h"
-#include "lua_sleep.h"
+#include "api.h"
+#include "screenshot.h"
+#include "sleep.h"
 
 static const luaL_Reg s_funcs[] = {
-    { "take_screenshot",    auto_take_screenshot },
-    { "sleep",              auto_sleep },
+    { "take_screenshot", auto_lua_take_screenshot },
+    { "sleep",           auto_lua_sleep },
     { NULL,                 NULL },
 };
 

@@ -1,4 +1,4 @@
-#include "lua_sleep.h"
+#include "sleep.h"
 
 #if defined(_WIN32)
 
@@ -14,7 +14,7 @@ int auto_sleep(lua_State *L)
 #include <time.h>
 #include <errno.h>
 
-int auto_sleep(lua_State *L)
+int auto_lua_sleep(lua_State *L)
 {
     uint32_t timeout = (uint32_t)lua_tointeger(L, -1);
     struct timespec t_req, t_rem;

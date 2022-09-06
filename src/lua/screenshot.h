@@ -1,7 +1,7 @@
 #ifndef __AUTO_LUA_SCREENSHOT_H__
 #define __AUTO_LUA_SCREENSHOT_H__
 
-#include "lua_api.h"
+#include "api.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -12,7 +12,7 @@ extern "C" {
  * @param[in] L     Lua VM.
  * @return          1.
  */
-int auto_take_screenshot(lua_State *L);
+int auto_lua_take_screenshot(lua_State *L);
 
 #ifdef __cplusplus
 }

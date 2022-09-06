@@ -4,9 +4,9 @@ project(autodo)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 set(auto_src_list
-    src/lua_api.c
-    src/lua_screenshot.c
-    src/lua_sleep.c
+    src/lua/api.c
+    src/lua/screenshot.c
+    src/lua/sleep.c
     src/main.c
     src/utils.c)
 

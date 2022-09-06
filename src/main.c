@@ -1,7 +1,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
-#include "lua_api.h"
+#include "lua/api.h"
 #include "utils.h"
 
 #if !defined(_WIN32)

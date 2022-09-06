@@ -1,4 +1,4 @@
-#include "lua_screenshot.h"
+#include "screenshot.h"
 #include <string.h>
 
 #include <X11/Xlib.h>
@@ -20,7 +20,7 @@ static cairo_status_t _on_write_png(void *closure, const unsigned char *data,
  * @param L
  * @return
  */
-int auto_take_screenshot(lua_State *L)
+int auto_lua_take_screenshot(lua_State *L)
 {
     luaL_Buffer buf;
     luaL_buffinit(L, &buf);
