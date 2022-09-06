@@ -11,6 +11,30 @@
  */
 #define ARRAY_SIZE(x)   (sizeof(x) / sizeof(x[0]))
 
+/**
+ * @brief cast a member of a structure out to the containing structure.
+ */
+#if !defined(container_of)
+#if defined(__GNUC__) || defined(__clang__)
+#   define container_of(ptr, type, member)   \
+        ({ \
+            const typeof(((type *)0)->member)*__mptr = (ptr); \
+            (type *)((char *)__mptr - offsetof(type, member)); \
+        })
+#else
+#   define container_of(ptr, type, member)   \
+        ((type *) ((char *) (ptr) - offsetof(type, member)))
+#endif
+#endif
+
+/**
+ * @brief Debug log to stdout.
+ * @param[in] fmt   Log format.
+ * @param[in] ...   Log arguments
+ */
+#define AUTO_DEBUG(fmt, ...)    \
+    printf("[%s:%d %s] " fmt "\n", get_filename(__FILE__), __LINE__, __FUNCTION__, ##__VA_ARGS__)
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -33,6 +57,13 @@ int aeda_find(const void* data, size_t dataLen, const void* key, size_t keyLen, 
  * @return              Extension.
  */
 const char* get_filename_ext(const char *filename);
+
+/**
+ * @brief Get filename
+ * @param[in] filename  Full filename
+ * @return              File name.
+ */
+const char* get_filename(const char *filename);
 
 /**
  * @see [strerror_r(3)](https://man7.org/linux/man-pages/man3/strerror.3.html)

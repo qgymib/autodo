@@ -122,6 +122,19 @@ const char* get_filename_ext(const char *filename)
     return dot + 1;
 }
 
+const char* get_filename(const char *filename)
+{
+    const char* pos = filename;
+    for (; *filename; ++filename)
+    {
+        if (*filename == '\\' || *filename == '/')
+        {
+            pos = filename + 1;
+        }
+    }
+    return pos;
+}
+
 const char* auto_strerror(int errcode, char* buffer, size_t size)
 {
 #if defined(_WIN32)
