@@ -139,46 +139,13 @@ static void _init_probe(void)
     g_rt.probe[sizeof(g_rt.probe) - 1] = '\0';
 }
 
-/**
- * @brief Read file content
- * @param[in] path  File path.
- * @param[out] data File content
- * @return          File size.
- */
-static int _read_file(const char* path, void** data)
-{
-    FILE* exe;
-    int errcode;
-
-#if defined(_WIN32)
-    errcode = fopen_s(&exe, path, "rb");
-#else
-    exe = fopen(path, "rb");
-    errcode = errno;
-#endif
-
-    if (exe == NULL)
-    {
-        return -1;
-    }
-
-    fseek(exe, 0L, SEEK_END);
-    size_t size = ftell(exe);
-    fseek(exe, 0L, SEEK_SET);
-
-    *data = malloc(size);
-    fread(*data, size, 1, exe);
-    fclose(exe);
-
-    return (int)size;
-}
-
 static void _init_read_exe(void)
 {
-    int ret = _read_file("/proc/self/exe", &g_rt.exe.data);
-    if (ret < 0)
+    int ret = auto_readfile("/proc/self/exe", &g_rt.exe.data, &g_rt.exe.size);
+    if (ret != 0)
     {
-        fprintf(stderr, "open self failed.\n");
+        fprintf(stderr, "open self failed: %s(%d)\n",
+            auto_strerror(ret, g_rt.errbuf, sizeof(g_rt.errbuf)), ret);
         exit(EXIT_FAILURE);
     }
     g_rt.exe.size = (size_t)ret;
@@ -217,6 +184,7 @@ static int _write_executable(lua_State* L, const char* dst)
     errcode = errno;
 #endif
 
+    (void)errcode;
     if (dst_file == NULL)
     {
         return luaL_error(L, "open `%s` failed: %s(%d).", dst,
@@ -255,7 +223,14 @@ static int _compile_script(lua_State* L, const char* src, const char* dst)
     luaL_buffinit(L, &buf);
 
     void* data;
-    size_t size = _read_file(src, &data);
+    size_t size;
+    ret = auto_readfile(src, &data, &size);
+    if (ret != 0)
+    {
+        return luaL_error(L, "open `%s` failed: %s(%d)",
+            src, auto_strerror(ret, g_rt.errbuf, sizeof(g_rt.errbuf)), ret);
+    }
+
     luaL_addlstring(&buf, data, size);
     free(data);
 

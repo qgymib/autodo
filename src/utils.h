@@ -44,6 +44,14 @@ const char* auto_strerror(int errcode, char* buffer, size_t size);
  */
 char* auto_strdup(const char* s);
 
+/**
+ * @brief Read file content
+ * @param[in] path  File path.
+ * @param[out] data File content
+ * @return          File size.
+ */
+int auto_readfile(const char* path, void** data, size_t* size);
+
 #ifdef __cplusplus
 }
 #endif

@@ -1,4 +1,7 @@
 #include <string.h>
+#include <stdio.h>
+#include <errno.h>
+#include <stdlib.h>
 #include "utils.h"
 
 static void _BINARY_BM_PreBmBc(int32_t* bc, size_t bcLen, const uint8_t* key, size_t keyLen)
@@ -136,4 +139,33 @@ char* auto_strdup(const char* s)
 #else
     return strdup(s);
 #endif
+}
+
+int auto_readfile(const char* path, void** data, size_t* size)
+{
+    FILE* exe;
+    int errcode;
+
+#if defined(_WIN32)
+    errcode = fopen_s(&exe, path, "rb");
+#else
+    exe = fopen(path, "rb");
+    errcode = errno;
+#endif
+
+    if (exe == NULL)
+    {
+        return errcode;
+    }
+
+    fseek(exe, 0L, SEEK_END);
+    size_t file_size = ftell(exe);
+    fseek(exe, 0L, SEEK_SET);
+
+    *data = malloc(file_size);
+    fread(*data, file_size, 1, exe);
+    fclose(exe);
+
+    *size = file_size;
+    return 0;
 }
