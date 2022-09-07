@@ -3,10 +3,10 @@
 #include <errno.h>
 #include <assert.h>
 #include <pthread.h>
-#include <setjmp.h>
 #include "lua/api.h"
 #include "lua/sleep.h"
 #include "gui/gui.h"
+#include "runtime.h"
 #include "utils.h"
 
 #if !defined(_WIN32)
@@ -15,33 +15,10 @@
 
 #define PROBE       "AUTOMATION"
 
-/**
- * @brief Global runtime.
- *
- * ```
- * {
- *     "arg": [ "command", "line", "arguments" ],
- *     "runtime": auto_runtime_t,
- *     "script": "script self",
- *     "compile_path": "path to source file to compile",
- *     "output_path": "path to output file",
- *     "script_path": "path to script file"
- * }
- * ```
- */
-#define AUTO_GLOBAL "_AUTO_G"
-
 typedef struct auto_probe
 {
     char                probe[1024];    /**< Probe */
 } auto_probe_t;
-
-typedef struct auto_runtime
-{
-    int                 flag_gui_ready;
-
-    jmp_buf             checkpoint;
-} auto_runtime_t;
 
 static void _print_usage(const char* name)
 {
@@ -312,33 +289,6 @@ static int _lua_init_script(lua_State* L, int idx)
     return 0;
 }
 
-static int _runtime_gc(lua_State* L)
-{
-    auto_runtime_t* rt = lua_touserdata(L, 1);
-    (void)rt;
-    return 0;
-}
-
-static auto_runtime_t* _lua_init_runtime(lua_State* L, int idx)
-{
-    auto_runtime_t* rt = lua_newuserdata(L, sizeof(auto_runtime_t));
-    memset(rt, 0, sizeof(*rt));
-
-    static const luaL_Reg s_runtime_meta[] = {
-        { "__gc",   _runtime_gc },
-        { NULL,     NULL },
-    };
-    if (luaL_newmetatable(L, "__auto_runtime") != 0)
-    {
-        luaL_setfuncs(L, s_runtime_meta, 0);
-    }
-    lua_setmetatable(L, -2);
-
-    lua_setfield(L, idx, "runtime");
-
-    return rt;
-}
-
 /**
  * @brief Initialize lua runtime.
  * @note Use lua_pcall().
@@ -355,7 +305,7 @@ static int _lua_init_vm(lua_State* L)
     lua_newtable(L);
 
     /* table.runtime */
-    _lua_init_runtime(L, sp + 1);
+    auto_init_runtime(L, sp + 1);
 
     /* table.script: script self */
     _lua_init_script(L, sp + 1);
@@ -425,25 +375,15 @@ static int _lua_run(lua_State* L)
     return luaL_error(L, "no operation");
 }
 
-static auto_runtime_t* _lua_get_runtime(lua_State* L)
-{
-    int sp = lua_gettop(L);
-
-    /* SP + 1 */
-    lua_getglobal(L, AUTO_GLOBAL);
-    /* SP + 2 */
-    lua_getfield(L, sp + 1, "runtime");
-
-    auto_runtime_t* rt = lua_touserdata(L, sp + 2);
-    lua_settop(L, sp);
-
-    return rt;
-}
-
 static void* _lua_routine(void* data)
 {
     lua_State* L = data;
-    auto_runtime_t* rt = _lua_get_runtime(L);
+    auto_runtime_t* rt = auto_get_runtime(L);
+
+    if (setjmp(rt->checkpoint) != 0)
+    {
+        goto vm_exit;
+    }
 
     while (!rt->flag_gui_ready)
     {
@@ -460,9 +400,9 @@ static void* _lua_routine(void* data)
             __FUNCTION__, __LINE__, lua_tostring(L, -1));
     }
 
+vm_exit:
     /* Ask gui to exit */
     auto_gui_exit();
-
     return NULL;
 }
 
@@ -474,6 +414,10 @@ static void _on_gui_event(auto_gui_msg_t* msg, void* udata)
     {
     case AUTO_GUI_READY:
         rt->flag_gui_ready = 1;
+        break;
+
+    case AUTO_GUI_QUIT:
+        rt->looping = 0;
         break;
 
     default:
@@ -509,7 +453,7 @@ int main(int argc, char* argv[])
     memset(&info, 0, sizeof(info));
     info.argc = argc;
     info.argv = argv;
-    info.udata = _lua_get_runtime(L);
+    info.udata = auto_get_runtime(L);
     info.on_event = _on_gui_event;
 
     pthread_t tid;

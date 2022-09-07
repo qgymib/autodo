@@ -9,7 +9,8 @@ extern "C" {
  */
 typedef enum auto_gui_event
 {
-    AUTO_GUI_READY,  /* Gui is ready */
+    AUTO_GUI_READY,     /**< Gui is ready */
+    AUTO_GUI_QUIT,      /**< GUI is abort to quit */
 } auto_gui_event_t;
 
 typedef struct auto_gui_msg

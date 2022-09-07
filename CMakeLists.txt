@@ -71,6 +71,7 @@ set(auto_src_list
     src/lua/screenshot.c
     src/lua/sleep.c
     src/main.c
+    src/runtime.c
     src/utils.c)
 
 add_executable(${PROJECT_NAME}
@@ -90,6 +91,12 @@ setup_target_wall(${PROJECT_NAME})
 
 # Lua
 setup_required_package_lua(${PROJECT_NAME})
+
+# libuv
+add_subdirectory(third_party/libuv)
+target_link_libraries(${PROJECT_NAME}
+    PRIVATE
+        uv_a)
 
 if (WIN32)
 else ()

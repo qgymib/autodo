@@ -1,41 +1,36 @@
+#include "runtime.h"
 #include "sleep.h"
 
-#if defined(_WIN32)
-
-#include <windows.h>
-#include <stdint.h>
-
 int auto_lua_sleep(lua_State *L)
 {
+    auto_runtime_t* rt = auto_get_runtime(L);
     uint32_t timeout = (uint32_t)lua_tointeger(L, -1);
-    Sleep(timeout);
-    return 0;
-}
 
-#else
+    /* Get current time */
+    uv_update_time(&rt->loop);
+    uint64_t now_time = uv_now(&rt->loop);
+    /* Calculate timeout */
+    uint64_t dst_time = now_time + timeout;
 
-#include <time.h>
-#include <errno.h>
-
-int auto_lua_sleep(lua_State *L)
-{
-    uint32_t timeout = (uint32_t)lua_tointeger(L, -1);
-    struct timespec t_req, t_rem;
-    t_req.tv_sec = timeout / 1000;
-    t_req.tv_nsec = (timeout - t_req.tv_sec * 1000) * 1000 * 1000;
-
-    int ret;
-    while((ret = nanosleep(&t_req, &t_rem)) != 0)
+    while (1)
     {
-        ret = errno;
-        if (ret != EINTR)
+        AUTO_CHECK_TERM(rt);
+
+        uv_update_time(&rt->loop);
+        now_time = uv_now(&rt->loop);
+        if (now_time >= dst_time)
         {
-            return luaL_error(L, "nanosleep errno(%d)", errno);
+            break;
         }
-        t_req = t_rem;
+
+        /* Max sleep 10 ms */
+        uint64_t dif_time = dst_time - now_time;
+        if (dif_time > 10)
+        {
+            dif_time = 10;
+        }
+        uv_sleep(dif_time);
     }
 
     return 0;
 }
-
-#endif

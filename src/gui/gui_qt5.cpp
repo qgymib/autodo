@@ -12,8 +12,9 @@ class AutoMainWindow : public QDialog
     Q_OBJECT
 
 public:
-    AutoMainWindow()
+    AutoMainWindow(auto_gui_startup_info_t* info)
     {
+        m_info = info;
         m_tray_icon = new QSystemTrayIcon(QIcon(":/appicon.png"), this);
 
         m_quit_action = new QAction("Exit", m_tray_icon);
@@ -33,13 +34,16 @@ public:
 public:
     void OnExit()
     {
-        AUTO_DEBUG("OnExit triggered");
+        auto_gui_msg_t msg;
+        msg.event = AUTO_GUI_QUIT;
+        m_info->on_event(&msg, m_info->udata);
     }
 
 private:
-    QSystemTrayIcon*    m_tray_icon;
-    QAction*            m_quit_action;
-    QMenu*              m_tray_icon_menu;
+    QSystemTrayIcon*            m_tray_icon;
+    QAction*                    m_quit_action;
+    QMenu*                      m_tray_icon_menu;
+    auto_gui_startup_info_t*    m_info;
 };
 
 #include "gui_qt5.moc"
@@ -59,7 +63,7 @@ int auto_gui(auto_gui_startup_info_t* info)
 
     QApplication::setQuitOnLastWindowClosed(false);
 
-    AutoMainWindow main_window;
+    AutoMainWindow main_window(info);
     //main_window.show();
 
     {
