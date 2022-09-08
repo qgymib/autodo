@@ -5,6 +5,11 @@
 
 #define PROBE       "AUTOMATION"
 
+/**
+ * @brief Global runtime.
+ */
+#define AUTO_GLOBAL "_AUTO_G"
+
 static int _print_usage(lua_State* L, const char* name)
 {
     const char* s_usage =

@@ -6,22 +6,6 @@
 #include "lua/api.h"
 
 /**
- * @brief Global runtime.
- *
- * ```
- * {
- *     "arg": [ "command", "line", "arguments" ],
- *     "runtime": auto_runtime_t,
- *     "script": "script self",
- *     "compile_path": "path to source file to compile",
- *     "output_path": "path to output file",
- *     "script_path": "path to script file"
- * }
- * ```
- */
-#define AUTO_GLOBAL "_AUTO_G"
-
-/**
  * @brief Terminate script if necessary.
  * @param[in] rt    Runtime.
  */
@@ -32,6 +16,12 @@
             longjmp(_rt->checkpoint, 1);\
         }\
     } while(0)
+
+/**
+ * @brief The period of check global looping flag.
+ * This is a appropriate in milliseconds
+ */
+#define AUTO_CHECK_PERIOD   100
 
 #ifdef __cplusplus
 extern "C" {

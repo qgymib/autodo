@@ -23,11 +23,10 @@ int auto_lua_sleep(lua_State *L)
             break;
         }
 
-        /* Max sleep 10 ms */
         uint64_t dif_time = dst_time - now_time;
-        if (dif_time > 10)
+        if (dif_time > AUTO_CHECK_PERIOD)
         {
-            dif_time = 10;
+            dif_time = AUTO_CHECK_PERIOD;
         }
         uv_sleep(dif_time);
     }
