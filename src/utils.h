@@ -39,6 +39,13 @@
 extern "C" {
 #endif
 
+typedef struct auto_probe
+{
+    unsigned char   probe[1024];    /**< Probe */
+} auto_probe_t;
+
+void auto_init_probe(auto_probe_t* probe);
+
 /**
  * @brief Find binary data.
  * @param[in] data      Binary data to find.
@@ -90,6 +97,10 @@ int auto_readfile(const char* path, void** data, size_t* size);
  * @return
  */
 int auto_read_self(void** data, size_t* size);
+
+int auto_read_self_script(void** data, size_t* size);
+
+int auto_read_self_exec(void** data, size_t* size);
 
 #ifdef __cplusplus
 }

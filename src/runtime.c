@@ -3,8 +3,6 @@
 #include "runtime.h"
 #include "utils.h"
 
-#define PROBE       "AUTOMATION"
-
 /**
  * @brief Global runtime.
  */
@@ -94,43 +92,15 @@ static int _runtime_gc(lua_State* L)
     return 0;
 }
 
-void _init_probe(auto_probe_t* probe)
-{
-    memset(probe, '=', sizeof(*probe));
-    memcpy(probe->probe, PROBE, sizeof(PROBE));
-    probe->probe[sizeof(probe->probe) - 1] = '\0';
-}
-
 static int _init_runtime_script(lua_State* L, auto_runtime_t* rt)
 {
     int ret;
-    char buffer[1024];
 
-    /* Generate probe data */
-    auto_probe_t probe_data;
-    _init_probe(&probe_data);
-
-    void* data; size_t size;
-    if ((ret = auto_read_self(&data, &size)) != 0)
+    if ((ret = auto_read_self_script(&rt->script.data, &rt->script.size)) != 0)
     {
         return luaL_error(L, "read self failed: %s(%d)",
-            auto_strerror(ret, buffer, sizeof(buffer)), ret);
+            auto_strerror(ret, rt->cache.errbuf, sizeof(rt->cache.errbuf)), ret);
     }
-
-    int32_t fsm[sizeof(probe_data)];
-    int script_offset = aeda_find(data, size, &probe_data, sizeof(probe_data),
-        fsm, sizeof(probe_data));
-
-    if (script_offset > 0)
-    {
-        script_offset += sizeof(probe_data);
-        rt->script.size = size - script_offset;
-        rt->script.data = malloc(rt->script.size + 1);
-        memcpy(rt->script.data, (char*)data + script_offset, rt->script.size);
-        rt->script.data[rt->script.size] = '\0';
-    }
-
-    free(data);
 
     return 0;
 }

@@ -35,13 +35,13 @@ static int _write_executable(lua_State* L, const char* dst)
 
     {
         void* exe_data; size_t exe_size;
-        auto_read_self(&exe_data, &exe_size);
+        auto_read_self_exec(&exe_data, &exe_size);
         fwrite(exe_data, exe_size, 1, dst_file);
     }
 
     {
         auto_probe_t probe;
-        _init_probe(&probe);
+        auto_init_probe(&probe);
         fwrite(&probe, sizeof(probe), 1, dst_file);
     }
 
@@ -60,10 +60,22 @@ static int _write_executable(lua_State* L, const char* dst)
     return 0;
 }
 
+static int _on_dump_compile_script(lua_State *L, const void *p, size_t sz, void *ud)
+{
+    (void)L;
+    luaL_Buffer* buf = ud;
+    luaL_addlstring(buf, p, sz);
+    return 0;
+}
+
 static int _compile_script(lua_State* L, const char* src, const char* dst)
 {
-    char errbuf[1024];
+    int sp = lua_gettop(L);
 
+    luaL_Buffer buf;
+    luaL_buffinit(L, &buf);
+
+    /* SP + 2 */
     int ret = luaL_loadfile(L, src);
     if (ret == LUA_ERRFILE)
     {
@@ -74,19 +86,13 @@ static int _compile_script(lua_State* L, const char* src, const char* dst)
         return lua_error(L);
     }
 
-    void* data;
-    size_t size;
-    ret = auto_readfile(src, &data, &size);
-    if (ret != 0)
-    {
-        return luaL_error(L, "open `%s` failed: %s(%d)",
-            src, auto_strerror(ret, errbuf, sizeof(errbuf)), ret);
-    }
+    lua_dump(L, _on_dump_compile_script, &buf, 0);
+    luaL_pushresult(&buf);
 
-    lua_pushlstring(L, data, size);
-    free(data);
+    ret = _write_executable(L, dst);
 
-    return _write_executable(L, dst);
+    lua_settop(L, sp);
+    return ret;
 }
 
 static int _run_script(lua_State* L, const char* path)
@@ -131,6 +137,7 @@ static int _lua_run(lua_State* L)
         {
             return lua_error(L);
         }
+
         lua_call(L, 0, LUA_MULTRET);
         return 0;
     }

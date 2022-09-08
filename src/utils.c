@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include "utils.h"
 
+#define PROBE       "AUTOMATION"
+
 static void _BINARY_BM_PreBmBc(int32_t* bc, size_t bcLen, const uint8_t* key, size_t keyLen)
 {
     size_t i = 0;
@@ -186,4 +188,79 @@ int auto_readfile(const char* path, void** data, size_t* size)
 int auto_read_self(void** data, size_t* size)
 {
     return auto_readfile("/proc/self/exe", data, size);
+}
+
+void auto_init_probe(auto_probe_t* probe)
+{
+    probe->probe[0] = 0;
+    probe->probe[1] = 128;
+    probe->probe[2] = '=';
+    memcpy(&probe->probe[3], "AUTOMATION", 10);
+    probe->probe[13] = '=';
+    probe->probe[14] = 128;
+    probe->probe[15] = 0;
+
+    size_t i;
+    for (i = 15; i < sizeof(probe->probe); i += 16)
+    {
+        memcpy(&probe->probe[i], &probe->probe[0], 16);
+    }
+}
+
+int auto_read_self_script(void** data, size_t* size)
+{
+    int ret;
+    void* content; size_t content_size;
+
+    auto_probe_t probe_data;
+    auto_init_probe(&probe_data);
+
+    if ((ret = auto_read_self(&content, &content_size)) != 0)
+    {
+        return ret;
+    }
+
+    int32_t fsm[sizeof(probe_data)];
+    int script_offset = aeda_find(content, content_size, &probe_data, sizeof(probe_data),
+        fsm, sizeof(probe_data));
+    if (script_offset < 0)
+    {
+        *data = NULL;
+        *size = 0;
+        free(content);
+        return 0;
+    }
+
+    script_offset += sizeof(probe_data);
+
+    *size = content_size - script_offset;
+    *data = malloc(*size);
+    memcpy(*data, (char*)content + script_offset, *size);
+
+    free(content);
+
+    return 0;
+}
+
+int auto_read_self_exec(void** data, size_t* size)
+{
+    int ret;
+
+    auto_probe_t probe_data;
+    auto_init_probe(&probe_data);
+
+    if ((ret = auto_read_self(data, size)) != 0)
+    {
+        return ret;
+    }
+
+    int32_t fsm[sizeof(probe_data)];
+    int script_offset = aeda_find(*data, *size, &probe_data, sizeof(probe_data),
+        fsm, sizeof(probe_data));
+    if (script_offset > 0)
+    {
+        *size = script_offset;
+    }
+
+    return 0;
 }
