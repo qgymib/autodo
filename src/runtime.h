@@ -37,6 +37,11 @@
 extern "C" {
 #endif
 
+typedef struct auto_probe
+{
+    char                probe[1024];    /**< Probe */
+} auto_probe_t;
+
 typedef struct auto_runtime
 {
     uv_loop_t           loop;               /**< Event loop */
@@ -47,8 +52,23 @@ typedef struct auto_runtime
         int             gui_ready;          /**< GUI is ready */
     } flag;
 
+    struct
+    {
+        char*           data;               /**< Script content */
+        size_t          size;               /**< Script size */
+    } script;
+
+    struct
+    {
+        char*           compile_path;
+        char*           output_path;
+        char*           script_path;
+    } config;
+
     jmp_buf             checkpoint;
 } auto_runtime_t;
+
+void _init_probe(auto_probe_t* probe);
 
 /**
  * @brief Initialize runtime in lua vm.
@@ -56,7 +76,7 @@ typedef struct auto_runtime
  * @param idx
  * @return          Always 0.
  */
-int auto_init_runtime(lua_State* L, int idx);
+int auto_init_runtime(lua_State* L, int argc, char* argv[]);
 
 /**
  * @brief Get runtime from lua vm.

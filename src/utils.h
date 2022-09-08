@@ -83,6 +83,14 @@ char* auto_strdup(const char* s);
  */
 int auto_readfile(const char* path, void** data, size_t* size);
 
+/**
+ * @brief Read self.
+ * @param data
+ * @param size
+ * @return
+ */
+int auto_read_self(void** data, size_t* size);
+
 #ifdef __cplusplus
 }
 #endif

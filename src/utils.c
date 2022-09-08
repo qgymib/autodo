@@ -182,3 +182,8 @@ int auto_readfile(const char* path, void** data, size_t* size)
     *size = file_size;
     return 0;
 }
+
+int auto_read_self(void** data, size_t* size)
+{
+    return auto_readfile("/proc/self/exe", data, size);
+}
