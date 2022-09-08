@@ -174,6 +174,8 @@ int auto_readfile(const char* path, void** data, size_t* size)
 
     if (exe == NULL)
     {
+        *data = NULL;
+        *size = 0;
         return errcode;
     }
 
@@ -205,7 +207,7 @@ void auto_init_probe(auto_probe_t* probe)
     probe->probe[15] = 0;
 
     size_t i;
-    for (i = 15; i < sizeof(probe->probe); i += 16)
+    for (i = 16; i < sizeof(probe->probe); i += 16)
     {
         memcpy(&probe->probe[i], &probe->probe[0], 16);
     }
@@ -221,6 +223,8 @@ int auto_read_self_script(void** data, size_t* size)
 
     if ((ret = auto_read_self(&content, &content_size)) != 0)
     {
+        *data = NULL;
+        *size = 0;
         return ret;
     }
 
@@ -286,7 +290,7 @@ static int _write_executable(lua_State* L, const char* dst)
     if (dst_file == NULL)
     {
         return luaL_error(L, "open `%s` failed: %s(%d).", dst,
-                          auto_strerror(errno, errbuf, sizeof(errbuf)), errno);
+            auto_strerror(errno, errbuf, sizeof(errbuf)), errno);
     }
 
     {
