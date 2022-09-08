@@ -165,7 +165,12 @@ static void _init_runtime(lua_State* L, auto_runtime_t* rt, int argc, char* argv
     rt->flag.looping = 1;
 
     _init_runtime_script(L, rt);
-    _init_parse_args(L, rt, argc, argv);
+
+    /* Command line argument is only parsed when script is not embed */
+    if (rt->script.data == NULL)
+    {
+        _init_parse_args(L, rt, argc, argv);
+    }
 }
 
 int auto_init_runtime(lua_State* L, int argc, char* argv[])
