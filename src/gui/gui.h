@@ -35,6 +35,11 @@ typedef struct auto_gui_startup_info
     char**  argv;
 
     /**
+     * @brief (Windows only) Controls how the window is to be shown.
+     */
+    int     nShowCmd;
+
+    /**
      * @brief User data.
      */
     void*   udata;

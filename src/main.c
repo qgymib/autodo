@@ -176,13 +176,27 @@ static void _setup(lua_State* L, int argc, char* argv[])
     exit(exit_ret);
 }
 
+#if defined(_WIN32)
+int WINAPI WinMain(_In_ HINSTANCE hInstance,
+    _In_opt_ HINSTANCE hPrevInstance,
+    _In_ LPSTR     lpCmdLine,
+    _In_ int       nCmdShow)
+#else
 int main(int argc, char* argv[])
+#endif
 {
     auto_gui_startup_info_t info;
     memset(&info, 0, sizeof(info));
 
+#if defined(_WIN32)
+    (void)hInstance; (void)hPrevInstance; (void)lpCmdLine;
+    info.argc = __argc;
+    info.argv = __argv;
+    info.nShowCmd = nCmdShow;
+#else
     info.argc = argc;
     info.argv = argv;
+#endif
 
     lua_State* L = luaL_newstate();
     _setup(L, info.argc, info.argv);

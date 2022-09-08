@@ -62,6 +62,16 @@ function(setup_required_package_qt5 name)
             Qt5::Widgets)
 endfunction()
 
+function(setup_mfc name)
+    target_sources(${name}
+        PRIVATE
+            src/gui/gui_mfc.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/share/resource.rc)
+    target_include_directories(${name}
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/share)
+endfunction()
+
 ###############################################################################
 # Setup executable
 ###############################################################################
@@ -77,9 +87,13 @@ set(auto_src_list
     src/runtime.c
     src/utils.c)
 
-add_executable(${PROJECT_NAME}
-    ${auto_src_list}
-    ${CMAKE_CURRENT_SOURCE_DIR}/share/appicon.rc)
+if (WIN32)
+    add_executable(${PROJECT_NAME} WIN32
+        ${auto_src_list})
+else ()
+    add_executable(${PROJECT_NAME}
+        ${auto_src_list})
+endif ()
 
 target_include_directories(${PROJECT_NAME}
     PRIVATE
@@ -101,7 +115,9 @@ target_link_libraries(${PROJECT_NAME}
     PRIVATE
         uv_a)
 
+# X-Window
 if (WIN32)
+    setup_mfc(${PROJECT_NAME})
 else ()
     setup_required_package_x11(${PROJECT_NAME})
     setup_required_package_cairo(${PROJECT_NAME})
