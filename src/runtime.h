@@ -28,7 +28,7 @@
 #define AUTO_CHECK_TERM(rt) \
     do {\
         auto_runtime_t* _rt = (rt);\
-        if (!_rt->looping) {\
+        if (!_rt->flag.looping) {\
             longjmp(_rt->checkpoint, 1);\
         }\
     } while(0)
@@ -40,8 +40,13 @@ extern "C" {
 typedef struct auto_runtime
 {
     uv_loop_t           loop;               /**< Event loop */
-    int                 flag_gui_ready;
-    int                 looping;
+
+    struct
+    {
+        int             looping;            /**< Looping */
+        int             gui_ready;          /**< GUI is ready */
+    } flag;
+
     jmp_buf             checkpoint;
 } auto_runtime_t;
 

@@ -385,7 +385,7 @@ static void* _lua_routine(void* data)
         goto vm_exit;
     }
 
-    while (!rt->flag_gui_ready)
+    while (!rt->flag.gui_ready)
     {
         lua_pushcfunction(L, auto_lua_sleep);
         lua_pushinteger(L, 10);
@@ -413,11 +413,11 @@ static void _on_gui_event(auto_gui_msg_t* msg, void* udata)
     switch (msg->event)
     {
     case AUTO_GUI_READY:
-        rt->flag_gui_ready = 1;
+        rt->flag.gui_ready = 1;
         break;
 
     case AUTO_GUI_QUIT:
-        rt->looping = 0;
+        rt->flag.looping = 0;
         break;
 
     default:

@@ -19,7 +19,7 @@ int auto_init_runtime(lua_State* L, int idx)
     memset(rt, 0, sizeof(*rt));
 
     uv_loop_init(&rt->loop);
-    rt->looping = 1;
+    rt->flag.looping = 1;
 
     static const luaL_Reg s_runtime_meta[] = {
             { "__gc",   _runtime_gc },

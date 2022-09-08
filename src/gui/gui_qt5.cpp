@@ -17,11 +17,11 @@ public:
         m_info = info;
         m_tray_icon = new QSystemTrayIcon(QIcon(":/appicon.png"), this);
 
-        m_quit_action = new QAction("Exit", m_tray_icon);
-        QObject::connect(m_quit_action, &QAction::triggered, this, &AutoMainWindow::OnExit);
+        QAction* quit_action = new QAction("Exit", m_tray_icon);
+        QObject::connect(quit_action, &QAction::triggered, this, &AutoMainWindow::OnExit);
 
         m_tray_icon_menu = new QMenu;
-        m_tray_icon_menu->addAction(m_quit_action);
+        m_tray_icon_menu->addAction(quit_action);
         m_tray_icon->setContextMenu(m_tray_icon_menu);
 
         m_tray_icon->show();
@@ -29,6 +29,7 @@ public:
     virtual ~AutoMainWindow()
     {
         delete m_tray_icon;
+        delete m_tray_icon_menu;
     }
 
 public:
@@ -41,7 +42,6 @@ public:
 
 private:
     QSystemTrayIcon*            m_tray_icon;
-    QAction*                    m_quit_action;
     QMenu*                      m_tray_icon_menu;
     auto_gui_startup_info_t*    m_info;
 };
