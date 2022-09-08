@@ -1,113 +1,11 @@
+#include "runtime.h"
+#include "utils.h"
+#include "lua/api.h"
+#include "gui/gui.h"
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <assert.h>
-#include <pthread.h>
-#include "lua/api.h"
-#include "lua/sleep.h"
-#include "gui/gui.h"
-#include "runtime.h"
-#include "utils.h"
-
-#if !defined(_WIN32)
-#include <sys/stat.h>
-#endif
-
-static int _write_executable(lua_State* L, const char* dst)
-{
-    FILE* dst_file;
-    int errcode;
-    char errbuf[1024];
-
-#if defined(_WIN32)
-    errcode = fopen_s(&dst_file, dst, "wb");
-#else
-    dst_file = fopen(dst, "wb");
-    errcode = errno;
-#endif
-
-    (void)errcode;
-    if (dst_file == NULL)
-    {
-        return luaL_error(L, "open `%s` failed: %s(%d).", dst,
-            auto_strerror(errno, errbuf, sizeof(errbuf)), errno);
-    }
-
-    {
-        void* exe_data; size_t exe_size;
-        auto_read_self_exec(&exe_data, &exe_size);
-        fwrite(exe_data, exe_size, 1, dst_file);
-    }
-
-    {
-        auto_probe_t probe;
-        auto_init_probe(&probe);
-        fwrite(&probe, sizeof(probe), 1, dst_file);
-    }
-
-    {
-        size_t size;
-        const char* data = lua_tolstring(L, -1, &size);
-        fwrite(data, size, 1, dst_file);
-    }
-
-    fclose(dst_file);
-
-#if !defined(_WIN32)
-    chmod(dst, 0777);
-#endif
-
-    return 0;
-}
-
-static int _on_dump_compile_script(lua_State *L, const void *p, size_t sz, void *ud)
-{
-    (void)L;
-    luaL_Buffer* buf = ud;
-    luaL_addlstring(buf, p, sz);
-    return 0;
-}
-
-static int _compile_script(lua_State* L, const char* src, const char* dst)
-{
-    int sp = lua_gettop(L);
-
-    luaL_Buffer buf;
-    luaL_buffinit(L, &buf);
-
-    /* SP + 2 */
-    int ret = luaL_loadfile(L, src);
-    if (ret == LUA_ERRFILE)
-    {
-        return luaL_error(L, "open `%s` failed.", src);
-    }
-    if (ret != LUA_OK)
-    {
-        return lua_error(L);
-    }
-
-    lua_dump(L, _on_dump_compile_script, &buf, 0);
-    luaL_pushresult(&buf);
-
-    ret = _write_executable(L, dst);
-
-    lua_settop(L, sp);
-    return ret;
-}
-
-static int _run_script(lua_State* L, const char* path)
-{
-    int ret = luaL_dofile(L, path);
-    if (ret == LUA_ERRFILE)
-    {
-        return luaL_error(L, "open `%s` failed.", path);
-    }
-    if (ret == LUA_OK)
-    {
-        return 0;
-    }
-    return lua_error(L);
-}
 
 /**
  * @brief Initialize lua runtime.
@@ -122,68 +20,108 @@ static int _lua_init_vm(lua_State* L)
     auto_init_libs(L);
 
     /* table.runtime */
-    int argc = lua_tointeger(L, 1);
-    char** argv = lua_touserdata(L, 2);
+    int argc = (int)lua_tointeger(L, 1);
+    char** argv = (char**)lua_touserdata(L, 2);
     return auto_init_runtime(L, argc, argv);
+}
+
+static int _user_thread_on_resume(lua_State *L, int status, lua_KContext ctx)
+{
+    (void)L; (void)status; (void)ctx;
+    // nothing to do
+    return 0;
+}
+
+static int _user_thread(lua_State* L)
+{
+    auto_runtime_t* rt = auto_get_runtime(L);
+
+    if (luaL_loadbuffer(L, rt->script.data, rt->script.size, "script") != LUA_OK)
+    {
+        return lua_error(L);
+    }
+
+    lua_callk(L, 0, LUA_MULTRET, 0, _user_thread_on_resume);
+    return 0;
+}
+
+static int _run_script(lua_State* L, auto_runtime_t* rt)
+{
+    auto_thread_t* u_thread = auto_new_thread(rt, L);
+    lua_pushcfunction(u_thread->co, _user_thread);
+
+    return auto_schedule(rt, L);
+}
+
+static int _lua_load_script(auto_runtime_t* rt, lua_State* L)
+{
+    if (rt->script.data != NULL)
+    {
+        free(rt->script.data);
+    }
+
+    int ret = auto_readfile(rt->config.script_path,
+        &rt->script.data, &rt->script.size);
+    if (ret == 0)
+    {
+        return 0;
+    }
+
+    return luaL_error(L, "open `%s` failed: %s(%d)",
+        rt->config.script_path,
+        auto_strerror(ret, rt->cache.errbuf, sizeof(rt->cache.errbuf)),
+        ret);
 }
 
 static int _lua_run(lua_State* L)
 {
     auto_runtime_t* rt = auto_get_runtime(L);
 
-    if (rt->script.data != NULL)
-    {
-        if (luaL_loadbuffer(L, rt->script.data, rt->script.size, "script") != LUA_OK)
-        {
-            return lua_error(L);
-        }
-
-        lua_call(L, 0, LUA_MULTRET);
-        return 0;
-    }
-
+    /* Load script if necessary */
     if (rt->config.script_path != NULL)
     {
-        return _run_script(L, rt->config.script_path);
+        _lua_load_script(rt, L);
+    }
+
+    /* Run script */
+    if (rt->script.data != NULL)
+    {
+        return _run_script(L, rt);
     }
 
     if (rt->config.compile_path != NULL)
     {
-        return _compile_script(L, rt->config.compile_path, rt->config.output_path);
+        return auto_compile_script(L, rt->config.compile_path, rt->config.output_path);
     }
 
     return luaL_error(L, "no operation");
 }
 
-static void* _lua_routine(void* data)
+static void _control_routine(void* data)
 {
     lua_State* L = data;
     auto_runtime_t* rt = auto_get_runtime(L);
 
-    if (setjmp(rt->checkpoint) != 0)
+    if (setjmp(rt->checkpoint.point) != 0)
     {
         goto vm_exit;
     }
 
     while (!rt->flag.gui_ready)
     {
-        lua_pushcfunction(L, auto_lua_sleep);
-        lua_pushinteger(L, 10);
-        lua_call(L, 1, 0);
+        uv_sleep(10);
     }
 
     lua_pushcfunction(L, _lua_run);
     int ret = lua_pcall(L, 0, 0, 0);
     if (ret != LUA_OK)
     {
-        fprintf(stderr, "%s:%d:%s\n",
-            __FUNCTION__, __LINE__, lua_tostring(L, -1));
+        fprintf(stderr, "%s\n", lua_tostring(L, -1));
     }
 
 vm_exit:
-    /* Ask gui to exit */
+    /* Ask GUI to exit */
     auto_gui_exit();
-    return NULL;
 }
 
 static void _on_gui_event(auto_gui_msg_t* msg, void* udata)
@@ -198,6 +136,7 @@ static void _on_gui_event(auto_gui_msg_t* msg, void* udata)
 
     case AUTO_GUI_QUIT:
         rt->flag.looping = 0;
+        uv_async_send(&rt->notifier);
         break;
 
     default:
@@ -243,14 +182,14 @@ int main(int argc, char* argv[])
     info.udata = auto_get_runtime(L);
     info.on_event = _on_gui_event;
 
-    pthread_t tid;
-    pthread_create(&tid, NULL, _lua_routine, L);
+    uv_thread_t tid;
+    uv_thread_create(&tid, _control_routine, L);
 
     /* Initialize GUI */
     int ret = auto_gui(&info);
 
     /* Cleanup */
-    pthread_join(tid, NULL);
+    uv_thread_join(&tid);
     lua_close(L);
 
     return ret;

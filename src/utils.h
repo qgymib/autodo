@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include "lua/api.h"
 
 /**
  * @brief Get array size.
@@ -98,9 +99,30 @@ int auto_readfile(const char* path, void** data, size_t* size);
  */
 int auto_read_self(void** data, size_t* size);
 
+/**
+ * @brief Read self and get the script part.
+ * @param[out] data Script content.
+ * @param[out] size Script size.
+ * @return          Error code.
+ */
 int auto_read_self_script(void** data, size_t* size);
 
+/**
+ * @brief Read self and get the executable part.
+ * @param[out] data Executable content.
+ * @param[out] size Executable size.
+ * @return          Error code.
+ */
 int auto_read_self_exec(void** data, size_t* size);
+
+/**
+ * @brief Compile script \p src into \p dst.
+ * @param[in] L     Lua VM.
+ * @param[in] src   Script file path.
+ * @param[in] dst   Destination path.
+ * @return          Error code.
+ */
+int auto_compile_script(lua_State* L, const char* src, const char* dst);
 
 #ifdef __cplusplus
 }

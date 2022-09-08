@@ -4,6 +4,10 @@
 #include <stdlib.h>
 #include "utils.h"
 
+#if !defined(_WIN32)
+#include <sys/stat.h>
+#endif
+
 #define PROBE       "AUTOMATION"
 
 static void _BINARY_BM_PreBmBc(int32_t* bc, size_t bcLen, const uint8_t* key, size_t keyLen)
@@ -263,4 +267,86 @@ int auto_read_self_exec(void** data, size_t* size)
     }
 
     return 0;
+}
+
+static int _write_executable(lua_State* L, const char* dst)
+{
+    FILE* dst_file;
+    int errcode;
+    char errbuf[1024];
+
+#if defined(_WIN32)
+    errcode = fopen_s(&dst_file, dst, "wb");
+#else
+    dst_file = fopen(dst, "wb");
+    errcode = errno;
+#endif
+
+    (void)errcode;
+    if (dst_file == NULL)
+    {
+        return luaL_error(L, "open `%s` failed: %s(%d).", dst,
+                          auto_strerror(errno, errbuf, sizeof(errbuf)), errno);
+    }
+
+    {
+        void* exe_data; size_t exe_size;
+        auto_read_self_exec(&exe_data, &exe_size);
+        fwrite(exe_data, exe_size, 1, dst_file);
+    }
+
+    {
+        auto_probe_t probe;
+        auto_init_probe(&probe);
+        fwrite(&probe, sizeof(probe), 1, dst_file);
+    }
+
+    {
+        size_t size;
+        const char* data = lua_tolstring(L, -1, &size);
+        fwrite(data, size, 1, dst_file);
+    }
+
+    fclose(dst_file);
+
+#if !defined(_WIN32)
+    chmod(dst, 0777);
+#endif
+
+    return 0;
+}
+
+static int _on_dump_compile_script(lua_State *L, const void *p, size_t sz, void *ud)
+{
+    (void)L;
+    luaL_Buffer* buf = ud;
+    luaL_addlstring(buf, p, sz);
+    return 0;
+}
+
+int auto_compile_script(lua_State* L, const char* src, const char* dst)
+{
+    int sp = lua_gettop(L);
+
+    luaL_Buffer buf;
+    luaL_buffinit(L, &buf);
+
+    /* SP + 2 */
+    int ret = luaL_loadfile(L, src);
+    if (ret == LUA_ERRFILE)
+    {
+        return luaL_error(L, "open `%s` failed.", src);
+    }
+    if (ret != LUA_OK)
+    {
+        return lua_error(L);
+    }
+
+    lua_dump(L, _on_dump_compile_script, &buf, 0);
+    luaL_pushresult(&buf);
+
+    ret = _write_executable(L, dst);
+
+    lua_settop(L, sp);
+    return ret;
 }

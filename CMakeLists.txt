@@ -68,8 +68,11 @@ endfunction()
 
 set(auto_src_list
     src/lua/api.c
+    src/lua/coroutine.c
     src/lua/screenshot.c
     src/lua/sleep.c
+    src/utils/list.c
+    src/utils/map.c
     src/main.c
     src/runtime.c
     src/utils.c)

@@ -1,12 +1,14 @@
 #include "runtime.h"
-#include "screenshot.h"
-#include "sleep.h"
+#include "lua/coroutine.h"
+#include "lua/screenshot.h"
+#include "lua/sleep.h"
 
 /**
  * @brief Lua API list.
  */
 #define AUTO_LUA_API_MAP(xx) \
-    xx("take_screenshot",   auto_lua_take_screenshot) \
+    xx("coroutine",         auto_lua_coroutine)         \
+    xx("take_screenshot",   auto_lua_take_screenshot)   \
     xx("sleep",             auto_lua_sleep)
 
 /**
