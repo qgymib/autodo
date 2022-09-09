@@ -102,7 +102,7 @@ static void _control_routine(void* data)
     lua_State* L = data;
     auto_runtime_t* rt = auto_get_runtime(L);
 
-    if (setjmp(rt->checkpoint.point) != 0)
+    if (setjmp(rt->check.point) != 0)
     {
         goto vm_exit;
     }

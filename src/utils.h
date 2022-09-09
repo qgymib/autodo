@@ -8,7 +8,7 @@
 /**
  * @brief Get array size.
  * @param[in] x The array
- * @return      The size.s
+ * @return      The size.
  */
 #define ARRAY_SIZE(x)   (sizeof(x) / sizeof(x[0]))
 
@@ -35,6 +35,14 @@
  */
 #define AUTO_DEBUG(fmt, ...)    \
     printf("[%s:%d %s] " fmt "\n", get_filename(__FILE__), __LINE__, __FUNCTION__, ##__VA_ARGS__)
+
+/**
+ * @brief Align \p size to \p align, who's value is larger or equal to \p size
+ *   and can be divided with no remainder by \p align.
+ * @note \p align must equal to 2^n
+ */
+#define ALIGN_WITH(size, align) \
+    (((uintptr_t)(size) + ((uintptr_t)(align) - 1)) & ~((uintptr_t)(align) - 1))
 
 #ifdef __cplusplus
 extern "C" {

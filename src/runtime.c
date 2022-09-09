@@ -59,6 +59,7 @@ static int _runtime_gc(lua_State* L)
 {
     int ret;
     auto_runtime_t* rt = lua_touserdata(L, 1);
+    rt = (auto_runtime_t*)ALIGN_WITH(rt, sizeof(void*) * 2);
 
     ev_map_node_t* it = ev_map_begin(&rt->schedule.all_table);
     while (it != NULL)
@@ -249,8 +250,20 @@ static int _runtime_schedule_one_pass(auto_runtime_t* rt, lua_State* L)
 
 int auto_init_runtime(lua_State* L, int argc, char* argv[])
 {
-    auto_runtime_t* rt = lua_newuserdata(L, sizeof(auto_runtime_t));
-    memset(rt, 0, sizeof(*rt));
+    /*
+     * We cannot trust LUA memory allocation, it does not align it to twice of
+     * machine size. In most case it is fine, but not for #auto_runtime_t.
+     *
+     * In Windows, the jmp_buf is force align to 16 bytes. If the address is
+     * not aligned to 16, the setjmp() will trigger coredump.
+     *
+     * To fix it, we allocate 16 more bytes and manually align to 16 bytes.
+     */
+    size_t malloc_size = sizeof(auto_runtime_t) + sizeof(void*) * 2;
+    auto_runtime_t* rt = lua_newuserdata(L, malloc_size);
+    memset(rt, 0, malloc_size);
+    /* Align to 16 bytes */
+    rt = (auto_runtime_t*)ALIGN_WITH(rt, sizeof(void*) * 2);
 
     static const luaL_Reg s_runtime_meta[] = {
             { "__gc",   _runtime_gc },
@@ -279,6 +292,8 @@ auto_runtime_t* auto_get_runtime(lua_State* L)
     }
 
     auto_runtime_t* rt = lua_touserdata(L, sp + 1);
+    rt = (auto_runtime_t*)ALIGN_WITH(rt, sizeof(void*) * 2);
+
     lua_settop(L, sp);
 
     return rt;

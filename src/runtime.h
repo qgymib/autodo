@@ -15,7 +15,7 @@
     do {\
         auto_runtime_t* _rt = (rt);\
         if (!_rt->flag.looping) {\
-            longjmp(_rt->checkpoint.point, 1);\
+            longjmp(_rt->check.point, 1);\
         }\
     } while(0)
 
@@ -88,7 +88,7 @@ typedef struct auto_runtime
     struct
     {
         jmp_buf         point;
-    } checkpoint;
+    } check;
 } auto_runtime_t;
 
 /**
