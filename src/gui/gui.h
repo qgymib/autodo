@@ -9,13 +9,13 @@ extern "C" {
  */
 typedef enum auto_gui_event
 {
-    AUTO_GUI_READY,     /**< Gui is ready */
-    AUTO_GUI_QUIT,      /**< GUI is abort to quit */
+    AUTO_GUI_READY,             /**< Gui is ready */
+    AUTO_GUI_QUIT,              /**< GUI is abort to quit */
 } auto_gui_event_t;
 
 typedef struct auto_gui_msg
 {
-    auto_gui_event_t    event;  /**< Event type */
+    auto_gui_event_t    type;    /**< Event type */
     union
     {
         int             reserve;

@@ -40,7 +40,7 @@ public:
     void OnExit()
     {
         auto_gui_msg_t msg;
-        msg.event = AUTO_GUI_QUIT;
+        msg.type = AUTO_GUI_QUIT;
         m_info->on_event(&msg, m_info->udata);
 
         QApplication::exit(0);
@@ -77,7 +77,7 @@ int auto_gui(auto_gui_startup_info_t* info)
 
     {
         auto_gui_msg_t msg;
-        msg.event = AUTO_GUI_READY;
+        msg.type = AUTO_GUI_READY;
         info->on_event(&msg, info->udata);
     }
 

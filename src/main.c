@@ -13,13 +13,11 @@
  * @param[in] L     Lua VM.
  * @return          true to continue, false to stop.
  */
-static int _lua_init_vm(lua_State* L)
+static int _init_lua_runtime(lua_State* L)
 {
-    /* Initialize library */
     luaL_openlibs(L);
     auto_init_libs(L);
 
-    /* table.runtime */
     int argc = (int)lua_tointeger(L, 1);
     char** argv = (char**)lua_touserdata(L, 2);
     return auto_init_runtime(L, argc, argv);
@@ -128,7 +126,7 @@ static void _on_gui_event(auto_gui_msg_t* msg, void* udata)
 {
     auto_runtime_t* rt = udata;
 
-    switch (msg->event)
+    switch (msg->type)
     {
     case AUTO_GUI_READY:
         rt->flag.gui_ready = 1;
@@ -144,41 +142,51 @@ static void _on_gui_event(auto_gui_msg_t* msg, void* udata)
     }
 }
 
-int main(int argc, char* argv[])
+static void _setup(lua_State* L, int argc, char* argv[])
 {
-    lua_State* L = luaL_newstate();
+    uv_setup_args(argc, argv);
 
     /* Initialize Lua VM */
-    lua_pushcfunction(L, _lua_init_vm);
+    lua_pushcfunction(L, _init_lua_runtime);
     lua_pushinteger(L, argc);
     lua_pushlightuserdata(L, argv);
 
     /* Initialize failure */
-    if (lua_pcall(L, 2, 1, 0) != LUA_OK)
+    if (lua_pcall(L, 2, 1, 0) == LUA_OK)
     {
-        /*
-         * Let's do some dirty hack to check if it is a help string.
-         */
-        int exit_ret = EXIT_FAILURE;
-        const char* err_msg = lua_tostring(L, -1);
-        if (strstr(err_msg, "Usage:") != NULL)
-        {
-            exit_ret = EXIT_SUCCESS;
-            fprintf(stdout, "%s\n", err_msg);
-        }
-        else
-        {
-            fprintf(stderr, "%s\n", err_msg);
-        }
-
-        lua_close(L);
-        return exit_ret;
+        return;
     }
 
+    /*
+     * Let's do some dirty hack to check if it is a help string.
+     */
+    int exit_ret = EXIT_FAILURE;
+    const char* err_msg = lua_tostring(L, -1);
+    if (strstr(err_msg, "Usage:") != NULL)
+    {
+        exit_ret = EXIT_SUCCESS;
+        fprintf(stdout, "%s\n", err_msg);
+    }
+    else
+    {
+        fprintf(stderr, "%s\n", err_msg);
+    }
+
+    lua_close(L);
+    exit(exit_ret);
+}
+
+int main(int argc, char* argv[])
+{
     auto_gui_startup_info_t info;
     memset(&info, 0, sizeof(info));
+
     info.argc = argc;
     info.argv = argv;
+
+    lua_State* L = luaL_newstate();
+    _setup(L, info.argc, info.argv);
+
     info.udata = auto_get_runtime(L);
     info.on_event = _on_gui_event;
 

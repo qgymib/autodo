@@ -1,3 +1,4 @@
+#include <uv.h>
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
@@ -193,7 +194,11 @@ int auto_readfile(const char* path, void** data, size_t* size)
 
 int auto_read_self(void** data, size_t* size)
 {
-    return auto_readfile("/proc/self/exe", data, size);
+    char buffer[1024];
+    size_t buffer_sz = sizeof(buffer);
+    uv_exepath(buffer, &buffer_sz);
+
+    return auto_readfile(buffer, data, size);
 }
 
 void auto_init_probe(auto_probe_t* probe)
