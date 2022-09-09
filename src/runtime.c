@@ -1,7 +1,8 @@
-#include <string.h>
-#include <stdlib.h>
 #include "runtime.h"
 #include "utils.h"
+#include <string.h>
+#include <stdlib.h>
+#include <assert.h>
 
 /**
  * @brief Global runtime.
@@ -55,19 +56,46 @@ static int _init_parse_args_finalize(lua_State* L, auto_runtime_t* rt, const cha
     return 0;
 }
 
+static void _runtime_destroy_thread(auto_runtime_t* rt, lua_State* L, auto_thread_t* thr)
+{
+    ev_map_erase(&rt->schedule.all_table, &thr->t_node);
+
+    if (thr->data.sch_status == LUA_TNONE)
+    {
+        ev_list_erase(&rt->schedule.busy_queue, &thr->q_node);
+    }
+    else
+    {
+        ev_list_erase(&rt->schedule.wait_queue, &thr->q_node);
+    }
+
+    luaL_unref(L, LUA_REGISTRYINDEX, thr->data.ref_key);
+    thr->data.ref_key = LUA_NOREF;
+    free(thr);
+}
+
+static void _runtime_gc_release_coroutine(auto_runtime_t* rt, lua_State* L)
+{
+    ev_list_node_t* it;
+    while ((it = ev_list_begin(&rt->schedule.busy_queue)) != NULL)
+    {
+        auto_thread_t* thr = container_of(it, auto_thread_t, q_node);
+        _runtime_destroy_thread(rt, L, thr);
+    }
+    while ((it = ev_list_begin(&rt->schedule.wait_queue)) != NULL)
+    {
+        auto_thread_t* thr = container_of(it, auto_thread_t, q_node);
+        _runtime_destroy_thread(rt, L, thr);
+    }
+}
+
 static int _runtime_gc(lua_State* L)
 {
     int ret;
     auto_runtime_t* rt = lua_touserdata(L, 1);
     rt = (auto_runtime_t*)ALIGN_WITH(rt, sizeof(void*) * 2);
 
-    ev_map_node_t* it = ev_map_begin(&rt->schedule.all_table);
-    while (it != NULL)
-    {
-        auto_thread_t* u_thr = container_of(it, auto_thread_t, t_node);
-        it = ev_map_next(it);
-        auto_release_thread(rt, u_thr);
-    }
+    _runtime_gc_release_coroutine(rt, L);
 
     uv_close((uv_handle_t*)&rt->notifier, NULL);
     if ((ret = uv_loop_close(&rt->loop)) != 0)
@@ -205,44 +233,50 @@ static void _init_runtime(lua_State* L, auto_runtime_t* rt, int argc, char* argv
     }
 }
 
+static void _thread_do_hook(auto_thread_t* thr)
+{
+    ev_list_t backup = EV_LIST_INIT;
+    ev_list_migrate(&backup, &thr->data.hook);
+
+    ev_list_node_t* it;
+    while ((it = ev_list_pop_front(&backup)) != NULL)
+    {
+        auto_thread_hook_t* hook = container_of(it, auto_thread_hook_t, node);
+        hook->fn(thr, hook->data);
+    }
+}
+
 static int _runtime_schedule_one_pass(auto_runtime_t* rt, lua_State* L)
 {
     ev_list_node_t* it = ev_list_begin(&rt->schedule.busy_queue);
     while (it != NULL)
     {
-        auto_thread_t* u_thr = container_of(it, auto_thread_t, q_node);
+        auto_thread_t* thr = container_of(it, auto_thread_t, q_node);
         it = ev_list_next(it);
 
         /* Resume coroutine */
-        int n_ret = 0;
-        int ret = lua_resume(u_thr->co, L, 0, &n_ret);
+        int ret = lua_resume(thr->co, L, 0, &thr->data.n_ret);
 
         /* Coroutine yield */
         if (ret == LUA_YIELD)
         {
+            _thread_do_hook(thr);
+
             /* Anything received treat as busy coroutine */
-            if (n_ret != 0)
+            if (thr->data.n_ret != 0)
             {
-                lua_pop(u_thr->co, n_ret);
-            }
-            else
-            {
-                auto_set_thread_as_wait(rt, u_thr);
+                lua_pop(thr->co, thr->data.n_ret);
             }
 
             continue;
         }
 
-        /* Coroutine finish */
-        if (ret == LUA_OK)
-        {
-            auto_release_thread(rt, u_thr);
-            continue;
-        }
-
-        /* In other case there is error happen */
-        lua_xmove(u_thr->co, L, 1);
-        return lua_error(L);
+        /* Coroutine either finish execution or error happen.  */
+        auto_set_thread_state(rt, thr, ret);
+        /* Call hook */
+        _thread_do_hook(thr);
+        /* Destroy coroutine */
+        _runtime_destroy_thread(rt, L, thr);
     }
 
     return 0;
@@ -301,31 +335,18 @@ auto_runtime_t* auto_get_runtime(lua_State* L)
 
 auto_thread_t* auto_new_thread(auto_runtime_t* rt, lua_State* L)
 {
-    auto_thread_t* thread_obj = malloc(sizeof(auto_thread_t));
-    thread_obj->co = lua_newthread(L);
-    thread_obj->data.ref_key = luaL_ref(L, LUA_REGISTRYINDEX);
-    thread_obj->data.status = LUA_OK;
+    auto_thread_t* thr = malloc(sizeof(auto_thread_t));
 
-    ev_list_push_back(&rt->schedule.busy_queue, &thread_obj->q_node);
-    ev_map_insert(&rt->schedule.all_table, &thread_obj->t_node);
+    thr->co = lua_newthread(L);
+    thr->data.n_ret = 0;
+    thr->data.sch_status = LUA_TNONE;
+    thr->data.ref_key = luaL_ref(L, LUA_REGISTRYINDEX);
+    ev_list_init(&thr->data.hook);
 
-    return thread_obj;
-}
+    ev_list_push_back(&rt->schedule.busy_queue, &thr->q_node);
+    ev_map_insert(&rt->schedule.all_table, &thr->t_node);
 
-void auto_release_thread(auto_runtime_t* rt, auto_thread_t* thr)
-{
-    ev_map_erase(&rt->schedule.all_table, &thr->t_node);
-    if (thr->data.status == LUA_YIELD)
-    {
-        ev_list_erase(&rt->schedule.wait_queue, &thr->q_node);
-    }
-    else
-    {
-        ev_list_erase(&rt->schedule.busy_queue, &thr->q_node);
-    }
-
-    luaL_unref(thr->co, LUA_REGISTRYINDEX, thr->data.ref_key);
-    free(thr);
+    return thr;
 }
 
 auto_thread_t* auto_find_thread(auto_runtime_t* rt, lua_State* L)
@@ -342,28 +363,37 @@ auto_thread_t* auto_find_thread(auto_runtime_t* rt, lua_State* L)
     return container_of(it, auto_thread_t, t_node);
 }
 
-void auto_set_thread_as_busy(auto_runtime_t* rt, auto_thread_t* thr)
+void auto_set_thread_state(auto_runtime_t* rt, auto_thread_t* thr, int state)
 {
-    if (thr->data.status != LUA_YIELD)
+    /* In busy_queue */
+    if (thr->data.sch_status == LUA_TNONE)
     {
+        if (state == LUA_TNONE)
+        {/* Do nothing if new state is also BUSY */
+            return;
+        }
+
+        ev_list_erase(&rt->schedule.busy_queue, &thr->q_node);
+        thr->data.sch_status = state;
+        ev_list_push_back(&rt->schedule.wait_queue, &thr->q_node);
         return;
     }
 
-    thr->data.status = LUA_OK;
-    ev_list_erase(&rt->schedule.wait_queue, &thr->q_node);
-    ev_list_push_back(&rt->schedule.busy_queue, &thr->q_node);
-}
-
-void auto_set_thread_as_wait(auto_runtime_t* rt, auto_thread_t* thr)
-{
-    if (thr->data.status == LUA_YIELD)
+    /* We are in wait_queue, cannot operate on dead coroutine */
+    if (thr->data.sch_status != LUA_YIELD)
     {
-        return;
+        abort();
     }
 
-    thr->data.status = LUA_YIELD;
-    ev_list_erase(&rt->schedule.busy_queue, &thr->q_node);
-    ev_list_push_back(&rt->schedule.wait_queue, &thr->q_node);
+    /* move to busy_queue */
+    if (state == LUA_TNONE)
+    {
+        ev_list_erase(&rt->schedule.wait_queue, &thr->q_node);
+        thr->data.sch_status = state;
+        ev_list_push_back(&rt->schedule.busy_queue, &thr->q_node);
+    }
+
+    /* thr is dead, keep in wait_queue */
 }
 
 int auto_schedule(auto_runtime_t* rt, lua_State* L)
@@ -387,4 +417,23 @@ int auto_schedule(auto_runtime_t* rt, lua_State* L)
     }
 
     return 0;
+}
+
+int auto_runtime_link(lua_State* L, int idx)
+{
+    if (lua_getglobal(L, AUTO_GLOBAL) != LUA_TUSERDATA)
+    {
+        return luaL_error(L, "missing global runtime `%s`", AUTO_GLOBAL);
+    }
+
+    lua_setuservalue(L, idx);
+    return 0;
+}
+
+void auto_thread_hook(auto_thread_hook_t* token, auto_thread_t* thr,
+    auto_thread_hook_fn fn, void* arg)
+{
+    token->fn = fn;
+    token->data = arg;
+    ev_list_push_back(&thr->data.hook, &token->node);
 }

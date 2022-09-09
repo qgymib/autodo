@@ -1,20 +1,23 @@
+io.write("hello world\n")
 
-sum = 0
-
-auto.coroutine(function()
+c1 = auto.coroutine(function()
+    local sum = 0
     for i=1,10 do
         sum = sum + 1
         coroutine.yield(1)
     end
+    return sum
 end)
 
-auto.coroutine(function()
+c2 = auto.coroutine(function()
+    local sum = 0
     for i=1,20 do
         sum = sum + 1
         coroutine.yield(1)
     end
+    return sum
 end)
 
-auto.sleep(1000)
-assert(sum == 30)
-
+assert(c1:await() == 10)
+assert(c2:await() == 20)
+io.write("finish\n")

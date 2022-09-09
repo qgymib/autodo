@@ -25,59 +25,91 @@
  */
 #define AUTO_CHECK_PERIOD   100
 
+#define AUTO_THREAD_IS_BUSY(thr)    ((thr)->data.sch_status == LUA_TNONE)
+#define AUTO_THREAD_IS_WAIT(thr)    ((thr)->data.sch_status == LUA_YIELD)
+#define AUTO_THREAD_IS_DONE(thr)    (!AUTO_THREAD_IS_BUSY(thr) && !AUTO_THREAD_IS_WAIT(thr))
+#define AUTO_THREAD_IS_ERROR(thr)   \
+    (\
+        (thr)->data.sch_status != LUA_TNONE &&\
+        (thr)->data.sch_status != LUA_YIELD &&\
+        (thr)->data.sch_status != LUA_OK\
+    )
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef struct auto_thread
-{
-    ev_list_node_t      q_node;
-    ev_map_node_t       t_node;
+struct auto_thread;
+typedef struct auto_thread auto_thread_t;
 
-    lua_State*          co;                 /**< Coroutine, also as find key */
+typedef void (*auto_thread_hook_fn)(auto_thread_t* thr, void* data);
+
+typedef struct auto_thread_hook
+{
+    ev_list_node_t      node;
+    auto_thread_hook_fn fn;
+    void*               data;
+} auto_thread_hook_t;
+
+struct auto_thread
+{
+    ev_list_node_t      q_node;         /**< Schedule queue node */
+    ev_map_node_t       t_node;         /**< Schedule table node */
+
+    lua_State*          co;             /**< Coroutine, also as find key */
 
     struct
     {
-        int             ref_key;            /**< Reference key of coroutine */
+        int             n_ret;          /**< The number of return value. */
 
         /**
-         * @brief Thread status
-         * + LUA_YIELD: Wait status
-         * + LUA_OK:    Busy status
+         * @brief Thread schedule status.
+         * + LUA_TNONE:     Busy (busy_queue)
+         * + LUA_YIELD:     Wait (wait_queue)
+         * + LUA_OK:        Done (wait_queue)
+         * + Other value:   Error (wait_queue)
          */
-        int             status;
+        int             sch_status;
+
+        int             ref_key;        /**< Reference key of coroutine in Lua VM */
+
+        /**
+         * @brief One time hook queue for state change.
+         * @see auto_thread_hook_t
+         */
+        ev_list_t       hook;
     } data;
-} auto_thread_t;
+};
 
 typedef struct auto_runtime
 {
-    uv_loop_t           loop;               /**< Event loop */
-    uv_async_t          notifier;           /**< Event notifier */
+    uv_loop_t           loop;           /**< Event loop */
+    uv_async_t          notifier;       /**< Event notifier */
 
     struct
     {
-        int             looping;            /**< Looping */
-        int             gui_ready;          /**< GUI is ready */
+        int             looping;        /**< Looping */
+        int             gui_ready;      /**< GUI is ready */
     } flag;
 
     struct
     {
-        void*           data;               /**< Script content */
-        size_t          size;               /**< Script size */
+        void*           data;           /**< Script content */
+        size_t          size;           /**< Script size */
     } script;
 
     struct
     {
-        char*           compile_path;
-        char*           output_path;
-        char*           script_path;
+        char*           compile_path;   /**< Path to script that need compile */
+        char*           output_path;    /**< Path to compiled output file */
+        char*           script_path;    /**< Path to run script */
     } config;
 
     struct
     {
-        ev_map_t        all_table;          /**< All registered coroutine */
-        ev_list_t       busy_queue;         /**< Coroutine that ready to schedule */
-        ev_list_t       wait_queue;         /**< Coroutine that wait for some events */
+        ev_map_t        all_table;      /**< All registered coroutine */
+        ev_list_t       busy_queue;     /**< Coroutine that ready to schedule */
+        ev_list_t       wait_queue;     /**< Coroutine that wait for some events */
     } schedule;
 
     struct
@@ -117,11 +149,26 @@ auto_runtime_t* auto_get_runtime(lua_State* L);
 auto_thread_t* auto_new_thread(auto_runtime_t* rt, lua_State* L);
 
 /**
- * @brief Destroy a coroutine.
- * @param[in] rt    Global runtime.
- * @param[in] thr   Coroutine
+ * @brief Add one time hook for coroutine \p thr.
+ *
+ * The hook will be triggered after the coroutine is resumed, that is after the
+ * coroutine yield / finish / error.
+ *
+ * @param[in] token Hook token.
+ * @param[in] thr   Target coroutine to hook.
+ * @param[in] fn    Callback function when state change.
+ * @param[in] arg   User defined arguments passed to \p fn.
  */
-void auto_release_thread(auto_runtime_t* rt, auto_thread_t* thr);
+void auto_thread_hook(auto_thread_hook_t* token, auto_thread_t* thr,
+    auto_thread_hook_fn fn, void* arg);
+
+/**
+ * @brief Link runtime as uservalue 1 for value at \p idx.
+ * @param[in] L     Lua VM.
+ * @param[in] idx   Value index.
+ * @return          Always 0.
+ */
+int auto_runtime_link(lua_State* L, int idx);
 
 /**
  * @brief Find coroutine by lua thread.
@@ -132,21 +179,22 @@ void auto_release_thread(auto_runtime_t* rt, auto_thread_t* thr);
 auto_thread_t* auto_find_thread(auto_runtime_t* rt, lua_State* L);
 
 /**
- * @brief Set \p thr as busy status.
+ * @brief Set \p thr to \p state.
  * @param[in] rt    Global runtime.
  * @param[in] thr   Coroutine.
+ * @param[in] state New state.
  */
-void auto_set_thread_as_busy(auto_runtime_t* rt, auto_thread_t* thr);
+void auto_set_thread_state(auto_runtime_t* rt, auto_thread_t* thr, int state);
 
 /**
- * @brief Set \p thr as wait status.
- * @param[in] rt    Global runtime.
- * @param[in] thr   Coroutine.
- */
-void auto_set_thread_as_wait(auto_runtime_t* rt, auto_thread_t* thr);
-
-/**
- * @brief Run scheduler
+ * @brief Run scheduler.
+ *
+ * The scheduler finish when looping flag is clear or all coroutine is done.
+ *
+ * To yield from current coroutine, use lua_yield() or lua_yieldk().
+ *
+ * @note All coroutine created by #auto_new_thread() is automatically managed
+ *   by scheduler.
  * @param[in] rt    Global runtime.
  * @param[in] L     The thread that host scheduler.
  * @return          Error code.

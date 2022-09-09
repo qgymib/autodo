@@ -45,8 +45,8 @@ static int _user_thread(lua_State* L)
 
 static int _run_script(lua_State* L, auto_runtime_t* rt)
 {
-    auto_thread_t* u_thread = auto_new_thread(rt, L);
-    lua_pushcfunction(u_thread->co, _user_thread);
+    auto_thread_t* thr = auto_new_thread(rt, L);
+    lua_pushcfunction(thr->co, _user_thread);
 
     return auto_schedule(rt, L);
 }
