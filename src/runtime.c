@@ -58,6 +58,8 @@ static int _init_parse_args_finalize(lua_State* L, atd_runtime_t* rt, const char
 
 static void _runtime_destroy_thread(atd_runtime_t* rt, lua_State* L, atd_thread_t* thr)
 {
+    assert(ev_list_size(&thr->hook.queue) == 0);
+
     ev_map_erase(&rt->schedule.all_table, &thr->t_node);
 
     if (thr->data.sch_status == LUA_TNONE)
@@ -233,16 +235,15 @@ static void _init_runtime(lua_State* L, atd_runtime_t* rt, int argc, char* argv[
     }
 }
 
-static void _thread_do_hook(atd_thread_t* thr)
+static void _thread_trigger_hook(atd_thread_t* thr)
 {
-    ev_list_t backup = EV_LIST_INIT;
-    ev_list_migrate(&backup, &thr->data.hook);
-
-    ev_list_node_t* it;
-    while ((it = ev_list_pop_front(&backup)) != NULL)
+    thr->hook.it = ev_list_begin(&thr->hook.queue);
+    while (thr->hook.it != NULL)
     {
-        atd_thread_hook_t* hook = container_of(it, atd_thread_hook_t, node);
-        hook->fn(thr, hook->data);
+        atd_thread_hook_t* token = container_of(thr->hook.it, atd_thread_hook_t, node);
+        thr->hook.it = ev_list_next(thr->hook.it);
+
+        token->data.callback(token, thr, token->data.data);
     }
 }
 
@@ -260,7 +261,7 @@ static int _runtime_schedule_one_pass(atd_runtime_t* rt, lua_State* L)
         /* Coroutine yield */
         if (ret == LUA_YIELD)
         {
-            _thread_do_hook(thr);
+            _thread_trigger_hook(thr);
 
             /* Anything received treat as busy coroutine */
             if (thr->data.n_ret != 0)
@@ -274,7 +275,7 @@ static int _runtime_schedule_one_pass(atd_runtime_t* rt, lua_State* L)
         /* Coroutine either finish execution or error happen.  */
         atd_set_thread_state(rt, thr, ret);
         /* Call hook */
-        _thread_do_hook(thr);
+        _thread_trigger_hook(thr);
         /* Destroy coroutine */
         _runtime_destroy_thread(rt, L, thr);
     }
@@ -341,7 +342,8 @@ atd_thread_t* atd_new_thread(atd_runtime_t* rt, lua_State* L)
     thr->data.n_ret = 0;
     thr->data.sch_status = LUA_TNONE;
     thr->data.ref_key = luaL_ref(L, LUA_REGISTRYINDEX);
-    ev_list_init(&thr->data.hook);
+    thr->hook.it = NULL;
+    ev_list_init(&thr->hook.queue);
 
     ev_list_push_back(&rt->schedule.busy_queue, &thr->q_node);
     ev_map_insert(&rt->schedule.all_table, &thr->t_node);
@@ -430,10 +432,30 @@ int atd_runtime_link(lua_State* L, int idx)
     return 0;
 }
 
-void atd_thread_hook(atd_thread_hook_t* token, atd_thread_t* thr,
+void atd_hook_thread(atd_thread_hook_t* token, atd_thread_t* thr,
                      atd_thread_hook_fn fn, void* arg)
 {
-    token->fn = fn;
-    token->data = arg;
-    ev_list_push_back(&thr->data.hook, &token->node);
+    token->data.callback = fn;
+    token->data.data = arg;
+    token->data.thr = thr;
+    ev_list_push_back(&thr->hook.queue, &token->node);
+}
+
+void atd_unhook_thread(atd_thread_hook_t* token)
+{
+    atd_thread_t* thr = token->data.thr;
+
+    if (thr->hook.it != NULL)
+    {
+        atd_thread_hook_t* next_hook = container_of(thr->hook.it, atd_thread_hook_t, node);
+
+        /* If this is next hook, move iterator to next node. */
+        if (next_hook == token)
+        {
+            thr->hook.it = ev_list_next(thr->hook.it);
+        }
+    }
+
+    ev_list_erase(&thr->hook.queue, &token->node);
+    token->data.thr = NULL;
 }

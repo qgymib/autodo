@@ -25,15 +25,47 @@
  */
 #define AUTO_CHECK_PERIOD   100
 
+/**
+ * @brief Check if the coroutine \p thr is in busy state.
+ * @param[in] thr   The coroutine.
+ * @return          bool.
+ */
 #define AUTO_THREAD_IS_BUSY(thr)    ((thr)->data.sch_status == LUA_TNONE)
+
+/**
+ * @brief Check if the coroutine \p thr is in yield state.
+ * @param[in] thr   The coroutine.
+ * @return          bool.
+ */
 #define AUTO_THREAD_IS_WAIT(thr)    ((thr)->data.sch_status == LUA_YIELD)
-#define AUTO_THREAD_IS_DONE(thr)    (!AUTO_THREAD_IS_BUSY(thr) && !AUTO_THREAD_IS_WAIT(thr))
+
+/**
+ * @brief Check if the coroutine \p is dead. That is either finish execution or
+ *   error occur.
+ * @param[in] thr   The coroutine.
+ * @return          bool.
+ */
+#define AUTO_THREAD_IS_DEAD(thr)    (!AUTO_THREAD_IS_BUSY(thr) && !AUTO_THREAD_IS_WAIT(thr))
+
+/**
+ * @brief Check if the coroutine \p thr have error.
+ * @param[in] thr   The coroutine.
+ * @return          bool.
+ */
 #define AUTO_THREAD_IS_ERROR(thr)   \
     (\
         (thr)->data.sch_status != LUA_TNONE &&\
         (thr)->data.sch_status != LUA_YIELD &&\
         (thr)->data.sch_status != LUA_OK\
     )
+
+/**
+ * @brief Check if a \p hook is registered.
+ * @note The hook must initialized by 0.
+ * @param[in] hook  A hook handle.
+ * @return          bool.
+ */
+#define ATD_HOOK_IS_REG(hook)   ((hook)->data.thr != NULL)
 
 #ifdef __cplusplus
 extern "C" {
@@ -42,14 +74,33 @@ extern "C" {
 struct atd_thread;
 typedef struct atd_thread atd_thread_t;
 
-typedef void (*atd_thread_hook_fn)(atd_thread_t* thr, void* data);
+struct atd_thread_hook;
+typedef struct atd_thread_hook atd_thread_hook_t;
 
-typedef struct
+/**
+ * @brief Coroutine schedule hook callback.
+ * @param[in] token The hook token.
+ * @param[in] thr   The scheduled coroutine.
+ * @param[in] data  User data.
+ */
+typedef void (*atd_thread_hook_fn)(atd_thread_hook_t* token, atd_thread_t* thr, void* data);
+
+/**
+ * @brief Coroutine schedule hook.
+ * @see atd_hook_thread()
+ * @see atd_unhook_thread()
+ */
+struct atd_thread_hook
 {
-    ev_list_node_t      node;
-    atd_thread_hook_fn  fn;
-    void*               data;
-} atd_thread_hook_t;
+    ev_list_node_t          node;
+
+    struct
+    {
+        atd_thread_hook_fn  callback;   /**< Hook callback */
+        void*               data;       /**< User defined data passed to callback */
+        atd_thread_t*       thr;        /**< The thread hooking */
+    }data;
+};
 
 struct atd_thread
 {
@@ -64,21 +115,18 @@ struct atd_thread
 
         /**
          * @brief Thread schedule status.
-         * + LUA_TNONE:     Busy (busy_queue)
-         * + LUA_YIELD:     Wait (wait_queue)
-         * + LUA_OK:        Done (wait_queue)
-         * + Other value:   Error (wait_queue)
+         * @see atd_set_thread_state()
          */
         int             sch_status;
 
         int             ref_key;        /**< Reference key of coroutine in Lua VM */
-
-        /**
-         * @brief One time hook queue for state change.
-         * @see atd_thread_hook_t
-         */
-        ev_list_t       hook;
     } data;
+
+    struct
+    {
+        ev_list_t       queue;          /**< Schedule hook queue */
+        ev_list_node_t* it;             /**< Global iterator */
+    } hook;
 };
 
 typedef struct atd_runtime
@@ -149,18 +197,27 @@ atd_runtime_t* atd_get_runtime(lua_State* L);
 atd_thread_t* atd_new_thread(atd_runtime_t* rt, lua_State* L);
 
 /**
- * @brief Add one time hook for coroutine \p thr.
+ * @brief Add hook for coroutine \p thr.
  *
- * The hook will be triggered after the coroutine is resumed, that is after the
- * coroutine yield / finish / error.
+ * The hook will be triggered every time **after** the coroutine is resumed.
  *
+ * To check whether the hook is registered, checkout #ATD_HOOK_IS_REG().
+ *
+ * @see atd_unhook_thread()
+ * @see ATD_HOOK_IS_REG()
  * @param[in] token Hook token.
  * @param[in] thr   Target coroutine to hook.
  * @param[in] fn    Callback function when state change.
  * @param[in] arg   User defined arguments passed to \p fn.
  */
-void atd_thread_hook(atd_thread_hook_t* token, atd_thread_t* thr,
+void atd_hook_thread(atd_thread_hook_t* token, atd_thread_t* thr,
     atd_thread_hook_fn fn, void* arg);
+
+/**
+ * @see atd_hook_thread()
+ * @param[in] token Hook token.
+ */
+void atd_unhook_thread(atd_thread_hook_t* token);
 
 /**
  * @brief Link runtime as uservalue 1 for value at \p idx.
@@ -185,6 +242,14 @@ atd_thread_t* atd_find_thread(atd_runtime_t* rt, lua_State* L);
 
 /**
  * @brief Set \p thr to \p state.
+ *
+ * The state is the same as return value of lua_resume(), with the exception
+ * that `LUA_TNONE` stand for busy state. The full list is:
+ * + LUA_TNONE:     Busy (busy_queue)
+ * + LUA_YIELD:     Wait (wait_queue)
+ * + LUA_OK:        Done (wait_queue)
+ * + Other value:   Error (wait_queue)
+ *
  * @param[in] rt    Global runtime.
  * @param[in] thr   Coroutine.
  * @param[in] state New state.

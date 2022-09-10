@@ -20,20 +20,29 @@ static int _coroutine_gc(lua_State* L)
 {
     atd_coroutine_t* co = lua_touserdata(L, 1);
 
+    if (ATD_HOOK_IS_REG(&co->hook))
+    {
+        atd_unhook_thread(&co->hook);
+    }
+
     luaL_unref(L, LUA_REGISTRYINDEX, co->ref_storage);
     co->ref_storage = LUA_NOREF;
 
     return 0;
 }
 
-static void _on_coroutine_state_change(atd_thread_t* thr, void* data)
+static void _on_coroutine_state_change(atd_thread_hook_t* token, atd_thread_t* thr, void* data)
 {
     atd_coroutine_t* co = data;
-    if (!AUTO_THREAD_IS_DONE(thr))
+
+    /* If the coroutine is not finished, do nothing. */
+    if (!AUTO_THREAD_IS_DEAD(thr))
     {
-        atd_thread_hook(&co->hook, thr, _on_coroutine_state_change, co);
         return;
     }
+
+    /* Remove the hook */
+    atd_unhook_thread(token);
 
     /* Wakeup */
     if (co->await_thr != NULL)
@@ -106,16 +115,13 @@ int atd_lua_coroutine(lua_State *L)
     int sp = lua_gettop(L);
 
     atd_coroutine_t* co = lua_newuserdata(L, sizeof(atd_coroutine_t));
+    memset(co, 0, sizeof(*co));
 
     /* Initialize */
     co->rt = atd_get_runtime(L);
     co->thr = atd_new_thread(co->rt, L);
-    co->await_thr = NULL;
     co->storage = lua_newthread(L);
     co->ref_storage = luaL_ref(L, LUA_REGISTRYINDEX);
-    co->n_ret = 0;
-    co->sch_status = 0;
-    co->flag_have_result = 0;
     atd_runtime_link(L, sp + 1);
 
     /* Set metatable */
@@ -144,7 +150,7 @@ int atd_lua_coroutine(lua_State *L)
     lua_xmove(L, co->thr->co, sp);
 
     /* Care about thread state change */
-    atd_thread_hook(&co->hook, co->thr, _on_coroutine_state_change, co);
+    atd_hook_thread(&co->hook, co->thr, _on_coroutine_state_change, co);
 
     return 1;
 }
