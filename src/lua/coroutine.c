@@ -2,23 +2,23 @@
 #include "coroutine.h"
 #include <string.h>
 
-typedef struct auto_coroutine
+typedef struct
 {
-    auto_runtime_t*     rt;         /**< Global runtime. */
-    auto_thread_t*      thr;        /**< Coroutine handle. */
-    auto_thread_hook_t  hook;       /**< State change hook. */
-    auto_thread_t*      await_thr;  /**< The thread that call await */
+    atd_runtime_t*      rt;         /**< Global runtime. */
+    atd_thread_t*       thr;        /**< Coroutine handle. */
+    atd_thread_hook_t   hook;       /**< State change hook. */
+    atd_thread_t*       await_thr;  /**< The thread that call await */
 
     int                 flag_have_result;
     int                 sch_status;
     lua_State*          storage;
     int                 ref_storage;
     int                 n_ret;
-} auto_coroutine_t;
+} atd_coroutine_t;
 
 static int _coroutine_gc(lua_State* L)
 {
-    auto_coroutine_t* co = lua_touserdata(L, 1);
+    atd_coroutine_t* co = lua_touserdata(L, 1);
 
     luaL_unref(L, LUA_REGISTRYINDEX, co->ref_storage);
     co->ref_storage = LUA_NOREF;
@@ -26,19 +26,19 @@ static int _coroutine_gc(lua_State* L)
     return 0;
 }
 
-static void _on_coroutine_state_change(auto_thread_t* thr, void* data)
+static void _on_coroutine_state_change(atd_thread_t* thr, void* data)
 {
-    auto_coroutine_t* co = data;
+    atd_coroutine_t* co = data;
     if (!AUTO_THREAD_IS_DONE(thr))
     {
-        auto_thread_hook(&co->hook, thr, _on_coroutine_state_change, co);
+        atd_thread_hook(&co->hook, thr, _on_coroutine_state_change, co);
         return;
     }
 
     /* Wakeup */
     if (co->await_thr != NULL)
     {
-        auto_set_thread_state(co->rt, co->await_thr, LUA_TNONE);
+        atd_set_thread_state(co->rt, co->await_thr, LUA_TNONE);
     }
 
     co->flag_have_result = 1;
@@ -65,7 +65,7 @@ static void _on_coroutine_state_change(auto_thread_t* thr, void* data)
 static int _coroutine_on_resume(lua_State *L, int status, lua_KContext ctx)
 {
     (void)status;
-    auto_coroutine_t* co = (auto_coroutine_t*)ctx;
+    atd_coroutine_t* co = (atd_coroutine_t*)ctx;
 
     if (co->flag_have_result)
     {/* Finish execution */
@@ -87,7 +87,7 @@ static int _coroutine_on_resume(lua_State *L, int status, lua_KContext ctx)
     }
 
     /* Add to wait_queue */
-    auto_set_thread_state(co->rt, co->await_thr, LUA_YIELD);
+    atd_set_thread_state(co->rt, co->await_thr, LUA_YIELD);
 
     /* Yield */
     return lua_yieldk(L, 0, (lua_KContext)co, _coroutine_on_resume);
@@ -95,28 +95,28 @@ static int _coroutine_on_resume(lua_State *L, int status, lua_KContext ctx)
 
 static int _coroutine_await(lua_State* L)
 {
-    auto_coroutine_t* co = lua_touserdata(L, 1);
-    co->await_thr = auto_find_thread(co->rt, L);
+    atd_coroutine_t* co = lua_touserdata(L, 1);
+    co->await_thr = atd_find_thread(co->rt, L);
 
     return _coroutine_on_resume(L, LUA_YIELD, (lua_KContext)co);
 }
 
-int auto_lua_coroutine(lua_State *L)
+int atd_lua_coroutine(lua_State *L)
 {
     int sp = lua_gettop(L);
 
-    auto_coroutine_t* co = lua_newuserdata(L, sizeof(auto_coroutine_t));
+    atd_coroutine_t* co = lua_newuserdata(L, sizeof(atd_coroutine_t));
 
     /* Initialize */
-    co->rt = auto_get_runtime(L);
-    co->thr = auto_new_thread(co->rt, L);
+    co->rt = atd_get_runtime(L);
+    co->thr = atd_new_thread(co->rt, L);
     co->await_thr = NULL;
     co->storage = lua_newthread(L);
     co->ref_storage = luaL_ref(L, LUA_REGISTRYINDEX);
     co->n_ret = 0;
     co->sch_status = 0;
     co->flag_have_result = 0;
-    auto_runtime_link(L, sp + 1);
+    atd_runtime_link(L, sp + 1);
 
     /* Set metatable */
     static const luaL_Reg s_co_meta[] = {
@@ -144,7 +144,7 @@ int auto_lua_coroutine(lua_State *L)
     lua_xmove(L, co->thr->co, sp);
 
     /* Care about thread state change */
-    auto_thread_hook(&co->hook, co->thr, _on_coroutine_state_change, co);
+    atd_thread_hook(&co->hook, co->thr, _on_coroutine_state_change, co);
 
     return 1;
 }

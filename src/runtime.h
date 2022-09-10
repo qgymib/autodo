@@ -13,7 +13,7 @@
  */
 #define AUTO_CHECK_TERM(rt) \
     do {\
-        auto_runtime_t* _rt = (rt);\
+        atd_runtime_t* _rt = (rt);\
         if (!_rt->flag.looping) {\
             longjmp(_rt->check.point, 1);\
         }\
@@ -39,19 +39,19 @@
 extern "C" {
 #endif
 
-struct auto_thread;
-typedef struct auto_thread auto_thread_t;
+struct atd_thread;
+typedef struct atd_thread atd_thread_t;
 
-typedef void (*auto_thread_hook_fn)(auto_thread_t* thr, void* data);
+typedef void (*atd_thread_hook_fn)(atd_thread_t* thr, void* data);
 
-typedef struct auto_thread_hook
+typedef struct
 {
     ev_list_node_t      node;
-    auto_thread_hook_fn fn;
+    atd_thread_hook_fn  fn;
     void*               data;
-} auto_thread_hook_t;
+} atd_thread_hook_t;
 
-struct auto_thread
+struct atd_thread
 {
     ev_list_node_t      q_node;         /**< Schedule queue node */
     ev_map_node_t       t_node;         /**< Schedule table node */
@@ -75,13 +75,13 @@ struct auto_thread
 
         /**
          * @brief One time hook queue for state change.
-         * @see auto_thread_hook_t
+         * @see atd_thread_hook_t
          */
         ev_list_t       hook;
     } data;
 };
 
-typedef struct auto_runtime
+typedef struct atd_runtime
 {
     uv_loop_t           loop;           /**< Event loop */
     uv_async_t          notifier;       /**< Event notifier */
@@ -121,7 +121,7 @@ typedef struct auto_runtime
     {
         jmp_buf         point;
     } check;
-} auto_runtime_t;
+} atd_runtime_t;
 
 /**
  * @brief Initialize runtime in lua vm.
@@ -129,14 +129,14 @@ typedef struct auto_runtime
  * @param idx
  * @return          Always 0.
  */
-int auto_init_runtime(lua_State* L, int argc, char* argv[]);
+int atd_init_runtime(lua_State* L, int argc, char* argv[]);
 
 /**
  * @brief Get runtime from lua vm.
  * @param[in] L     Lua VM.
  * @return          Runtime instance.
  */
-auto_runtime_t* auto_get_runtime(lua_State* L);
+atd_runtime_t* atd_get_runtime(lua_State* L);
 
 /**
  * @brief Create a new lua coroutine and save into schedule queue.
@@ -146,7 +146,7 @@ auto_runtime_t* auto_get_runtime(lua_State* L);
  * @param[in] L     Lua VM.
  * @return          A new coroutine.
  */
-auto_thread_t* auto_new_thread(auto_runtime_t* rt, lua_State* L);
+atd_thread_t* atd_new_thread(atd_runtime_t* rt, lua_State* L);
 
 /**
  * @brief Add one time hook for coroutine \p thr.
@@ -159,16 +159,21 @@ auto_thread_t* auto_new_thread(auto_runtime_t* rt, lua_State* L);
  * @param[in] fn    Callback function when state change.
  * @param[in] arg   User defined arguments passed to \p fn.
  */
-void auto_thread_hook(auto_thread_hook_t* token, auto_thread_t* thr,
-    auto_thread_hook_fn fn, void* arg);
+void atd_thread_hook(atd_thread_hook_t* token, atd_thread_t* thr,
+    atd_thread_hook_fn fn, void* arg);
 
 /**
  * @brief Link runtime as uservalue 1 for value at \p idx.
+ *
+ * It is necessary to do so. If not linked, lua might release global runtime
+ * before other resources, leading to invalid access during resource release
+ * process.
+ *
  * @param[in] L     Lua VM.
  * @param[in] idx   Value index.
  * @return          Always 0.
  */
-int auto_runtime_link(lua_State* L, int idx);
+int atd_runtime_link(lua_State* L, int idx);
 
 /**
  * @brief Find coroutine by lua thread.
@@ -176,7 +181,7 @@ int auto_runtime_link(lua_State* L, int idx);
  * @param[in] L     Lua thread.
  * @return          Coroutine.
  */
-auto_thread_t* auto_find_thread(auto_runtime_t* rt, lua_State* L);
+atd_thread_t* atd_find_thread(atd_runtime_t* rt, lua_State* L);
 
 /**
  * @brief Set \p thr to \p state.
@@ -184,7 +189,7 @@ auto_thread_t* auto_find_thread(auto_runtime_t* rt, lua_State* L);
  * @param[in] thr   Coroutine.
  * @param[in] state New state.
  */
-void auto_set_thread_state(auto_runtime_t* rt, auto_thread_t* thr, int state);
+void atd_set_thread_state(atd_runtime_t* rt, atd_thread_t* thr, int state);
 
 /**
  * @brief Run scheduler.
@@ -193,13 +198,13 @@ void auto_set_thread_state(auto_runtime_t* rt, auto_thread_t* thr, int state);
  *
  * To yield from current coroutine, use lua_yield() or lua_yieldk().
  *
- * @note All coroutine created by #auto_new_thread() is automatically managed
+ * @note All coroutine created by #atd_new_thread() is automatically managed
  *   by scheduler.
  * @param[in] rt    Global runtime.
  * @param[in] L     The thread that host scheduler.
  * @return          Error code.
  */
-int auto_schedule(auto_runtime_t* rt, lua_State* L);
+int atd_schedule(atd_runtime_t* rt, lua_State* L);
 
 #ifdef __cplusplus
 }

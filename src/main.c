@@ -20,7 +20,7 @@ static int _init_lua_runtime(lua_State* L)
 
     int argc = (int)lua_tointeger(L, 1);
     char** argv = (char**)lua_touserdata(L, 2);
-    return auto_init_runtime(L, argc, argv);
+    return atd_init_runtime(L, argc, argv);
 }
 
 static int _user_thread_on_resume(lua_State *L, int status, lua_KContext ctx)
@@ -32,7 +32,7 @@ static int _user_thread_on_resume(lua_State *L, int status, lua_KContext ctx)
 
 static int _user_thread(lua_State* L)
 {
-    auto_runtime_t* rt = auto_get_runtime(L);
+    atd_runtime_t* rt = atd_get_runtime(L);
 
     if (luaL_loadbuffer(L, rt->script.data, rt->script.size, "script") != LUA_OK)
     {
@@ -43,37 +43,37 @@ static int _user_thread(lua_State* L)
     return 0;
 }
 
-static int _run_script(lua_State* L, auto_runtime_t* rt)
+static int _run_script(lua_State* L, atd_runtime_t* rt)
 {
-    auto_thread_t* thr = auto_new_thread(rt, L);
+    atd_thread_t* thr = atd_new_thread(rt, L);
     lua_pushcfunction(thr->co, _user_thread);
 
-    return auto_schedule(rt, L);
+    return atd_schedule(rt, L);
 }
 
-static int _lua_load_script(auto_runtime_t* rt, lua_State* L)
+static int _lua_load_script(atd_runtime_t* rt, lua_State* L)
 {
     if (rt->script.data != NULL)
     {
         free(rt->script.data);
     }
 
-    int ret = auto_readfile(rt->config.script_path,
-        &rt->script.data, &rt->script.size);
+    int ret = atd_readfile(rt->config.script_path,
+                           &rt->script.data, &rt->script.size);
     if (ret == 0)
     {
         return 0;
     }
 
     return luaL_error(L, "open `%s` failed: %s(%d)",
-        rt->config.script_path,
-        auto_strerror(ret, rt->cache.errbuf, sizeof(rt->cache.errbuf)),
-        ret);
+                      rt->config.script_path,
+                      atd_strerror(ret, rt->cache.errbuf, sizeof(rt->cache.errbuf)),
+                      ret);
 }
 
 static int _lua_run(lua_State* L)
 {
-    auto_runtime_t* rt = auto_get_runtime(L);
+    atd_runtime_t* rt = atd_get_runtime(L);
 
     /* Load script if necessary */
     if (rt->config.script_path != NULL)
@@ -89,7 +89,7 @@ static int _lua_run(lua_State* L)
 
     if (rt->config.compile_path != NULL)
     {
-        return auto_compile_script(L, rt->config.compile_path, rt->config.output_path);
+        return atd_compile_script(L, rt->config.compile_path, rt->config.output_path);
     }
 
     return luaL_error(L, "no operation");
@@ -98,7 +98,7 @@ static int _lua_run(lua_State* L)
 static void _control_routine(void* data)
 {
     lua_State* L = data;
-    auto_runtime_t* rt = auto_get_runtime(L);
+    atd_runtime_t* rt = atd_get_runtime(L);
 
     if (setjmp(rt->check.point) != 0)
     {
@@ -124,7 +124,7 @@ vm_exit:
 
 static void _on_gui_event(auto_gui_msg_t* msg, void* udata)
 {
-    auto_runtime_t* rt = udata;
+    atd_runtime_t* rt = udata;
 
     switch (msg->type)
     {
@@ -187,7 +187,7 @@ int main(int argc, char* argv[])
     lua_State* L = luaL_newstate();
     _setup(L, info.argc, info.argv);
 
-    info.udata = auto_get_runtime(L);
+    info.udata = atd_get_runtime(L);
     info.on_event = _on_gui_event;
 
     uv_thread_t tid;

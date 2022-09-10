@@ -142,7 +142,7 @@ const char* get_filename(const char *filename)
     return pos;
 }
 
-const char* auto_strerror(int errcode, char* buffer, size_t size)
+const char* atd_strerror(int errcode, char* buffer, size_t size)
 {
 #if defined(_WIN32)
     strerror_s(buffer, size, errcode);
@@ -152,7 +152,7 @@ const char* auto_strerror(int errcode, char* buffer, size_t size)
     return buffer;
 }
 
-char* auto_strdup(const char* s)
+char* atd_strdup(const char* s)
 {
 #if defined(_WIN32)
     return _strdup(s);
@@ -161,7 +161,7 @@ char* auto_strdup(const char* s)
 #endif
 }
 
-int auto_readfile(const char* path, void** data, size_t* size)
+int atd_readfile(const char* path, void** data, size_t* size)
 {
     FILE* exe;
     int errcode;
@@ -192,16 +192,16 @@ int auto_readfile(const char* path, void** data, size_t* size)
     return 0;
 }
 
-int auto_read_self(void** data, size_t* size)
+int atd_read_self(void** data, size_t* size)
 {
     char buffer[1024];
     size_t buffer_sz = sizeof(buffer);
     uv_exepath(buffer, &buffer_sz);
 
-    return auto_readfile(buffer, data, size);
+    return atd_readfile(buffer, data, size);
 }
 
-void auto_init_probe(auto_probe_t* probe)
+void auto_init_probe(atd_probe_t* probe)
 {
     probe->probe[0] = 0;
     probe->probe[1] = 128;
@@ -218,15 +218,15 @@ void auto_init_probe(auto_probe_t* probe)
     }
 }
 
-int auto_read_self_script(void** data, size_t* size)
+int atd_read_self_script(void** data, size_t* size)
 {
     int ret;
     void* content; size_t content_size;
 
-    auto_probe_t probe_data;
+    atd_probe_t probe_data;
     auto_init_probe(&probe_data);
 
-    if ((ret = auto_read_self(&content, &content_size)) != 0)
+    if ((ret = atd_read_self(&content, &content_size)) != 0)
     {
         *data = NULL;
         *size = 0;
@@ -255,14 +255,14 @@ int auto_read_self_script(void** data, size_t* size)
     return 0;
 }
 
-int auto_read_self_exec(void** data, size_t* size)
+int atd_read_self_exec(void** data, size_t* size)
 {
     int ret;
 
-    auto_probe_t probe_data;
+    atd_probe_t probe_data;
     auto_init_probe(&probe_data);
 
-    if ((ret = auto_read_self(data, size)) != 0)
+    if ((ret = atd_read_self(data, size)) != 0)
     {
         return ret;
     }
@@ -295,17 +295,17 @@ static int _write_executable(lua_State* L, const char* dst)
     if (dst_file == NULL)
     {
         return luaL_error(L, "open `%s` failed: %s(%d).", dst,
-            auto_strerror(errno, errbuf, sizeof(errbuf)), errno);
+                          atd_strerror(errno, errbuf, sizeof(errbuf)), errno);
     }
 
     {
         void* exe_data; size_t exe_size;
-        auto_read_self_exec(&exe_data, &exe_size);
+        atd_read_self_exec(&exe_data, &exe_size);
         fwrite(exe_data, exe_size, 1, dst_file);
     }
 
     {
-        auto_probe_t probe;
+        atd_probe_t probe;
         auto_init_probe(&probe);
         fwrite(&probe, sizeof(probe), 1, dst_file);
     }
@@ -333,7 +333,7 @@ static int _on_dump_compile_script(lua_State *L, const void *p, size_t sz, void 
     return 0;
 }
 
-int auto_compile_script(lua_State* L, const char* src, const char* dst)
+int atd_compile_script(lua_State* L, const char* src, const char* dst)
 {
     int sp = lua_gettop(L);
 

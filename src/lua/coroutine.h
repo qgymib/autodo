@@ -12,7 +12,7 @@ extern "C" {
  * @param[in] L     Lua VM.
  * @return          Always 0.
  */
-int auto_lua_coroutine(lua_State *L);
+int atd_lua_coroutine(lua_State *L);
 
 #ifdef __cplusplus
 }

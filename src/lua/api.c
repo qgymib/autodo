@@ -7,9 +7,9 @@
  * @brief Lua API list.
  */
 #define AUTO_LUA_API_MAP(xx) \
-    xx("coroutine",         auto_lua_coroutine)         \
-    xx("take_screenshot",   auto_lua_take_screenshot)   \
-    xx("sleep",             auto_lua_sleep)
+    xx("coroutine",         atd_lua_coroutine)      \
+    xx("screenshot",        atd_lua_screenshot)     \
+    xx("sleep",             atd_lua_sleep)
 
 /**
  * Generate proxy function for check if we need stop script.
@@ -17,7 +17,7 @@
  */
 #define EXPAND_MAP_AS_PROXY_FUNCTION(name, func)    \
     static int func##_##proxy(lua_State *L) {\
-        auto_runtime_t* rt = auto_get_runtime(L);\
+        atd_runtime_t* rt = atd_get_runtime(L);\
         AUTO_CHECK_TERM(rt);\
         return func(L);\
     }

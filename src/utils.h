@@ -48,12 +48,12 @@
 extern "C" {
 #endif
 
-typedef struct auto_probe
+typedef struct
 {
     unsigned char   probe[1024];    /**< Probe */
-} auto_probe_t;
+} atd_probe_t;
 
-void auto_init_probe(auto_probe_t* probe);
+void auto_init_probe(atd_probe_t* probe);
 
 /**
  * @brief Find binary data.
@@ -84,12 +84,12 @@ const char* get_filename(const char *filename);
 /**
  * @see [strerror_r(3)](https://man7.org/linux/man-pages/man3/strerror.3.html)
  */
-const char* auto_strerror(int errcode, char* buffer, size_t size);
+const char* atd_strerror(int errcode, char* buffer, size_t size);
 
 /**
  * @see [strdup(3)](https://man7.org/linux/man-pages/man3/strdup.3.html)
  */
-char* auto_strdup(const char* s);
+char* atd_strdup(const char* s);
 
 /**
  * @brief Read file content
@@ -97,7 +97,7 @@ char* auto_strdup(const char* s);
  * @param[out] data File content
  * @return          File size.
  */
-int auto_readfile(const char* path, void** data, size_t* size);
+int atd_readfile(const char* path, void** data, size_t* size);
 
 /**
  * @brief Read self.
@@ -105,7 +105,7 @@ int auto_readfile(const char* path, void** data, size_t* size);
  * @param size
  * @return
  */
-int auto_read_self(void** data, size_t* size);
+int atd_read_self(void** data, size_t* size);
 
 /**
  * @brief Read self and get the script part.
@@ -113,7 +113,7 @@ int auto_read_self(void** data, size_t* size);
  * @param[out] size Script size.
  * @return          Error code.
  */
-int auto_read_self_script(void** data, size_t* size);
+int atd_read_self_script(void** data, size_t* size);
 
 /**
  * @brief Read self and get the executable part.
@@ -121,7 +121,7 @@ int auto_read_self_script(void** data, size_t* size);
  * @param[out] size Executable size.
  * @return          Error code.
  */
-int auto_read_self_exec(void** data, size_t* size);
+int atd_read_self_exec(void** data, size_t* size);
 
 /**
  * @brief Compile script \p src into \p dst.
@@ -130,7 +130,7 @@ int auto_read_self_exec(void** data, size_t* size);
  * @param[in] dst   Destination path.
  * @return          Error code.
  */
-int auto_compile_script(lua_State* L, const char* src, const char* dst);
+int atd_compile_script(lua_State* L, const char* src, const char* dst);
 
 #ifdef __cplusplus
 }

@@ -31,7 +31,7 @@ static cairo_status_t _on_write_png(void *closure, const unsigned char *data,
  * @param L
  * @return
  */
-int auto_lua_take_screenshot(lua_State *L)
+int atd_lua_screenshot(lua_State *L)
 {
     luaL_Buffer buf;
     luaL_buffinit(L, &buf);

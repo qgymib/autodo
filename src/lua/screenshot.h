@@ -12,7 +12,7 @@ extern "C" {
  * @param[in] L     Lua VM.
  * @return          1.
  */
-int auto_lua_take_screenshot(lua_State *L);
+int atd_lua_screenshot(lua_State *L);
 
 #ifdef __cplusplus
 }
