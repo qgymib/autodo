@@ -38,18 +38,19 @@ static int _init_parse_args_finalize(lua_State* L, atd_runtime_t* rt, const char
 
     if (rt->config.compile_path != NULL && rt->config.output_path == NULL)
     {
-        const char* ext = get_filename_ext(rt->config.compile_path);
+        const char* filename = get_filename(rt->config.compile_path);
+        const char* ext = get_filename_ext(filename);
 
 #if defined(_WIN32)
-        size_t path_len = strlen(rt->config.compile_path);
+        size_t path_len = strlen(filename);
         size_t ext_len = strlen(ext);
         size_t malloc_size = path_len - ext_len + 4;
         rt->config.output_path = malloc(malloc_size);
-        memcpy(rt->config.output_path, rt->config.compile_path, path_len - ext_len);
+        memcpy(rt->config.output_path, filename, path_len - ext_len);
         memcpy(rt->config.output_path + path_len - ext_len, "exe", 4);
 #else
-        size_t offset = ext - rt->config.compile_path;
-        rt->config.output_path = strdup(rt->config.compile_path);
+        size_t offset = ext - filename;
+        rt->config.output_path = strdup(filename);
         rt->config.output_path[offset - 1] = '\0';
 #endif
     }
