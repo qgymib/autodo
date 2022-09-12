@@ -8,6 +8,7 @@
  */
 #define AUTO_LUA_API_MAP(xx) \
     xx("coroutine",         atd_lua_coroutine)      \
+    xx("msgbox",            atd_lua_msgbox)         \
     xx("screenshot",        atd_lua_screenshot)     \
     xx("sleep",             atd_lua_sleep)
 

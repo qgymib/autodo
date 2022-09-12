@@ -55,7 +55,12 @@ typedef struct auto_gui_startup_info
  */
 int auto_gui(auto_gui_startup_info_t* info);
 
+/**
+ * @brief Request GUI to exit.
+ */
 void auto_gui_exit(void);
+
+void atd_gui_msgbox(const char* text);
 
 #ifdef __cplusplus
 }

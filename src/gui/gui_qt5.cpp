@@ -88,3 +88,11 @@ void auto_gui_exit(void)
 {
     m_main_window->RequireExit();
 }
+
+void atd_gui_msgbox(const char* text)
+{
+    QMessageBox msgBox;
+    msgBox.setText(text);
+    msgBox.set
+    msgBox.exec();
+}
