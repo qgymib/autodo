@@ -16,10 +16,6 @@ static void _print_usage(const char* name)
     const char* s_usage =
         "%s - A easy to use lua automation tool.\n"
         "Usage: %s [OPTIONS] [SCRIPT]\n"
-        "  -c\n"
-        "    Compile script.\n"
-        "  -o\n"
-        "    Output file path.\n"
         "  -h,--help\n"
         "    Show this help and exit.\n"
     ;
@@ -27,36 +23,13 @@ static void _print_usage(const char* name)
     exit(EXIT_SUCCESS);
 }
 
-static int _init_parse_args_finalize(lua_State* L, atd_runtime_t* rt, const char* name)
+static int _init_parse_args_finalize(const char* name)
 {
-    if (rt->config.script_path != NULL && rt->config.compile_path != NULL)
-    {
-        return luaL_error(L, "Conflict option: script followed by `-c`");
-    }
-
-    if (rt->config.script_path == NULL && rt->config.compile_path == NULL && rt->script.data == NULL)
+    if (atd_rt->config.script_path == NULL && atd_rt->script.data == NULL)
     {
         _print_usage(name);
     }
 
-    if (rt->config.compile_path != NULL && rt->config.output_path == NULL)
-    {
-        const char* filename = get_filename(rt->config.compile_path);
-        const char* ext = get_filename_ext(filename);
-
-#if defined(_WIN32)
-        size_t path_len = strlen(filename);
-        size_t ext_len = strlen(ext);
-        size_t malloc_size = path_len - ext_len + 4;
-        rt->config.output_path = malloc(malloc_size);
-        memcpy(rt->config.output_path, filename, path_len - ext_len);
-        memcpy(rt->config.output_path + path_len - ext_len, "exe", 4);
-#else
-        size_t offset = ext - filename;
-        rt->config.output_path = strdup(filename);
-        rt->config.output_path[offset - 1] = '\0';
-#endif
-    }
     return 0;
 }
 
@@ -118,20 +91,15 @@ void atd_exit_runtime(void)
     }
     atd_rt->script.size = 0;
 
-    if (atd_rt->config.compile_path != NULL)
-    {
-        free(atd_rt->config.compile_path);
-        atd_rt->config.compile_path = NULL;
-    }
-    if (atd_rt->config.output_path != NULL)
-    {
-        free(atd_rt->config.output_path);
-        atd_rt->config.output_path = NULL;
-    }
     if (atd_rt->config.script_path != NULL)
     {
         free(atd_rt->config.script_path);
         atd_rt->config.script_path = NULL;
+    }
+    if (atd_rt->config.script_name != NULL)
+    {
+        free(atd_rt->config.script_name);
+        atd_rt->config.script_name = NULL;
     }
 
     lua_close(atd_rt->L);
@@ -146,13 +114,13 @@ static int _init_runtime_script(lua_State* L, atd_runtime_t* rt)
     if ((ret = atd_read_self_script(&rt->script.data, &rt->script.size)) != 0)
     {
         return luaL_error(L, "read self failed: %s(%d)",
-                          atd_strerror(ret, rt->cache.errbuf, sizeof(rt->cache.errbuf)), ret);
+            atd_strerror(ret, rt->cache.errbuf, sizeof(rt->cache.errbuf)), ret);
     }
 
     return 0;
 }
 
-static int _init_parse_args(lua_State* L, atd_runtime_t* rt, int argc, char* argv[])
+static int _init_parse_args(int argc, char* argv[])
 {
     int i;
     for (i = 1; i < argc; i++)
@@ -162,48 +130,14 @@ static int _init_parse_args(lua_State* L, atd_runtime_t* rt, int argc, char* arg
             _print_usage(get_filename(argv[0]));
         }
 
-        if (strcmp(argv[i], "-c") == 0)
+        if (atd_rt->config.script_path != NULL)
         {
-            i++;
-            if (i >= argc)
-            {
-                return luaL_error(L, "missing argument to `-c`.");
-            }
-
-            if (rt->config.compile_path != NULL)
-            {
-                free(rt->config.compile_path);
-            }
-            rt->config.compile_path = atd_strdup(argv[i]);
-
-            continue;
+            free(atd_rt->config.script_path);
         }
-
-        if (strcmp(argv[i], "-o") == 0)
-        {
-            i++;
-            if (i >= argc)
-            {
-                return luaL_error(L, "missing argument to `-o`.");
-            }
-
-            if (rt->config.output_path != NULL)
-            {
-                free(rt->config.output_path);
-            }
-            rt->config.output_path = atd_strdup(argv[i]);
-
-            continue;
-        }
-
-        if (rt->config.script_path != NULL)
-        {
-            free(rt->config.script_path);
-        }
-        rt->config.script_path = atd_strdup(argv[i]);
+        atd_rt->config.script_path = atd_strdup(argv[i]);
     }
 
-    return _init_parse_args_finalize(L, rt, argv[0]);
+    return _init_parse_args_finalize(argv[0]);
 }
 
 static int _on_cmp_thread(const ev_map_node_t* key1, const ev_map_node_t* key2, void* arg)
@@ -239,7 +173,7 @@ static void _init_runtime(lua_State* L, atd_runtime_t* rt, int argc, char* argv[
     /* Command line argument is only parsed when script is not embed */
     if (rt->script.data == NULL)
     {
-        _init_parse_args(L, rt, argc, argv);
+        _init_parse_args(argc, argv);
     }
 }
 
@@ -264,7 +198,7 @@ static int _runtime_schedule_one_pass(atd_runtime_t* rt, lua_State* L)
         it = ev_list_next(it);
 
         /* Resume coroutine */
-        int ret = lua_resume(thr->base.L, L, 0, &thr->base.nresults);
+        int ret = lua_resume(thr->base.L, L, thr->base.nresults, &thr->base.nresults);
 
         /* Coroutine yield */
         if (ret == LUA_YIELD)
@@ -275,6 +209,7 @@ static int _runtime_schedule_one_pass(atd_runtime_t* rt, lua_State* L)
             if (thr->base.nresults != 0)
             {
                 lua_pop(thr->base.L, thr->base.nresults);
+                thr->base.nresults = 0;
             }
 
             continue;
@@ -284,6 +219,14 @@ static int _runtime_schedule_one_pass(atd_runtime_t* rt, lua_State* L)
         thr->base.set_schedule_state(&thr->base, ret);
         /* Call hook */
         _thread_trigger_hook(thr);
+
+        /* Error affect main thread */
+        if (ret != LUA_OK)
+        {
+            lua_xmove(thr->base.L, L, 1);
+            return lua_error(L);
+        }
+
         /* Destroy coroutine */
         _runtime_destroy_thread(rt, L, thr);
     }
@@ -294,6 +237,7 @@ static int _runtime_schedule_one_pass(atd_runtime_t* rt, lua_State* L)
 int atd_init_runtime(int argc, char* argv[])
 {
     uv_setup_args(argc, argv);
+    uv_disable_stdio_inheritance();
 
     atd_rt = malloc(sizeof(atd_runtime_t));
     memset(atd_rt, 0, sizeof(*atd_rt));

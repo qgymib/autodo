@@ -78,8 +78,7 @@ typedef struct atd_runtime
 
     struct
     {
-        char*           compile_path;   /**< Path to script that need compile */
-        char*           output_path;    /**< Path to compiled output file */
+        char*           script_name;    /**< Script name */
         char*           script_path;    /**< Path to run script */
     } config;
 

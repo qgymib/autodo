@@ -147,6 +147,7 @@ int atd_lua_coroutine(lua_State *L)
         lua_pushvalue(L, i);
     }
     lua_xmove(L, co->thr->L, sp);
+    co->thr->nresults = sp - 1;
 
     /* Care about thread state change */
     co->hook = co->thr->hook(co->thr, _on_coroutine_state_change, co);

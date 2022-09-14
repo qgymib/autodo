@@ -29,7 +29,8 @@ static int _user_thread_on_resume(lua_State *L, int status, lua_KContext ctx)
 
 static int _user_thread(lua_State* L)
 {
-    if (luaL_loadbuffer(L, atd_rt->script.data, atd_rt->script.size, "script") != LUA_OK)
+    if (luaL_loadbuffer(L, atd_rt->script.data, atd_rt->script.size,
+        atd_rt->config.script_name) != LUA_OK)
     {
         return lua_error(L);
     }
@@ -55,17 +56,23 @@ static int _lua_load_script(atd_runtime_t* rt, lua_State* L)
         free(rt->script.data);
     }
 
+    if (rt->config.script_name != NULL)
+    {
+        free(rt->config.script_name);
+    }
+    rt->config.script_name = atd_strdup(get_filename(rt->config.script_path));
+
     int ret = atd_readfile(rt->config.script_path,
-                           &rt->script.data, &rt->script.size);
+        &rt->script.data, &rt->script.size);
     if (ret == 0)
     {
         return 0;
     }
 
     return luaL_error(L, "open `%s` failed: %s(%d)",
-                      rt->config.script_path,
-                      atd_strerror(ret, rt->cache.errbuf, sizeof(rt->cache.errbuf)),
-                      ret);
+        rt->config.script_path,
+        atd_strerror(ret, rt->cache.errbuf, sizeof(rt->cache.errbuf)),
+        ret);
 }
 
 static int _lua_run(lua_State* L)
@@ -80,11 +87,6 @@ static int _lua_run(lua_State* L)
     if (atd_rt->script.data != NULL)
     {
         return _run_script(L, atd_rt);
-    }
-
-    if (atd_rt->config.compile_path != NULL)
-    {
-        return atd_compile_script(L, atd_rt->config.compile_path, atd_rt->config.output_path);
     }
 
     return luaL_error(L, "no operation");
