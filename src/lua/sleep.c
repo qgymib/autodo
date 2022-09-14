@@ -1,41 +1,34 @@
 #include <stdlib.h>
-#include "runtime.h"
+#include <autodo.h>
 #include "sleep.h"
-#include "utils.h"
 
 typedef struct sleep_ctx
 {
-    uv_timer_t      timer;
-    atd_runtime_t*  rt;
-    atd_thread_t*   u_thr;
+    atd_timer_t*        timer;
+    atd_coroutine_t*    co;
 } sleep_ctx_t;
 
-static void _on_sleep_timer_close(uv_handle_t* handle)
+static void _on_sleep_timer(void* arg)
 {
-    sleep_ctx_t* ctx = container_of((uv_timer_t*)handle, sleep_ctx_t, timer);
+    sleep_ctx_t* ctx = arg;
+    ctx->co->set_schedule_state(ctx->co, LUA_TNONE);
+
+    ctx->timer->destroy(ctx->timer);
+    ctx->timer = NULL;
+
     free(ctx);
-}
-
-static void _on_sleep_timer(uv_timer_t* handle)
-{
-    sleep_ctx_t* ctx = container_of(handle, sleep_ctx_t, timer);
-
-    atd_set_thread_state(ctx->rt, ctx->u_thr, LUA_TNONE);
-    uv_close((uv_handle_t*)handle, _on_sleep_timer_close);
 }
 
 int atd_lua_sleep(lua_State *L)
 {
-    atd_runtime_t* rt = atd_get_runtime(L);
     uint32_t timeout = (uint32_t)lua_tointeger(L, -1);
 
     sleep_ctx_t* ctx = malloc(sizeof(sleep_ctx_t));
-    ctx->u_thr = atd_find_thread(rt, L);
-    ctx->rt = rt;
+    ctx->co = api.find_coroutine(L);
 
-    uv_timer_init(&rt->loop, &ctx->timer);
-    uv_timer_start(&ctx->timer, _on_sleep_timer, timeout, 0);
+    ctx->timer = api.new_timer();
+    ctx->timer->start(ctx->timer, timeout, 0, _on_sleep_timer, ctx);
 
-    atd_set_thread_state(rt, ctx->u_thr, LUA_YIELD);
+    ctx->co->set_schedule_state(ctx->co, LUA_YIELD);
     return lua_yield(L, 0);
 }

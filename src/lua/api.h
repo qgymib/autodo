@@ -1,12 +1,16 @@
 #ifndef __AUTODO_LUA_API_H__
 #define __AUTODO_LUA_API_H__
+
+#include "autodo.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include <lua.h>
-#include <lauxlib.h>
-#include <lualib.h>
+/**
+* @brief Exposed api.
+*/
+extern atd_api_t api;
 
 /**
  * @brief Initialize builtin library.

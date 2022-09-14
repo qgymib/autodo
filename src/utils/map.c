@@ -592,7 +592,7 @@ void ev_map_init(ev_map_t* handler, ev_map_cmp_fn cmp, void* arg)
     handler->size = 0;
 }
 
-int ev_map_insert(ev_map_t* handler, ev_map_node_t* node)
+ev_map_node_t* ev_map_insert(ev_map_t* handler, ev_map_node_t* node)
 {
     ev_map_low_node_t **new_node = &(handler->map_low.rb_root), *parent = NULL;
 
@@ -612,7 +612,7 @@ int ev_map_insert(ev_map_t* handler, ev_map_node_t* node)
         }
         else
         {
-            return -1;
+            return *new_node;
         }
     }
 

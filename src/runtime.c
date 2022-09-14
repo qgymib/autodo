@@ -9,7 +9,9 @@
  */
 #define AUTO_GLOBAL "_AUTO_G"
 
-static int _print_usage(lua_State* L, const char* name)
+atd_runtime_t*   atd_rt;
+
+static void _print_usage(const char* name)
 {
     const char* s_usage =
         "%s - A easy to use lua automation tool.\n"
@@ -21,7 +23,8 @@ static int _print_usage(lua_State* L, const char* name)
         "  -h,--help\n"
         "    Show this help and exit.\n"
     ;
-    return luaL_error(L, s_usage, name, name);
+    fprintf(stdout, s_usage, name, name);
+    exit(EXIT_SUCCESS);
 }
 
 static int _init_parse_args_finalize(lua_State* L, atd_runtime_t* rt, const char* name)
@@ -33,7 +36,7 @@ static int _init_parse_args_finalize(lua_State* L, atd_runtime_t* rt, const char
 
     if (rt->config.script_path == NULL && rt->config.compile_path == NULL && rt->script.data == NULL)
     {
-        return _print_usage(L, name);
+        _print_usage(name);
     }
 
     if (rt->config.compile_path != NULL && rt->config.output_path == NULL)
@@ -57,13 +60,13 @@ static int _init_parse_args_finalize(lua_State* L, atd_runtime_t* rt, const char
     return 0;
 }
 
-static void _runtime_destroy_thread(atd_runtime_t* rt, lua_State* L, atd_thread_t* thr)
+static void _runtime_destroy_thread(atd_runtime_t* rt, lua_State* L, atd_coroutine_impl_t* thr)
 {
     assert(ev_list_size(&thr->hook.queue) == 0);
 
     ev_map_erase(&rt->schedule.all_table, &thr->t_node);
 
-    if (thr->data.sch_status == LUA_TNONE)
+    if (thr->base.status == LUA_TNONE)
     {
         ev_list_erase(&rt->schedule.busy_queue, &thr->q_node);
     }
@@ -77,59 +80,63 @@ static void _runtime_destroy_thread(atd_runtime_t* rt, lua_State* L, atd_thread_
     free(thr);
 }
 
-static void _runtime_gc_release_coroutine(atd_runtime_t* rt, lua_State* L)
+static void _runtime_gc_release_coroutine(atd_runtime_t* rt)
 {
     ev_list_node_t* it;
     while ((it = ev_list_begin(&rt->schedule.busy_queue)) != NULL)
     {
-        atd_thread_t* thr = container_of(it, atd_thread_t, q_node);
-        _runtime_destroy_thread(rt, L, thr);
+        atd_coroutine_impl_t* thr = container_of(it, atd_coroutine_impl_t, q_node);
+        _runtime_destroy_thread(rt, rt->L, thr);
     }
     while ((it = ev_list_begin(&rt->schedule.wait_queue)) != NULL)
     {
-        atd_thread_t* thr = container_of(it, atd_thread_t, q_node);
-        _runtime_destroy_thread(rt, L, thr);
+        atd_coroutine_impl_t* thr = container_of(it, atd_coroutine_impl_t, q_node);
+        _runtime_destroy_thread(rt, rt->L, thr);
     }
 }
 
-static int _runtime_gc(lua_State* L)
+void atd_exit_runtime(void)
 {
     int ret;
-    atd_runtime_t* rt = lua_touserdata(L, 1);
-    rt = (atd_runtime_t*)ALIGN_WITH(rt, sizeof(void*) * 2);
 
-    _runtime_gc_release_coroutine(rt, L);
+    _runtime_gc_release_coroutine(atd_rt);
 
-    uv_close((uv_handle_t*)&rt->notifier, NULL);
-    if ((ret = uv_loop_close(&rt->loop)) != 0)
+    uv_close((uv_handle_t*)&atd_rt->notifier, NULL);
+
+    /* Close all handles */
+    uv_run(&atd_rt->loop, UV_RUN_DEFAULT);
+
+    if ((ret = uv_loop_close(&atd_rt->loop)) != 0)
     {
-        return luaL_error(L, "close event loop failed: %d", ret);
+        luaL_error(atd_rt->L, "close event loop failed: %d", ret);
     }
 
-    if (rt->script.data != NULL)
+    if (atd_rt->script.data != NULL)
     {
-        free(rt->script.data);
-        rt->script.data = NULL;
+        free(atd_rt->script.data);
+        atd_rt->script.data = NULL;
     }
-    rt->script.size = 0;
+    atd_rt->script.size = 0;
 
-    if (rt->config.compile_path != NULL)
+    if (atd_rt->config.compile_path != NULL)
     {
-        free(rt->config.compile_path);
-        rt->config.compile_path = NULL;
+        free(atd_rt->config.compile_path);
+        atd_rt->config.compile_path = NULL;
     }
-    if (rt->config.output_path != NULL)
+    if (atd_rt->config.output_path != NULL)
     {
-        free(rt->config.output_path);
-        rt->config.output_path = NULL;
+        free(atd_rt->config.output_path);
+        atd_rt->config.output_path = NULL;
     }
-    if (rt->config.script_path != NULL)
+    if (atd_rt->config.script_path != NULL)
     {
-        free(rt->config.script_path);
-        rt->config.script_path = NULL;
+        free(atd_rt->config.script_path);
+        atd_rt->config.script_path = NULL;
     }
 
-    return 0;
+    lua_close(atd_rt->L);
+    free(atd_rt);
+    atd_rt = NULL;
 }
 
 static int _init_runtime_script(lua_State* L, atd_runtime_t* rt)
@@ -152,7 +159,7 @@ static int _init_parse_args(lua_State* L, atd_runtime_t* rt, int argc, char* arg
     {
         if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0)
         {
-            return _print_usage(L, get_filename(argv[0]));
+            _print_usage(get_filename(argv[0]));
         }
 
         if (strcmp(argv[i], "-c") == 0)
@@ -202,14 +209,14 @@ static int _init_parse_args(lua_State* L, atd_runtime_t* rt, int argc, char* arg
 static int _on_cmp_thread(const ev_map_node_t* key1, const ev_map_node_t* key2, void* arg)
 {
     (void)arg;
-    atd_thread_t* t1 = container_of(key1, atd_thread_t, t_node);
-    atd_thread_t* t2 = container_of(key2, atd_thread_t, t_node);
+    atd_coroutine_impl_t* t1 = container_of(key1, atd_coroutine_impl_t, t_node);
+    atd_coroutine_impl_t* t2 = container_of(key2, atd_coroutine_impl_t, t_node);
 
-    if (t1->co == t2->co)
+    if (t1->base.L == t2->base.L)
     {
         return 0;
     }
-    return t1->co < t2->co ? -1 : 1;
+    return t1->base.L < t2->base.L ? -1 : 1;
 }
 
 static void _on_runtime_notify(uv_async_t *handle)
@@ -236,15 +243,15 @@ static void _init_runtime(lua_State* L, atd_runtime_t* rt, int argc, char* argv[
     }
 }
 
-static void _thread_trigger_hook(atd_thread_t* thr)
+static void _thread_trigger_hook(atd_coroutine_impl_t* thr)
 {
     thr->hook.it = ev_list_begin(&thr->hook.queue);
     while (thr->hook.it != NULL)
     {
-        atd_thread_hook_t* token = container_of(thr->hook.it, atd_thread_hook_t, node);
+        atd_coroutine_hook_t* token = container_of(thr->hook.it, atd_coroutine_hook_t, node);
         thr->hook.it = ev_list_next(thr->hook.it);
 
-        token->data.callback(token, thr, token->data.data);
+        token->fn(&token->impl->base, token->arg);
     }
 }
 
@@ -253,11 +260,11 @@ static int _runtime_schedule_one_pass(atd_runtime_t* rt, lua_State* L)
     ev_list_node_t* it = ev_list_begin(&rt->schedule.busy_queue);
     while (it != NULL)
     {
-        atd_thread_t* thr = container_of(it, atd_thread_t, q_node);
+        atd_coroutine_impl_t* thr = container_of(it, atd_coroutine_impl_t, q_node);
         it = ev_list_next(it);
 
         /* Resume coroutine */
-        int ret = lua_resume(thr->co, L, 0, &thr->data.n_ret);
+        int ret = lua_resume(thr->base.L, L, 0, &thr->base.nresults);
 
         /* Coroutine yield */
         if (ret == LUA_YIELD)
@@ -265,16 +272,16 @@ static int _runtime_schedule_one_pass(atd_runtime_t* rt, lua_State* L)
             _thread_trigger_hook(thr);
 
             /* Anything received treat as busy coroutine */
-            if (thr->data.n_ret != 0)
+            if (thr->base.nresults != 0)
             {
-                lua_pop(thr->co, thr->data.n_ret);
+                lua_pop(thr->base.L, thr->base.nresults);
             }
 
             continue;
         }
 
         /* Coroutine either finish execution or error happen.  */
-        atd_set_thread_state(rt, thr, ret);
+        thr->base.set_schedule_state(&thr->base, ret);
         /* Call hook */
         _thread_trigger_hook(thr);
         /* Destroy coroutine */
@@ -284,119 +291,17 @@ static int _runtime_schedule_one_pass(atd_runtime_t* rt, lua_State* L)
     return 0;
 }
 
-int atd_init_runtime(lua_State* L, int argc, char* argv[])
+int atd_init_runtime(int argc, char* argv[])
 {
-    /*
-     * We cannot trust LUA memory allocation, it does not align it to twice of
-     * machine size. In most case it is fine, but not for #atd_runtime_t.
-     *
-     * In Windows, the jmp_buf is force align to 16 bytes. If the address is
-     * not aligned to 16, the setjmp() will trigger coredump.
-     *
-     * To fix it, we allocate 16 more bytes and manually align to 16 bytes.
-     */
-    size_t malloc_size = sizeof(atd_runtime_t) + sizeof(void*) * 2;
-    atd_runtime_t* rt = lua_newuserdata(L, malloc_size);
-    memset(rt, 0, malloc_size);
-    /* Align to 16 bytes */
-    rt = (atd_runtime_t*)ALIGN_WITH(rt, sizeof(void*) * 2);
+    uv_setup_args(argc, argv);
 
-    static const luaL_Reg s_runtime_meta[] = {
-            { "__gc",   _runtime_gc },
-            { NULL,     NULL },
-    };
-    if (luaL_newmetatable(L, "__auto_runtime") != 0)
-    {
-        luaL_setfuncs(L, s_runtime_meta, 0);
-    }
-    lua_setmetatable(L, -2);
+    atd_rt = malloc(sizeof(atd_runtime_t));
+    memset(atd_rt, 0, sizeof(*atd_rt));
 
-    _init_runtime(L, rt, argc, argv);
-    lua_setglobal(L, AUTO_GLOBAL);
+    atd_rt->L = luaL_newstate();;
+    _init_runtime(atd_rt->L, atd_rt, argc, argv);
 
     return 0;
-}
-
-atd_runtime_t* atd_get_runtime(lua_State* L)
-{
-    int sp = lua_gettop(L);
-
-    if (lua_getglobal(L, AUTO_GLOBAL) != LUA_TUSERDATA)
-    {
-        luaL_error(L, "missing global runtime `%s`", AUTO_GLOBAL);
-        return NULL;
-    }
-
-    atd_runtime_t* rt = lua_touserdata(L, sp + 1);
-    rt = (atd_runtime_t*)ALIGN_WITH(rt, sizeof(void*) * 2);
-
-    lua_settop(L, sp);
-
-    return rt;
-}
-
-atd_thread_t* atd_new_thread(atd_runtime_t* rt, lua_State* L)
-{
-    atd_thread_t* thr = malloc(sizeof(atd_thread_t));
-
-    thr->co = lua_newthread(L);
-    thr->data.n_ret = 0;
-    thr->data.sch_status = LUA_TNONE;
-    thr->data.ref_key = luaL_ref(L, LUA_REGISTRYINDEX);
-    thr->hook.it = NULL;
-    ev_list_init(&thr->hook.queue);
-
-    ev_list_push_back(&rt->schedule.busy_queue, &thr->q_node);
-    ev_map_insert(&rt->schedule.all_table, &thr->t_node);
-
-    return thr;
-}
-
-atd_thread_t* atd_find_thread(atd_runtime_t* rt, lua_State* L)
-{
-    atd_thread_t tmp;
-    tmp.co = L;
-
-    ev_map_node_t* it = ev_map_find(&rt->schedule.all_table, &tmp.t_node);
-    if (it == NULL)
-    {
-        return NULL;
-    }
-
-    return container_of(it, atd_thread_t, t_node);
-}
-
-void atd_set_thread_state(atd_runtime_t* rt, atd_thread_t* thr, int state)
-{
-    /* In busy_queue */
-    if (thr->data.sch_status == LUA_TNONE)
-    {
-        if (state == LUA_TNONE)
-        {/* Do nothing if new state is also BUSY */
-            return;
-        }
-
-        ev_list_erase(&rt->schedule.busy_queue, &thr->q_node);
-        thr->data.sch_status = state;
-        ev_list_push_back(&rt->schedule.wait_queue, &thr->q_node);
-        return;
-    }
-
-    /* We are in wait_queue, cannot operate on dead coroutine */
-    if (thr->data.sch_status != LUA_YIELD)
-    {
-        abort();
-    }
-
-    /* move to busy_queue */
-    if (state == LUA_TNONE)
-    {
-        ev_list_erase(&rt->schedule.wait_queue, &thr->q_node);
-        thr->data.sch_status = state;
-        ev_list_push_back(&rt->schedule.busy_queue, &thr->q_node);
-    }
-
-    /* thr is dead, keep in wait_queue */
 }
 
 int atd_schedule(atd_runtime_t* rt, lua_State* L)
@@ -420,43 +325,4 @@ int atd_schedule(atd_runtime_t* rt, lua_State* L)
     }
 
     return 0;
-}
-
-int atd_runtime_link(lua_State* L, int idx)
-{
-    if (lua_getglobal(L, AUTO_GLOBAL) != LUA_TUSERDATA)
-    {
-        return luaL_error(L, "missing global runtime `%s`", AUTO_GLOBAL);
-    }
-
-    lua_setuservalue(L, idx);
-    return 0;
-}
-
-void atd_hook_thread(atd_thread_hook_t* token, atd_thread_t* thr,
-                     atd_thread_hook_fn fn, void* arg)
-{
-    token->data.callback = fn;
-    token->data.data = arg;
-    token->data.thr = thr;
-    ev_list_push_back(&thr->hook.queue, &token->node);
-}
-
-void atd_unhook_thread(atd_thread_hook_t* token)
-{
-    atd_thread_t* thr = token->data.thr;
-
-    if (thr->hook.it != NULL)
-    {
-        atd_thread_hook_t* next_hook = container_of(thr->hook.it, atd_thread_hook_t, node);
-
-        /* If this is next hook, move iterator to next node. */
-        if (next_hook == token)
-        {
-            thr->hook.it = ev_list_next(thr->hook.it);
-        }
-    }
-
-    ev_list_erase(&thr->hook.queue, &token->node);
-    token->data.thr = NULL;
 }

@@ -12,14 +12,12 @@
  * @param[in] L     Lua VM.
  * @return          true to continue, false to stop.
  */
-static int _init_lua_runtime(lua_State* L)
+static void _init_lua_runtime(int argc, char* argv[])
 {
-    luaL_openlibs(L);
-    auto_init_libs(L);
+    atd_init_runtime(argc, argv);
 
-    int argc = (int)lua_tointeger(L, 1);
-    char** argv = (char**)lua_touserdata(L, 2);
-    return atd_init_runtime(L, argc, argv);
+    luaL_openlibs(atd_rt->L);
+    auto_init_libs(atd_rt->L);
 }
 
 static int _user_thread_on_resume(lua_State *L, int status, lua_KContext ctx)
@@ -31,9 +29,7 @@ static int _user_thread_on_resume(lua_State *L, int status, lua_KContext ctx)
 
 static int _user_thread(lua_State* L)
 {
-    atd_runtime_t* rt = atd_get_runtime(L);
-
-    if (luaL_loadbuffer(L, rt->script.data, rt->script.size, "script") != LUA_OK)
+    if (luaL_loadbuffer(L, atd_rt->script.data, atd_rt->script.size, "script") != LUA_OK)
     {
         return lua_error(L);
     }
@@ -44,8 +40,10 @@ static int _user_thread(lua_State* L)
 
 static int _run_script(lua_State* L, atd_runtime_t* rt)
 {
-    atd_thread_t* thr = atd_new_thread(rt, L);
-    lua_pushcfunction(thr->co, _user_thread);
+    atd_coroutine_t* thr = api.register_coroutine(lua_newthread(L));
+    lua_pop(L, 1);
+
+    lua_pushcfunction(thr->L, _user_thread);
 
     return atd_schedule(rt, L);
 }
@@ -72,83 +70,44 @@ static int _lua_load_script(atd_runtime_t* rt, lua_State* L)
 
 static int _lua_run(lua_State* L)
 {
-    atd_runtime_t* rt = atd_get_runtime(L);
-
     /* Load script if necessary */
-    if (rt->config.script_path != NULL)
+    if (atd_rt->config.script_path != NULL)
     {
-        _lua_load_script(rt, L);
+        _lua_load_script(atd_rt, L);
     }
 
     /* Run script */
-    if (rt->script.data != NULL)
+    if (atd_rt->script.data != NULL)
     {
-        return _run_script(L, rt);
+        return _run_script(L, atd_rt);
     }
 
-    if (rt->config.compile_path != NULL)
+    if (atd_rt->config.compile_path != NULL)
     {
-        return atd_compile_script(L, rt->config.compile_path, rt->config.output_path);
+        return atd_compile_script(L, atd_rt->config.compile_path, atd_rt->config.output_path);
     }
 
     return luaL_error(L, "no operation");
 }
 
-static void _setup(lua_State* L, int argc, char* argv[])
-{
-    uv_setup_args(argc, argv);
-
-    /* Initialize Lua VM */
-    lua_pushcfunction(L, _init_lua_runtime);
-    lua_pushinteger(L, argc);
-    lua_pushlightuserdata(L, argv);
-
-    /* Initialize failure */
-    if (lua_pcall(L, 2, 1, 0) == LUA_OK)
-    {
-        return;
-    }
-
-    /*
-     * Let's do some dirty hack to check if it is a help string.
-     */
-    int exit_ret = EXIT_FAILURE;
-    const char* err_msg = lua_tostring(L, -1);
-    if (strstr(err_msg, "Usage:") != NULL)
-    {
-        exit_ret = EXIT_SUCCESS;
-        fprintf(stdout, "%s\n", err_msg);
-    }
-    else
-    {
-        fprintf(stderr, "%s\n", err_msg);
-    }
-
-    lua_close(L);
-    exit(exit_ret);
-}
-
 int main(int argc, char* argv[])
 {
-    lua_State* L = luaL_newstate();
-    _setup(L, argc, argv);
+    atexit(atd_exit_runtime);
 
-    atd_runtime_t* rt = atd_get_runtime(L);
+    _init_lua_runtime(argc, argv);
 
-    if (setjmp(rt->check.point) != 0)
+    if (setjmp(atd_rt->check.point) != 0)
     {
         goto vm_exit;
     }
 
-    lua_pushcfunction(L, _lua_run);
-    int ret = lua_pcall(L, 0, 0, 0);
+    lua_pushcfunction(atd_rt->L, _lua_run);
+    int ret = lua_pcall(atd_rt->L, 0, 0, 0);
     if (ret != LUA_OK)
     {
-        fprintf(stderr, "%s\n", lua_tostring(L, -1));
+        fprintf(stderr, "%s\n", lua_tostring(atd_rt->L, -1));
     }
 
 vm_exit:
-    lua_close(L);
-
     return ret;
 }
