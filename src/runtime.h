@@ -137,7 +137,6 @@ typedef struct atd_runtime
     struct
     {
         int             looping;        /**< Looping */
-        int             gui_ready;      /**< GUI is ready */
     } flag;
 
     struct

@@ -1,7 +1,6 @@
 #include "runtime.h"
 #include "utils.h"
 #include "lua/api.h"
-#include "gui/gui.h"
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -95,53 +94,6 @@ static int _lua_run(lua_State* L)
     return luaL_error(L, "no operation");
 }
 
-static void _control_routine(void* data)
-{
-    lua_State* L = data;
-    atd_runtime_t* rt = atd_get_runtime(L);
-
-    if (setjmp(rt->check.point) != 0)
-    {
-        goto vm_exit;
-    }
-
-    while (!rt->flag.gui_ready)
-    {
-        uv_sleep(10);
-    }
-
-    lua_pushcfunction(L, _lua_run);
-    int ret = lua_pcall(L, 0, 0, 0);
-    if (ret != LUA_OK)
-    {
-        fprintf(stderr, "%s\n", lua_tostring(L, -1));
-    }
-
-vm_exit:
-    /* Ask GUI to exit */
-    auto_gui_exit();
-}
-
-static void _on_gui_event(auto_gui_msg_t* msg, void* udata)
-{
-    atd_runtime_t* rt = udata;
-
-    switch (msg->type)
-    {
-    case AUTO_GUI_READY:
-        rt->flag.gui_ready = 1;
-        break;
-
-    case AUTO_GUI_QUIT:
-        rt->flag.looping = 0;
-        uv_async_send(&rt->notifier);
-        break;
-
-    default:
-        break;
-    }
-}
-
 static void _setup(lua_State* L, int argc, char* argv[])
 {
     uv_setup_args(argc, argv);
@@ -178,26 +130,24 @@ static void _setup(lua_State* L, int argc, char* argv[])
 
 int main(int argc, char* argv[])
 {
-    auto_gui_startup_info_t info;
-    memset(&info, 0, sizeof(info));
-
-    info.argc = argc;
-    info.argv = argv;
-
     lua_State* L = luaL_newstate();
-    _setup(L, info.argc, info.argv);
+    _setup(L, argc, argv);
 
-    info.udata = atd_get_runtime(L);
-    info.on_event = _on_gui_event;
+    atd_runtime_t* rt = atd_get_runtime(L);
 
-    uv_thread_t tid;
-    uv_thread_create(&tid, _control_routine, L);
+    if (setjmp(rt->check.point) != 0)
+    {
+        goto vm_exit;
+    }
 
-    /* Initialize GUI */
-    int ret = auto_gui(&info);
+    lua_pushcfunction(L, _lua_run);
+    int ret = lua_pcall(L, 0, 0, 0);
+    if (ret != LUA_OK)
+    {
+        fprintf(stderr, "%s\n", lua_tostring(L, -1));
+    }
 
-    /* Cleanup */
-    uv_thread_join(&tid);
+vm_exit:
     lua_close(L);
 
     return ret;

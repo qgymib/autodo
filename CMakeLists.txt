@@ -46,22 +46,6 @@ function(setup_required_package_cairo name)
             ${CAIRO_LIBRARIES})
 endfunction()
 
-function(setup_required_package_qt5 name)
-    find_package(Qt5 COMPONENTS Widgets REQUIRED)
-    set_target_properties(${name}
-        PROPERTIES
-            AUTOMOC TRUE
-            AUTORCC TRUE
-            AUTOUIC TRUE)
-    target_sources(${name}
-        PRIVATE
-            src/gui/gui_qt5.cpp
-            share/qt5.qrc)
-    target_link_libraries(${name}
-        PRIVATE
-            Qt5::Widgets)
-endfunction()
-
 ###############################################################################
 # Setup executable
 ###############################################################################
@@ -105,7 +89,6 @@ if (WIN32)
 else ()
     setup_required_package_x11(${PROJECT_NAME})
     setup_required_package_cairo(${PROJECT_NAME})
-    setup_required_package_qt5(${PROJECT_NAME})
 endif ()
 
 ###############################################################################
