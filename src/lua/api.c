@@ -22,7 +22,7 @@
 
 #define EXPAND_MAP_AS_PROXY_FUNCTION(name, func)    \
     static int func##_##proxy(lua_State *L) {\
-        AUTO_CHECK_TERM(atd_rt);\
+        AUTO_CHECK_TERM();\
         return func(L);\
     }
 
@@ -163,7 +163,7 @@ static atd_sync_t* api_new_async(atd_async_fn fn, void* arg)
     impl->handle.send = _async_send;
     impl->fn = fn;
     impl->arg = arg;
-    uv_async_init(&atd_rt->loop, &impl->async, _async_on_active);
+    uv_async_init(&g_rt->loop, &impl->async, _async_on_active);
 
     return &impl->handle;
 }
@@ -220,7 +220,7 @@ static atd_timer_t* api_new_timer(void)
     impl->handle.destroy = _timer_destroy;
     impl->handle.start = _timer_start;
     impl->handle.stop = _timer_stop;
-    uv_timer_init(&atd_rt->loop, &impl->timer);
+    uv_timer_init(&g_rt->loop, &impl->timer);
 
     return &impl->handle;
 }
@@ -411,13 +411,13 @@ static atd_process_t* api_new_process(atd_process_cfg_t* cfg)
     uv_stdio_container_t stdios[3];
     memset(stdios, 0, sizeof(stdios));
 
-    uv_pipe_init(&atd_rt->loop, &impl->pip_stdin, 0);
+    uv_pipe_init(&g_rt->loop, &impl->pip_stdin, 0);
     stdios[0].flags = UV_CREATE_PIPE | UV_READABLE_PIPE;
     stdios[0].data.stream = (uv_stream_t*)&impl->pip_stdin;
 
     if (impl->stdout_fn != NULL)
     {
-        uv_pipe_init(&atd_rt->loop, &impl->pip_stdout, 0);
+        uv_pipe_init(&g_rt->loop, &impl->pip_stdout, 0);
         stdios[1].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
         stdios[1].data.stream = (uv_stream_t*)&impl->pip_stdout;
     }
@@ -428,7 +428,7 @@ static atd_process_t* api_new_process(atd_process_cfg_t* cfg)
 
     if (impl->stderr_fn != NULL)
     {
-        uv_pipe_init(&atd_rt->loop, &impl->pip_stderr, 0);
+        uv_pipe_init(&g_rt->loop, &impl->pip_stderr, 0);
         stdios[2].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
         stdios[2].data.stream = (uv_stream_t*)&impl->pip_stderr;
     }
@@ -447,7 +447,7 @@ static atd_process_t* api_new_process(atd_process_cfg_t* cfg)
     opt.stdio = stdios;
     opt.stdio_count = 3;
 
-    impl->spawn_ret = uv_spawn(&atd_rt->loop, &impl->process, &opt);
+    impl->spawn_ret = uv_spawn(&g_rt->loop, &impl->process, &opt);
     if (impl->spawn_ret != 0)
     {
         impl->handle.kill(&impl->handle, SIGKILL);
@@ -476,9 +476,9 @@ static void _coroutine_set_schedule_state(struct atd_coroutine* thiz, int state)
             return;
         }
 
-        ev_list_erase(&atd_rt->schedule.busy_queue, &impl->q_node);
+        ev_list_erase(&g_rt->schedule.busy_queue, &impl->q_node);
         impl->base.status = state;
-        ev_list_push_back(&atd_rt->schedule.wait_queue, &impl->q_node);
+        ev_list_push_back(&g_rt->schedule.wait_queue, &impl->q_node);
         return;
     }
 
@@ -491,9 +491,9 @@ static void _coroutine_set_schedule_state(struct atd_coroutine* thiz, int state)
     /* move to busy_queue */
     if (state == LUA_TNONE)
     {
-        ev_list_erase(&atd_rt->schedule.wait_queue, &impl->q_node);
+        ev_list_erase(&g_rt->schedule.wait_queue, &impl->q_node);
         impl->base.status = state;
-        ev_list_push_back(&atd_rt->schedule.busy_queue, &impl->q_node);
+        ev_list_push_back(&g_rt->schedule.busy_queue, &impl->q_node);
     }
 
     /* thr is dead, keep in wait_queue */
@@ -547,7 +547,7 @@ static atd_coroutine_t* api_register_coroutine(lua_State* L)
     thr->base.set_schedule_state = _coroutine_set_schedule_state;
 
     /* Save to schedule table to check duplicate */
-    if (ev_map_insert(&atd_rt->schedule.all_table, &thr->t_node) != NULL)
+    if (ev_map_insert(&g_rt->schedule.all_table, &thr->t_node) != NULL)
     {
         free(thr);
         return NULL;
@@ -558,7 +558,7 @@ static atd_coroutine_t* api_register_coroutine(lua_State* L)
     thr->data.ref_key = luaL_ref(L, LUA_REGISTRYINDEX);
 
     /* Save to busy_queue */
-    ev_list_push_back(&atd_rt->schedule.busy_queue, &thr->q_node);
+    ev_list_push_back(&g_rt->schedule.busy_queue, &thr->q_node);
 
     return &thr->base;
 }
@@ -572,7 +572,7 @@ static atd_coroutine_t* api_find_coroutine(lua_State* L)
     atd_coroutine_impl_t tmp;
     tmp.base.L = L;
 
-    ev_map_node_t* it = ev_map_find(&atd_rt->schedule.all_table, &tmp.t_node);
+    ev_map_node_t* it = ev_map_find(&g_rt->schedule.all_table, &tmp.t_node);
     if (it == NULL)
     {
         return NULL;

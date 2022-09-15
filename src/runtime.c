@@ -9,7 +9,7 @@
  */
 #define AUTO_GLOBAL "_AUTO_G"
 
-atd_runtime_t*   atd_rt;
+atd_runtime_t*   g_rt;
 
 static void _print_usage(const char* name)
 {
@@ -25,7 +25,7 @@ static void _print_usage(const char* name)
 
 static int _init_parse_args_finalize(const char* name)
 {
-    if (atd_rt->config.script_path == NULL && atd_rt->script.data == NULL)
+    if (g_rt->config.script_path == NULL && g_rt->script.data == NULL)
     {
         _print_usage(name);
     }
@@ -78,11 +78,11 @@ static int _init_parse_args(int argc, char* argv[])
             _print_usage(get_filename(argv[0]));
         }
 
-        if (atd_rt->config.script_path != NULL)
+        if (g_rt->config.script_path != NULL)
         {
-            free(atd_rt->config.script_path);
+            free(g_rt->config.script_path);
         }
-        atd_rt->config.script_path = atd_strdup(argv[i]);
+        g_rt->config.script_path = atd_strdup(argv[i]);
     }
 
     return _init_parse_args_finalize(argv[0]);
@@ -168,29 +168,29 @@ int atd_init_runtime(int argc, char* argv[])
     uv_setup_args(argc, argv);
     uv_disable_stdio_inheritance();
 
-    atd_rt = malloc(sizeof(atd_runtime_t));
-    memset(atd_rt, 0, sizeof(*atd_rt));
+    g_rt = malloc(sizeof(atd_runtime_t));
+    memset(g_rt, 0, sizeof(*g_rt));
 
-    atd_rt->L = luaL_newstate();;
+    g_rt->L = luaL_newstate();;
 
-    uv_loop_init(&atd_rt->loop);
-    uv_async_init(&atd_rt->loop, &atd_rt->notifier, _on_runtime_notify);
+    uv_loop_init(&g_rt->loop);
+    uv_async_init(&g_rt->loop, &g_rt->notifier, _on_runtime_notify);
 
-    atd_rt->flag.looping = 1;
-    ev_list_init(&atd_rt->schedule.busy_queue);
-    ev_list_init(&atd_rt->schedule.wait_queue);
-    ev_map_init(&atd_rt->schedule.all_table, _on_cmp_thread, NULL);
+    g_rt->flag.looping = 1;
+    ev_list_init(&g_rt->schedule.busy_queue);
+    ev_list_init(&g_rt->schedule.wait_queue);
+    ev_map_init(&g_rt->schedule.all_table, _on_cmp_thread, NULL);
 
     int ret;
-    if ((ret = atd_read_self_script(&atd_rt->script.data, &atd_rt->script.size)) != 0)
+    if ((ret = atd_read_self_script(&g_rt->script.data, &g_rt->script.size)) != 0)
     {
         fprintf(stderr, "read self failed: %s(%d)\n",
-            atd_strerror(ret, atd_rt->cache.errbuf, sizeof(atd_rt->cache.errbuf)), ret);
+                atd_strerror(ret, g_rt->cache.errbuf, sizeof(g_rt->cache.errbuf)), ret);
         exit(EXIT_FAILURE);
     }
 
     /* Command line argument is only parsed when script is not embed */
-    if (atd_rt->script.data == NULL)
+    if (g_rt->script.data == NULL)
     {
         _init_parse_args(argc, argv);
     }
@@ -203,43 +203,43 @@ void atd_exit_runtime(void)
     int ret;
 
     /* Release all coroutine */
-    _runtime_gc_release_coroutine(atd_rt);
+    _runtime_gc_release_coroutine(g_rt);
 
-    lua_close(atd_rt->L);
-    atd_rt->L = NULL;
+    lua_close(g_rt->L);
+    g_rt->L = NULL;
 
     /* Close all handles */
-    uv_close((uv_handle_t*)&atd_rt->notifier, NULL);
-    uv_run(&atd_rt->loop, UV_RUN_DEFAULT);
+    uv_close((uv_handle_t*)&g_rt->notifier, NULL);
+    uv_run(&g_rt->loop, UV_RUN_DEFAULT);
 
-    if ((ret = uv_loop_close(&atd_rt->loop)) != 0)
+    if ((ret = uv_loop_close(&g_rt->loop)) != 0)
     {
         fprintf(stderr, "close event loop failed:%s:%d\n",
-                uv_strerror_r(ret, atd_rt->cache.errbuf, sizeof(atd_rt->cache.errbuf)), ret);
-        uv_print_all_handles(&atd_rt->loop, stderr);
+                uv_strerror_r(ret, g_rt->cache.errbuf, sizeof(g_rt->cache.errbuf)), ret);
+        uv_print_all_handles(&g_rt->loop, stderr);
         abort();
     }
 
-    if (atd_rt->script.data != NULL)
+    if (g_rt->script.data != NULL)
     {
-        free(atd_rt->script.data);
-        atd_rt->script.data = NULL;
+        free(g_rt->script.data);
+        g_rt->script.data = NULL;
     }
-    atd_rt->script.size = 0;
+    g_rt->script.size = 0;
 
-    if (atd_rt->config.script_path != NULL)
+    if (g_rt->config.script_path != NULL)
     {
-        free(atd_rt->config.script_path);
-        atd_rt->config.script_path = NULL;
+        free(g_rt->config.script_path);
+        g_rt->config.script_path = NULL;
     }
-    if (atd_rt->config.script_name != NULL)
+    if (g_rt->config.script_name != NULL)
     {
-        free(atd_rt->config.script_name);
-        atd_rt->config.script_name = NULL;
+        free(g_rt->config.script_name);
+        g_rt->config.script_name = NULL;
     }
 
-    free(atd_rt);
-    atd_rt = NULL;
+    free(g_rt);
+    g_rt = NULL;
 
     uv_library_shutdown();
 }

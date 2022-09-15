@@ -16,8 +16,8 @@ static void _init_lua_runtime(int argc, char* argv[])
 {
     atd_init_runtime(argc, argv);
 
-    luaL_openlibs(atd_rt->L);
-    auto_init_libs(atd_rt->L);
+    luaL_openlibs(g_rt->L);
+    auto_init_libs(g_rt->L);
 }
 
 static int _user_thread_on_resume(lua_State *L, int status, lua_KContext ctx)
@@ -29,8 +29,8 @@ static int _user_thread_on_resume(lua_State *L, int status, lua_KContext ctx)
 
 static int _user_thread(lua_State* L)
 {
-    if (luaL_loadbuffer(L, atd_rt->script.data, atd_rt->script.size,
-        atd_rt->config.script_name) != LUA_OK)
+    if (luaL_loadbuffer(L, g_rt->script.data, g_rt->script.size,
+                        g_rt->config.script_name) != LUA_OK)
     {
         return lua_error(L);
     }
@@ -78,15 +78,15 @@ static int _lua_load_script(atd_runtime_t* rt, lua_State* L)
 static int _lua_run(lua_State* L)
 {
     /* Load script if necessary */
-    if (atd_rt->config.script_path != NULL)
+    if (g_rt->config.script_path != NULL)
     {
-        _lua_load_script(atd_rt, L);
+        _lua_load_script(g_rt, L);
     }
 
     /* Run script */
-    if (atd_rt->script.data != NULL)
+    if (g_rt->script.data != NULL)
     {
-        return _run_script(L, atd_rt);
+        return _run_script(L, g_rt);
     }
 
     return luaL_error(L, "no operation");
@@ -98,16 +98,16 @@ int main(int argc, char* argv[])
 
     _init_lua_runtime(argc, argv);
 
-    if (setjmp(atd_rt->check.point) != 0)
+    if (setjmp(g_rt->check.point) != 0)
     {
         goto vm_exit;
     }
 
-    lua_pushcfunction(atd_rt->L, _lua_run);
-    int ret = lua_pcall(atd_rt->L, 0, 0, 0);
+    lua_pushcfunction(g_rt->L, _lua_run);
+    int ret = lua_pcall(g_rt->L, 0, 0, 0);
     if (ret != LUA_OK)
     {
-        fprintf(stderr, "%s\n", lua_tostring(atd_rt->L, -1));
+        fprintf(stderr, "%s\n", lua_tostring(g_rt->L, -1));
     }
 
 vm_exit:

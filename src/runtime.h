@@ -9,13 +9,11 @@
 
 /**
  * @brief Terminate script if necessary.
- * @param[in] rt    Runtime.
  */
-#define AUTO_CHECK_TERM(rt) \
+#define AUTO_CHECK_TERM() \
     do {\
-        atd_runtime_t* _rt = (rt);\
-        if (!_rt->flag.looping) {\
-            longjmp(_rt->check.point, 1);\
+        if (!g_rt->flag.looping) {\
+            longjmp(g_rt->check.point, 1);\
         }\
     } while(0)
 
@@ -100,7 +98,10 @@ typedef struct atd_runtime
     } check;
 } atd_runtime_t;
 
-extern atd_runtime_t*   atd_rt;
+/**
+ * @brief Global runtime.
+ */
+extern atd_runtime_t*   g_rt;
 
 /**
  * @brief Initialize runtime.
