@@ -52,7 +52,7 @@ struct atd_coroutine_impl
 
     struct
     {
-        ev_list_t          queue;          /**< Schedule hook queue */
+        ev_list_t           queue;          /**< Schedule hook queue */
         std_list_node_t*    it;             /**< Global iterator */
     } hook;
 };
@@ -76,15 +76,16 @@ typedef struct atd_runtime
 
     struct
     {
-        char*               script_name;    /**< Script name */
-        char*               script_path;    /**< Path to run script */
+        char*               script_file;    /**< Full path to run script */
+        char*               script_path;    /**< Path to script without file name */
+        char*               script_name;    /**< Script name without path */
     } config;
 
     struct
     {
         ev_map_t            all_table;      /**< All registered coroutine */
-        ev_list_t          busy_queue;     /**< Coroutine that ready to schedule */
-        ev_list_t          wait_queue;     /**< Coroutine that wait for some events */
+        ev_list_t           busy_queue;     /**< Coroutine that ready to schedule */
+        ev_list_t           wait_queue;     /**< Coroutine that wait for some events */
     } schedule;
 
     struct

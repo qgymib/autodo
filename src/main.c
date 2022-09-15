@@ -1,4 +1,5 @@
 #include "runtime.h"
+#include "package.h"
 #include "utils.h"
 #include "lua/api.h"
 #include <string.h>
@@ -51,18 +52,29 @@ static int _run_script(lua_State* L, atd_runtime_t* rt)
 
 static int _lua_load_script(atd_runtime_t* rt, lua_State* L)
 {
-    if (rt->script.data != NULL)
-    {
-        free(rt->script.data);
-    }
+    const char* filename = get_filename(rt->config.script_file);
 
     if (rt->config.script_name != NULL)
     {
         free(rt->config.script_name);
     }
-    rt->config.script_name = atd_strdup(get_filename(rt->config.script_path));
+    rt->config.script_name = atd_strdup(filename);
 
-    int ret = atd_readfile(rt->config.script_path,
+    if (rt->config.script_path != NULL)
+    {
+        free(rt->config.script_path);
+    }
+    size_t malloc_size = filename - rt->config.script_file;
+    rt->config.script_path = malloc(malloc_size);
+    memcpy(rt->config.script_path, rt->config.script_file, malloc_size);
+    rt->config.script_path[malloc_size - 1] = '\0';
+
+    if (rt->script.data != NULL)
+    {
+        free(rt->script.data);
+    }
+
+    int ret = atd_readfile(rt->config.script_file,
         &rt->script.data, &rt->script.size);
     if (ret == 0)
     {
@@ -70,15 +82,42 @@ static int _lua_load_script(atd_runtime_t* rt, lua_State* L)
     }
 
     return luaL_error(L, "open `%s` failed: %s(%d)",
-        rt->config.script_path,
+        rt->config.script_file,
         atd_strerror(ret, rt->cache.errbuf, sizeof(rt->cache.errbuf)),
         ret);
 }
 
+static void _inject_require_searcher(lua_State* L)
+{
+    int ret;
+    int sp = lua_gettop(L);
+
+    /* sp + 1 */
+    if ((ret = lua_getglobal(L, "package")) != LUA_TTABLE)
+    {
+        abort();
+    }
+    /* sp + 2 */
+    if ((ret = lua_getfield(L, sp + 1, "searchers")) != LUA_TTABLE)
+    {
+        abort();
+    }
+
+    /* Append custom loader to the end of searchers table */
+    lua_pushcfunction(L, atd_package_loader);
+    size_t len = luaL_len(L, sp + 2);
+    lua_seti(L, sp + 2, len + 1);
+
+    /* Resource stack */
+    lua_settop(L, sp);
+}
+
 static int _lua_run(lua_State* L)
 {
+    _inject_require_searcher(L);
+
     /* Load script if necessary */
-    if (g_rt->config.script_path != NULL)
+    if (g_rt->config.script_file != NULL)
     {
         _lua_load_script(g_rt, L);
     }

@@ -25,7 +25,7 @@ static void _print_usage(const char* name)
 
 static int _init_parse_args_finalize(const char* name)
 {
-    if (g_rt->config.script_path == NULL && g_rt->script.data == NULL)
+    if (g_rt->config.script_file == NULL && g_rt->script.data == NULL)
     {
         _print_usage(name);
     }
@@ -78,11 +78,11 @@ static int _init_parse_args(int argc, char* argv[])
             _print_usage(get_filename(argv[0]));
         }
 
-        if (g_rt->config.script_path != NULL)
+        if (g_rt->config.script_file != NULL)
         {
-            free(g_rt->config.script_path);
+            free(g_rt->config.script_file);
         }
-        g_rt->config.script_path = atd_strdup(argv[i]);
+        g_rt->config.script_file = atd_strdup(argv[i]);
     }
 
     return _init_parse_args_finalize(argv[0]);
@@ -163,14 +163,8 @@ static int _runtime_schedule_one_pass(atd_runtime_t* rt, lua_State* L)
     return 0;
 }
 
-int atd_init_runtime(int argc, char* argv[])
+static void _init_runtime(int argc, char* argv[])
 {
-    uv_setup_args(argc, argv);
-    uv_disable_stdio_inheritance();
-
-    g_rt = malloc(sizeof(atd_runtime_t));
-    memset(g_rt, 0, sizeof(*g_rt));
-
     g_rt->L = luaL_newstate();;
 
     uv_loop_init(&g_rt->loop);
@@ -194,6 +188,17 @@ int atd_init_runtime(int argc, char* argv[])
     {
         _init_parse_args(argc, argv);
     }
+}
+
+int atd_init_runtime(int argc, char* argv[])
+{
+    uv_setup_args(argc, argv);
+    uv_disable_stdio_inheritance();
+
+    g_rt = malloc(sizeof(atd_runtime_t));
+    memset(g_rt, 0, sizeof(*g_rt));
+
+    _init_runtime(argc, argv);
 
     return 0;
 }
@@ -227,6 +232,11 @@ void atd_exit_runtime(void)
     }
     g_rt->script.size = 0;
 
+    if (g_rt->config.script_file != NULL)
+    {
+        free(g_rt->config.script_file);
+        g_rt->config.script_file = NULL;
+    }
     if (g_rt->config.script_path != NULL)
     {
         free(g_rt->config.script_path);

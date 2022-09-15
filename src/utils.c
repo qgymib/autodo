@@ -359,3 +359,13 @@ int atd_compile_script(lua_State* L, const char* src, const char* dst)
     lua_settop(L, sp);
     return ret;
 }
+
+int atd_isabs(const char* path)
+{
+    /* linux */
+#if defined(_WIN32)
+    return !PathIsRelativeA(path);
+#else
+    return path[0] == '/';
+#endif
+}

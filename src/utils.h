@@ -132,6 +132,13 @@ int atd_read_self_exec(void** data, size_t* size);
  */
 int atd_compile_script(lua_State* L, const char* src, const char* dst);
 
+/**
+ * @brief Check whether the \p path is absolute.
+ * @param[in] path  File path.
+ * @return          bool.
+ */
+int atd_isabs(const char* path);
+
 #ifdef __cplusplus
 }
 #endif

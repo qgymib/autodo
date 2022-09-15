@@ -59,6 +59,7 @@ set(auto_src_list
     src/utils/list.c
     src/utils/map.c
     src/main.c
+    src/package.c
     src/runtime.c
     src/utils.c)
 
