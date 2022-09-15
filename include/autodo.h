@@ -152,7 +152,7 @@ typedef struct atd_process_cfg
     char**                  envs;       /**< (Optional) Environments passed to process. */
     atd_process_stdio_fn    stdout_fn;  /**< (Optional) Child stdout callback. */
     atd_process_stdio_fn    stderr_fn;  /**< (Optional) Child stderr callback. */
-    void*                   arg;        /**< User defined argument passed to \p stdout_fn and \p stderr_fn */
+    void*                   arg;        /**< User defined data passed to \p stdout_fn and \p stderr_fn */
 } atd_process_cfg_t;
 
 struct atd_process

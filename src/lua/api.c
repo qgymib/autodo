@@ -2,6 +2,7 @@
 #include <string.h>
 #include "runtime.h"
 #include "lua/coroutine.h"
+#include "lua/process.h"
 #include "lua/screenshot.h"
 #include "lua/sleep.h"
 #include "utils.h"
@@ -15,6 +16,7 @@
  */
 #define AUTO_LUA_API_MAP(xx) \
     xx("coroutine",         atd_lua_coroutine)      \
+    xx("process",           atd_lua_process)        \
     xx("screenshot",        atd_lua_screenshot)     \
     xx("sleep",             atd_lua_sleep)
 
@@ -236,6 +238,7 @@ typedef struct atd_process_impl
     atd_process_stdio_fn    stderr_fn;
     void*                   arg;
 
+    int                     spawn_ret;
     int64_t                 exit_status;
     int                     term_signal;
 
@@ -302,14 +305,13 @@ static void _process_on_stderr_close(uv_handle_t* handle)
 static void _process_kill(struct atd_process* thiz, int signum)
 {
     atd_process_impl_t* impl = container_of(thiz, atd_process_impl_t, handle);
-    if (!impl->flag_process_exit)
+
+    if (impl->spawn_ret == 0)
     {
         uv_process_kill(&impl->process, signum);
-        impl->flag_process_exit = 1;
-
-        uv_close((uv_handle_t*)&impl->process, _process_on_process_close);
     }
 
+    uv_close((uv_handle_t*)&impl->process, _process_on_process_close);
     uv_close((uv_handle_t*)&impl->pip_stdin, _process_on_stdin_close);
 
     if (!impl->flag_stdout_exit)
@@ -373,7 +375,7 @@ static void _process_on_stdout(uv_stream_t* stream, ssize_t nread, const uv_buf_
 
     if (buf->base != NULL)
     {
-        impl->stdout_fn(&impl->handle, buf->base, buf->len, nread, impl->arg);
+        impl->stdout_fn(&impl->handle, buf->base, nread, nread, impl->arg);
         free(buf->base);
     }
 }
@@ -390,7 +392,7 @@ static void _process_on_stderr(uv_stream_t* stream, ssize_t nread, const uv_buf_
 
     if (buf->base != NULL)
     {
-        impl->stderr_fn(&impl->handle, buf->base, buf->len, nread, impl->arg);
+        impl->stderr_fn(&impl->handle, buf->base, nread, nread, impl->arg);
         free(buf->base);
     }
 }
@@ -445,9 +447,9 @@ static atd_process_t* api_new_process(atd_process_cfg_t* cfg)
     opt.stdio = stdios;
     opt.stdio_count = 3;
 
-    if (uv_spawn(&atd_rt->loop, &impl->process, &opt) != 0)
+    impl->spawn_ret = uv_spawn(&atd_rt->loop, &impl->process, &opt);
+    if (impl->spawn_ret != 0)
     {
-        impl->flag_process_exit = 1;
         impl->handle.kill(&impl->handle, SIGKILL);
         return NULL;
     }

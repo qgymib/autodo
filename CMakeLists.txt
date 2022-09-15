@@ -53,6 +53,7 @@ endfunction()
 set(auto_src_list
     src/lua/api.c
     src/lua/coroutine.c
+    src/lua/process.c
     src/lua/screenshot.c
     src/lua/sleep.c
     src/utils/list.c

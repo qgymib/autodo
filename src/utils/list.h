@@ -55,7 +55,7 @@ typedef struct ev_list
     ev_list_node_t*         head;       /**< Pointer to HEAD node */
     ev_list_node_t*         tail;       /**< Pointer to TAIL node */
     size_t                  size;       /**< The number of total nodes */
-}ev_list_t;
+} ev_list_t;
 
 /**
  * @brief Initialize Double Linked List.

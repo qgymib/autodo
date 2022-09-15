@@ -68,60 +68,6 @@ static void _runtime_gc_release_coroutine(atd_runtime_t* rt)
     }
 }
 
-void atd_exit_runtime(void)
-{
-    int ret;
-
-    _runtime_gc_release_coroutine(atd_rt);
-
-    uv_close((uv_handle_t*)&atd_rt->notifier, NULL);
-
-    /* Close all handles */
-    uv_run(&atd_rt->loop, UV_RUN_DEFAULT);
-
-    if ((ret = uv_loop_close(&atd_rt->loop)) != 0)
-    {
-        luaL_error(atd_rt->L, "close event loop failed: %d", ret);
-    }
-
-    if (atd_rt->script.data != NULL)
-    {
-        free(atd_rt->script.data);
-        atd_rt->script.data = NULL;
-    }
-    atd_rt->script.size = 0;
-
-    if (atd_rt->config.script_path != NULL)
-    {
-        free(atd_rt->config.script_path);
-        atd_rt->config.script_path = NULL;
-    }
-    if (atd_rt->config.script_name != NULL)
-    {
-        free(atd_rt->config.script_name);
-        atd_rt->config.script_name = NULL;
-    }
-
-    lua_close(atd_rt->L);
-    free(atd_rt);
-    atd_rt = NULL;
-
-    uv_library_shutdown();
-}
-
-static int _init_runtime_script(lua_State* L, atd_runtime_t* rt)
-{
-    int ret;
-
-    if ((ret = atd_read_self_script(&rt->script.data, &rt->script.size)) != 0)
-    {
-        return luaL_error(L, "read self failed: %s(%d)",
-            atd_strerror(ret, rt->cache.errbuf, sizeof(rt->cache.errbuf)), ret);
-    }
-
-    return 0;
-}
-
 static int _init_parse_args(int argc, char* argv[])
 {
     int i;
@@ -158,25 +104,6 @@ static int _on_cmp_thread(const ev_map_node_t* key1, const ev_map_node_t* key2, 
 static void _on_runtime_notify(uv_async_t *handle)
 {
     (void)handle;
-}
-
-static void _init_runtime(lua_State* L, atd_runtime_t* rt, int argc, char* argv[])
-{
-    uv_loop_init(&rt->loop);
-    uv_async_init(&rt->loop, &rt->notifier, _on_runtime_notify);
-
-    rt->flag.looping = 1;
-    ev_list_init(&rt->schedule.busy_queue);
-    ev_list_init(&rt->schedule.wait_queue);
-    ev_map_init(&rt->schedule.all_table, _on_cmp_thread, NULL);
-
-    _init_runtime_script(L, rt);
-
-    /* Command line argument is only parsed when script is not embed */
-    if (rt->script.data == NULL)
-    {
-        _init_parse_args(argc, argv);
-    }
 }
 
 static void _thread_trigger_hook(atd_coroutine_impl_t* thr)
@@ -245,9 +172,76 @@ int atd_init_runtime(int argc, char* argv[])
     memset(atd_rt, 0, sizeof(*atd_rt));
 
     atd_rt->L = luaL_newstate();;
-    _init_runtime(atd_rt->L, atd_rt, argc, argv);
+
+    uv_loop_init(&atd_rt->loop);
+    uv_async_init(&atd_rt->loop, &atd_rt->notifier, _on_runtime_notify);
+
+    atd_rt->flag.looping = 1;
+    ev_list_init(&atd_rt->schedule.busy_queue);
+    ev_list_init(&atd_rt->schedule.wait_queue);
+    ev_map_init(&atd_rt->schedule.all_table, _on_cmp_thread, NULL);
+
+    int ret;
+    if ((ret = atd_read_self_script(&atd_rt->script.data, &atd_rt->script.size)) != 0)
+    {
+        fprintf(stderr, "read self failed: %s(%d)\n",
+            atd_strerror(ret, atd_rt->cache.errbuf, sizeof(atd_rt->cache.errbuf)), ret);
+        exit(EXIT_FAILURE);
+    }
+
+    /* Command line argument is only parsed when script is not embed */
+    if (atd_rt->script.data == NULL)
+    {
+        _init_parse_args(argc, argv);
+    }
 
     return 0;
+}
+
+void atd_exit_runtime(void)
+{
+    int ret;
+
+    /* Release all coroutine */
+    _runtime_gc_release_coroutine(atd_rt);
+
+    lua_close(atd_rt->L);
+    atd_rt->L = NULL;
+
+    /* Close all handles */
+    uv_close((uv_handle_t*)&atd_rt->notifier, NULL);
+    uv_run(&atd_rt->loop, UV_RUN_DEFAULT);
+
+    if ((ret = uv_loop_close(&atd_rt->loop)) != 0)
+    {
+        fprintf(stderr, "close event loop failed:%s:%d\n",
+                uv_strerror_r(ret, atd_rt->cache.errbuf, sizeof(atd_rt->cache.errbuf)), ret);
+        uv_print_all_handles(&atd_rt->loop, stderr);
+        abort();
+    }
+
+    if (atd_rt->script.data != NULL)
+    {
+        free(atd_rt->script.data);
+        atd_rt->script.data = NULL;
+    }
+    atd_rt->script.size = 0;
+
+    if (atd_rt->config.script_path != NULL)
+    {
+        free(atd_rt->config.script_path);
+        atd_rt->config.script_path = NULL;
+    }
+    if (atd_rt->config.script_name != NULL)
+    {
+        free(atd_rt->config.script_name);
+        atd_rt->config.script_name = NULL;
+    }
+
+    free(atd_rt);
+    atd_rt = NULL;
+
+    uv_library_shutdown();
 }
 
 int atd_schedule(atd_runtime_t* rt, lua_State* L)
