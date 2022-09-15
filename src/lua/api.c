@@ -527,6 +527,8 @@ static void _coroutine_unhook(struct atd_coroutine* thiz, atd_coroutine_hook_t* 
 
     ev_list_erase(&impl->hook.queue, &token->node);
     token->impl = NULL;
+
+    free(token);
 }
 
 static atd_coroutine_t* api_register_coroutine(lua_State* L)

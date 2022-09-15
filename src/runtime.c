@@ -105,6 +105,8 @@ void atd_exit_runtime(void)
     lua_close(atd_rt->L);
     free(atd_rt);
     atd_rt = NULL;
+
+    uv_library_shutdown();
 }
 
 static int _init_runtime_script(lua_State* L, atd_runtime_t* rt)
