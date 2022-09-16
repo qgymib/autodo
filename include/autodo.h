@@ -74,122 +74,122 @@ typedef struct atd_list
     /**
      * @brief Destroy list.
      * @warning It does not free internal node, so you need to clear the list first.
-     * @param[in] thiz      This object.
+     * @param[in] self      This object.
      */
-    void(*destroy)(struct atd_list* thiz);
+    void(*destroy)(struct atd_list* self);
 
     /**
      * @brief Insert a node to the head of the list.
      * @warning the node must not exist in any list.
      * @warning MT-UnSafe
-     * @param[in] thiz      This object.
+     * @param[in] self      This object.
      * @param[in,out] n     Pointer to a new node
      */
-    void (*push_front)(struct atd_list* thiz, std_list_node_t* n);
+    void (*push_front)(struct atd_list* self, std_list_node_t* n);
 
     /**
       * @brief Insert a node to the tail of the list.
       * @warning the node must not exist in any list.
       * @warning MT-UnSafe
-      * @param[in] thiz      This object.
+      * @param[in] self      This object.
       * @param[in,out] n     Pointer to a new node
       */
-    void (*push_back)(struct atd_list* thiz, std_list_node_t* n);
+    void (*push_back)(struct atd_list* self, std_list_node_t* n);
 
     /**
      * @brief Insert a node in front of a given node.
      * @warning the node must not exist in any list.
      * @warning MT-UnSafe
-     * @param[in] thiz      This object.
+     * @param[in] self      This object.
      * @param[in,out] p     Pointer to a exist node
      * @param[in,out] n     Pointer to a new node
      */
-    void (*insert_before)(struct atd_list* thiz, std_list_node_t* p, std_list_node_t* n);
+    void (*insert_before)(struct atd_list* self, std_list_node_t* p, std_list_node_t* n);
 
     /**
      * @brief Insert a node right after a given node.
      * @warning the node must not exist in any list.
      * @warning MT-UnSafe
-     * @param[in] thiz      This object.
+     * @param[in] self      This object.
      * @param[in,out] p     Pointer to a exist node
      * @param[in,out] n     Pointer to a new node
      */
-    void (*insert_after)(struct atd_list* thiz, std_list_node_t* p, std_list_node_t* n);
+    void (*insert_after)(struct atd_list* self, std_list_node_t* p, std_list_node_t* n);
 
     /**
      * @brief Delete a exist node
      * @warning The node must already in the list.
      * @warning MT-UnSafe
-     * @param[in] thiz      This object.
+     * @param[in] self      This object.
      * @param[in,out] n     The node you want to delete
      */
-    void (*erase)(struct atd_list* thiz, std_list_node_t* n);
+    void (*erase)(struct atd_list* self, std_list_node_t* n);
 
     /**
      * @brief Get the number of nodes in the list.
      * @warning MT-UnSafe
-     * @param[in] thiz      This object.
+     * @param[in] self      This object.
      * @return          The number of nodes
      */
-    size_t (*size)(struct atd_list* thiz);
+    size_t (*size)(struct atd_list* self);
 
     /**
      * @brief Get the first node and remove it from the list.
      * @warning MT-UnSafe
-     * @param[in] thiz      This object.
+     * @param[in] self      This object.
      * @return              The first node
      */
-    std_list_node_t* (*pop_front)(struct atd_list* thiz);
+    std_list_node_t* (*pop_front)(struct atd_list* self);
 
     /**
      * @brief Get the last node and remove it from the list.
      * @warning MT-UnSafe
-     * @param[in] thiz      This object.
+     * @param[in] self      This object.
      * @return              The last node
      */
-    std_list_node_t* (*pop_back)(struct atd_list* thiz);
+    std_list_node_t* (*pop_back)(struct atd_list* self);
 
     /**
      * @brief Get the first node.
      * @warning MT-UnSafe
-     * @param[in] thiz      This object.
+     * @param[in] self      This object.
      * @return              The first node
      */
-    std_list_node_t* (*begin)(struct atd_list* thiz);
+    std_list_node_t* (*begin)(struct atd_list* self);
 
     /**
      * @brief Get the last node.
      * @warning MT-UnSafe
-     * @param[in] thiz      This object.
+     * @param[in] self      This object.
      * @return              The last node
      */
-    std_list_node_t* (*end)(struct atd_list* thiz);
+    std_list_node_t* (*end)(struct atd_list* self);
 
     /**
      * @brief Get next node.
      * @warning MT-UnSafe
-     * @param[in] thiz      This object.
+     * @param[in] self      This object.
      * @param[in] node      Current node.
      * @return              The next node
      */
-    std_list_node_t* (*next)(struct atd_list* thiz, const std_list_node_t* node);
+    std_list_node_t* (*next)(struct atd_list* self, const std_list_node_t* node);
 
     /**
      * @brief Get previous node.
      * @warning MT-UnSafe
-     * @param[in] thiz      This object.
+     * @param[in] self      This object.
      * @param[in] n         current node
      * @return              previous node
      */
-    std_list_node_t* (*prev)(struct atd_list* thiz, const std_list_node_t* n);
+    std_list_node_t* (*prev)(struct atd_list* self, const std_list_node_t* n);
 
     /**
      * @brief Move all elements from \p src into the end of this object.
      * @warning MT-UnSafe
-     * @param[in] thiz  This object.
+     * @param[in] self  This object.
      * @param[in] src   Source list.
      */
-    void (*migrate)(struct atd_list* thiz, struct atd_list* src);
+    void (*migrate)(struct atd_list* self, struct atd_list* src);
 } atd_list_t;
 
 typedef struct atd_sem
@@ -197,23 +197,23 @@ typedef struct atd_sem
     /**
      * @brief Destroy semaphore.
      * @warning MT-UnSafe
-     * @param[in] thiz  This object.
+     * @param[in] self  This object.
      */
-    void (*destroy)(struct atd_sem* thiz);
+    void (*destroy)(struct atd_sem* self);
 
     /**
      * @brief Wait for signal.
      * @note MT-Safe
-     * @param[in] thiz  This object.
+     * @param[in] self  This object.
      */
-    void (*wait)(struct atd_sem* thiz);
+    void (*wait)(struct atd_sem* self);
 
     /**
      * @brief Post signal.
      * @note MT-Safe
-     * @param[in] thiz  This object.
+     * @param[in] self  This object.
      */
-    void (*post)(struct atd_sem* thiz);
+    void (*post)(struct atd_sem* self);
 } atd_sem_t;
 
 typedef struct atd_sync
@@ -221,16 +221,16 @@ typedef struct atd_sync
     /**
      * @brief Destroy this object.
      * @warning MT-UnSafe
-     * @param[in] thiz  This object.
+     * @param[in] self  This object.
      */
-    void (*destroy)(struct atd_sync* thiz);
+    void (*destroy)(struct atd_sync* self);
 
     /**
      * @brief Wakeup callback.
      * @note MT-Safe
-     * @param[in] thiz  This object.
+     * @param[in] self  This object.
      */
-    void (*send)(struct atd_sync* thiz);
+    void (*send)(struct atd_sync* self);
 } atd_sync_t;
 
 typedef struct atd_timer
@@ -238,29 +238,29 @@ typedef struct atd_timer
     /**
      * @brief Destroy timer.
      * @warning MT-UnSafe
-     * @param[in] thiz  This object.
+     * @param[in] self  This object.
      */
-    void (*destroy)(struct atd_timer* thiz);
+    void (*destroy)(struct atd_timer* self);
 
     /**
      * @brief Start timer.
      * @warning MT-UnSafe
-     * @param[in] thiz      This object.
+     * @param[in] self      This object.
      * @param[in] timeout   Timeout in milliseconds.
      * @param[in] repeat    If non-zero, the callback fires first after \p timeout
      *   milliseconds and then repeatedly after \p repeat milliseconds.
      * @param[in] fn        Timeout callback.
      * @param[in] arg       User defined argument passed to \p fn.
      */
-    void (*start)(struct atd_timer* thiz, uint64_t timeout, uint64_t repeat,
+    void (*start)(struct atd_timer* self, uint64_t timeout, uint64_t repeat,
         atd_timer_fn fn, void* arg);
 
     /**
      * @brief Stop the timer.
      * @warning MT-UnSafe
-     * @param[in] thiz  This object.
+     * @param[in] self  This object.
      */
-    void (*stop)(struct atd_timer* thiz);
+    void (*stop)(struct atd_timer* self);
 } atd_timer_t;
 
 typedef struct atd_thread
@@ -268,9 +268,9 @@ typedef struct atd_thread
     /**
      * @brief Wait for thread finish and release this object.
      * @note MT-Safe
-     * @param[in] thiz  This object.
+     * @param[in] self  This object.
      */
-    void (*join)(struct atd_thread* thiz);
+    void (*join)(struct atd_thread* self);
 } atd_thread_t;
 
 struct atd_process;
@@ -303,20 +303,20 @@ struct atd_process
     /**
      * @brief Kill process.
      * @warning MT-UnSafe
-     * @param[in] thiz      This object.
+     * @param[in] self      This object.
      * @param[in] signum    Signal number.
      */
-    void (*kill)(struct atd_process* thiz, int signum);
+    void (*kill)(struct atd_process* self, int signum);
 
     /**
      * @brief Async send data to child process stdin.
      * @warning MT-UnSafe
-     * @param[in] thiz      This object.
+     * @param[in] self      This object.
      * @param[in] data      The data to send. Do not release it until \p cb is called.
      * @param[in] size      The data size.
      * @return              Error code.
      */
-    int (*send_to_stdin)(struct atd_process* thiz, void* data, size_t size,
+    int (*send_to_stdin)(struct atd_process* self, void* data, size_t size,
         atd_process_stdio_fn cb, void* arg);
 };
 
@@ -366,15 +366,15 @@ struct atd_coroutine
      * @param[in] fn    Schedule callback.
      * @param[in] arg   User defined data passed to \p fn.
      */
-    atd_coroutine_hook_t* (*hook)(struct atd_coroutine* thiz, atd_coroutine_hook_fn fn, void* arg);
+    atd_coroutine_hook_t* (*hook)(struct atd_coroutine* self, atd_coroutine_hook_fn fn, void* arg);
 
     /**
      * @brief Unregister schedule hook.
      * @warning MT-UnSafe
-     * @param[in] thiz  This object.
+     * @param[in] self  This object.
      * @param[in] token Schedule hook return by #atd_coroutine_t::hook().
      */
-    void (*unhook)(struct atd_coroutine* thiz, atd_coroutine_hook_t* token);
+    void (*unhook)(struct atd_coroutine* self, atd_coroutine_hook_t* token);
 
     /**
      * @brief Set coroutine schedule state.
@@ -389,10 +389,10 @@ struct atd_coroutine
      * `LUA_TNONE` state.
      *
      * @warning MT-UnSafe
-     * @param[in] thiz  This object.
+     * @param[in] self  This object.
      * @param[in] busy  New schedule state. It only can be `LUA_TNONE` or `LUA_YIELD`.
      */
-    void (*set_schedule_state)(struct atd_coroutine* thiz, int state);
+    void (*set_schedule_state)(struct atd_coroutine* self, int state);
 };
 
 /**

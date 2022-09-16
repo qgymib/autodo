@@ -63,87 +63,87 @@ typedef struct atd_list_impl
     ev_list_t   l;
 } atd_list_impl_t;
 
-static void _list_destroy(struct atd_list* thiz)
+static void _list_destroy(struct atd_list* self)
 {
-    atd_list_impl_t* impl = container_of(thiz, atd_list_impl_t, handle);
+    atd_list_impl_t* impl = container_of(self, atd_list_impl_t, handle);
     free(impl);
 }
 
-static void _list_push_front(struct atd_list* thiz, std_list_node_t* n)
+static void _list_push_front(struct atd_list* self, std_list_node_t* n)
 {
-    atd_list_impl_t* impl = container_of(thiz, atd_list_impl_t, handle);
+    atd_list_impl_t* impl = container_of(self, atd_list_impl_t, handle);
     ev_list_push_front(&impl->l, n);
 }
 
-static void _list_push_back(struct atd_list* thiz, std_list_node_t* n)
+static void _list_push_back(struct atd_list* self, std_list_node_t* n)
 {
-    atd_list_impl_t* impl = container_of(thiz, atd_list_impl_t, handle);
+    atd_list_impl_t* impl = container_of(self, atd_list_impl_t, handle);
     ev_list_push_back(&impl->l, n);
 }
 
-static void _list_insert_before(struct atd_list* thiz, std_list_node_t* p, std_list_node_t* n)
+static void _list_insert_before(struct atd_list* self, std_list_node_t* p, std_list_node_t* n)
 {
-    atd_list_impl_t* impl = container_of(thiz, atd_list_impl_t, handle);
+    atd_list_impl_t* impl = container_of(self, atd_list_impl_t, handle);
     ev_list_insert_before(&impl->l, p, n);
 }
 
-static void _list_insert_after(struct atd_list* thiz, std_list_node_t* p, std_list_node_t* n)
+static void _list_insert_after(struct atd_list* self, std_list_node_t* p, std_list_node_t* n)
 {
-    atd_list_impl_t* impl = container_of(thiz, atd_list_impl_t, handle);
+    atd_list_impl_t* impl = container_of(self, atd_list_impl_t, handle);
     ev_list_insert_after(&impl->l, p, n);
 }
 
-static void _list_erase(struct atd_list* thiz, std_list_node_t* n)
+static void _list_erase(struct atd_list* self, std_list_node_t* n)
 {
-    atd_list_impl_t* impl = container_of(thiz, atd_list_impl_t, handle);
+    atd_list_impl_t* impl = container_of(self, atd_list_impl_t, handle);
     ev_list_erase(&impl->l, n);
 }
 
-static size_t _list_size(struct atd_list* thiz)
+static size_t _list_size(struct atd_list* self)
 {
-    atd_list_impl_t* impl = container_of(thiz, atd_list_impl_t, handle);
+    atd_list_impl_t* impl = container_of(self, atd_list_impl_t, handle);
     return ev_list_size(&impl->l);
 }
 
-static std_list_node_t* _list_pop_front(struct atd_list* thiz)
+static std_list_node_t* _list_pop_front(struct atd_list* self)
 {
-    atd_list_impl_t* impl = container_of(thiz, atd_list_impl_t, handle);
+    atd_list_impl_t* impl = container_of(self, atd_list_impl_t, handle);
     return ev_list_pop_front(&impl->l);
 }
 
-static std_list_node_t* _list_pop_back(struct atd_list* thiz)
+static std_list_node_t* _list_pop_back(struct atd_list* self)
 {
-    atd_list_impl_t* impl = container_of(thiz, atd_list_impl_t, handle);
+    atd_list_impl_t* impl = container_of(self, atd_list_impl_t, handle);
     return ev_list_pop_back(&impl->l);
 }
 
-static std_list_node_t* _list_begin(struct atd_list* thiz)
+static std_list_node_t* _list_begin(struct atd_list* self)
 {
-    atd_list_impl_t* impl = container_of(thiz, atd_list_impl_t, handle);
+    atd_list_impl_t* impl = container_of(self, atd_list_impl_t, handle);
     return ev_list_begin(&impl->l);
 }
 
-static std_list_node_t* _list_end(struct atd_list* thiz)
+static std_list_node_t* _list_end(struct atd_list* self)
 {
-    atd_list_impl_t* impl = container_of(thiz, atd_list_impl_t, handle);
+    atd_list_impl_t* impl = container_of(self, atd_list_impl_t, handle);
     return ev_list_end(&impl->l);
 }
 
-static std_list_node_t* _list_next(struct atd_list* thiz, const std_list_node_t* node)
+static std_list_node_t* _list_next(struct atd_list* self, const std_list_node_t* node)
 {
-    (void)thiz;
+    (void)self;
     return ev_list_next(node);
 }
 
-static std_list_node_t* _list_prev(struct atd_list* thiz, const std_list_node_t* n)
+static std_list_node_t* _list_prev(struct atd_list* self, const std_list_node_t* n)
 {
-    (void)thiz;
+    (void)self;
     return ev_list_prev(n);
 }
 
-static void _list_migrate(struct atd_list* thiz, struct atd_list* src)
+static void _list_migrate(struct atd_list* self, struct atd_list* src)
 {
-    atd_list_impl_t* impl = container_of(thiz, atd_list_impl_t, handle);
+    atd_list_impl_t* impl = container_of(self, atd_list_impl_t, handle);
     atd_list_impl_t* src_impl = container_of(src, atd_list_impl_t, handle);
     ev_list_migrate(&impl->l, &src_impl->l);
 }
@@ -178,22 +178,22 @@ typedef struct atd_sem_impl
     uv_sem_t    sem;
 }atd_sem_impl_t;
 
-static void _sem_destroy(struct atd_sem* thiz)
+static void _sem_destroy(struct atd_sem* self)
 {
-    atd_sem_impl_t* impl = container_of(thiz, atd_sem_impl_t, handle);
+    atd_sem_impl_t* impl = container_of(self, atd_sem_impl_t, handle);
     uv_sem_destroy(&impl->sem);
     free(impl);
 }
 
-static void _sem_wait(struct atd_sem* thiz)
+static void _sem_wait(struct atd_sem* self)
 {
-    atd_sem_impl_t* impl = container_of(thiz, atd_sem_impl_t, handle);
+    atd_sem_impl_t* impl = container_of(self, atd_sem_impl_t, handle);
     uv_sem_wait(&impl->sem);
 }
 
-static void _sem_post(struct atd_sem* thiz)
+static void _sem_post(struct atd_sem* self)
 {
-    atd_sem_impl_t* impl = container_of(thiz, atd_sem_impl_t, handle);
+    atd_sem_impl_t* impl = container_of(self, atd_sem_impl_t, handle);
     uv_sem_post(&impl->sem);
 }
 
@@ -217,9 +217,9 @@ typedef struct atd_thread_impl
     uv_thread_t     thread;
 } atd_thread_impl_t;
 
-static void _thread_join(struct atd_thread* thiz)
+static void _thread_join(struct atd_thread* self)
 {
-    atd_thread_impl_t* impl = container_of(thiz, atd_thread_impl_t, handle);
+    atd_thread_impl_t* impl = container_of(self, atd_thread_impl_t, handle);
     uv_thread_join(&impl->thread);
     free(impl);
 }
@@ -260,15 +260,15 @@ static void _async_on_active(uv_async_t* handle)
     impl->fn(impl->arg);
 }
 
-static void _async_destroy(struct atd_sync* thiz)
+static void _async_destroy(struct atd_sync* self)
 {
-    atd_sync_impl_t* impl = container_of(thiz, atd_sync_impl_t, handle);
+    atd_sync_impl_t* impl = container_of(self, atd_sync_impl_t, handle);
     uv_close((uv_handle_t*)&impl->async, _async_on_close);
 }
 
-static void _async_send(struct atd_sync* thiz)
+static void _async_send(struct atd_sync* self)
 {
-    atd_sync_impl_t* impl = container_of(thiz, atd_sync_impl_t, handle);
+    atd_sync_impl_t* impl = container_of(self, atd_sync_impl_t, handle);
     uv_async_send(&impl->async);
 }
 
@@ -308,24 +308,24 @@ static void _timer_on_active(uv_timer_t* handle)
     impl->fn(impl->arg);
 }
 
-static void _timer_destroy(struct atd_timer* thiz)
+static void _timer_destroy(struct atd_timer* self)
 {
-    atd_timer_impl_t* impl = container_of(thiz, atd_timer_impl_t, handle);
+    atd_timer_impl_t* impl = container_of(self, atd_timer_impl_t, handle);
     uv_close((uv_handle_t*)&impl->timer, _on_timer_close);
 }
 
-static void _timer_start(struct atd_timer* thiz, uint64_t timeout,
+static void _timer_start(struct atd_timer* self, uint64_t timeout,
     uint64_t repeat, atd_timer_fn fn, void* arg)
 {
-    atd_timer_impl_t* impl = container_of(thiz, atd_timer_impl_t, handle);
+    atd_timer_impl_t* impl = container_of(self, atd_timer_impl_t, handle);
     impl->fn = fn;
     impl->arg = arg;
     uv_timer_start(&impl->timer, _timer_on_active, timeout, repeat);
 }
 
-static void _timer_stop(struct atd_timer* thiz)
+static void _timer_stop(struct atd_timer* self)
 {
-    atd_timer_impl_t* impl = container_of(thiz, atd_timer_impl_t, handle);
+    atd_timer_impl_t* impl = container_of(self, atd_timer_impl_t, handle);
     uv_timer_stop(&impl->timer);
 }
 
@@ -418,9 +418,9 @@ static void _process_on_stderr_close(uv_handle_t* handle)
     _process_on_close(impl);
 }
 
-static void _process_kill(struct atd_process* thiz, int signum)
+static void _process_kill(struct atd_process* self, int signum)
 {
-    atd_process_impl_t* impl = container_of(thiz, atd_process_impl_t, handle);
+    atd_process_impl_t* impl = container_of(self, atd_process_impl_t, handle);
 
     if (impl->spawn_ret == 0)
     {
@@ -448,10 +448,10 @@ static void _process_write_done(uv_write_t *req, int status)
     free(p_req);
 }
 
-static int _process_send_to_stdin(struct atd_process* thiz, void* data,
+static int _process_send_to_stdin(struct atd_process* self, void* data,
     size_t size, atd_process_stdio_fn cb, void* arg)
 {
-    atd_process_impl_t* impl = container_of(thiz, atd_process_impl_t, handle);
+    atd_process_impl_t* impl = container_of(self, atd_process_impl_t, handle);
 
     atd_process_write_t* p_req = malloc(sizeof(atd_process_write_t));
     p_req->impl = impl;
@@ -580,9 +580,9 @@ static atd_process_t* api_new_process(atd_process_cfg_t* cfg)
 * C API: register_coroutine
 ******************************************************************************/
 
-static void _coroutine_set_schedule_state(struct atd_coroutine* thiz, int state)
+static void _coroutine_set_schedule_state(struct atd_coroutine* self, int state)
 {
-    atd_coroutine_impl_t* impl = container_of(thiz, atd_coroutine_impl_t, base);
+    atd_coroutine_impl_t* impl = container_of(self, atd_coroutine_impl_t, base);
 
     /* In busy_queue */
     if (impl->base.status == LUA_TNONE)
@@ -615,9 +615,9 @@ static void _coroutine_set_schedule_state(struct atd_coroutine* thiz, int state)
     /* thr is dead, keep in wait_queue */
 }
 
-static atd_coroutine_hook_t* _coroutine_hook(struct atd_coroutine* thiz, atd_coroutine_hook_fn fn, void* arg)
+static atd_coroutine_hook_t* _coroutine_hook(struct atd_coroutine* self, atd_coroutine_hook_fn fn, void* arg)
 {
-    atd_coroutine_impl_t* impl = container_of(thiz, atd_coroutine_impl_t, base);
+    atd_coroutine_impl_t* impl = container_of(self, atd_coroutine_impl_t, base);
 
     atd_coroutine_hook_t* token = malloc(sizeof(atd_coroutine_hook_t));
     token->fn = fn;
@@ -628,9 +628,9 @@ static atd_coroutine_hook_t* _coroutine_hook(struct atd_coroutine* thiz, atd_cor
     return token;
 }
 
-static void _coroutine_unhook(struct atd_coroutine* thiz, atd_coroutine_hook_t* token)
+static void _coroutine_unhook(struct atd_coroutine* self, atd_coroutine_hook_t* token)
 {
-    atd_coroutine_impl_t* impl = container_of(thiz, atd_coroutine_impl_t, base);
+    atd_coroutine_impl_t* impl = container_of(self, atd_coroutine_impl_t, base);
 
     if (impl->hook.it != NULL)
     {
