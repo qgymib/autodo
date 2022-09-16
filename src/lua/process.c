@@ -7,7 +7,7 @@
 
 typedef struct lua_process_cache
 {
-    ev_list_node_t      node;
+    std_list_node_t      node;
     size_t              size;
     char                data[];
 } lua_process_cache_t;
@@ -238,7 +238,7 @@ static int _lua_process_kill(lua_State *L)
 static int _lua_process_on_stdout_resume(lua_State *L, int status, lua_KContext ctx)
 {
     (void)status;
-    ev_list_node_t* it;
+    std_list_node_t* it;
     lua_process_t* process = (lua_process_t*)ctx;
 
     if (process->flag.have_error)
@@ -270,7 +270,7 @@ static int _lua_process_on_stdout_resume(lua_State *L, int status, lua_KContext 
 static int _lua_process_on_stderr_resume(lua_State *L, int status, lua_KContext ctx)
 {
     (void)status;
-    ev_list_node_t* it;
+    std_list_node_t* it;
     lua_process_t* process = (lua_process_t*)ctx;
 
     if (process->flag.have_error)

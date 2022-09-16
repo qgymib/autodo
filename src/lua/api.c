@@ -54,6 +54,122 @@ void auto_init_libs(lua_State *L)
 }
 
 /******************************************************************************
+* C API: new_list
+******************************************************************************/
+
+typedef struct atd_list_impl
+{
+    atd_list_t  handle;
+    ev_list_t   l;
+} atd_list_impl_t;
+
+static void _list_destroy(struct atd_list* thiz)
+{
+    atd_list_impl_t* impl = container_of(thiz, atd_list_impl_t, handle);
+    free(impl);
+}
+
+static void _list_push_front(struct atd_list* thiz, std_list_node_t* n)
+{
+    atd_list_impl_t* impl = container_of(thiz, atd_list_impl_t, handle);
+    ev_list_push_front(&impl->l, n);
+}
+
+static void _list_push_back(struct atd_list* thiz, std_list_node_t* n)
+{
+    atd_list_impl_t* impl = container_of(thiz, atd_list_impl_t, handle);
+    ev_list_push_back(&impl->l, n);
+}
+
+static void _list_insert_before(struct atd_list* thiz, std_list_node_t* p, std_list_node_t* n)
+{
+    atd_list_impl_t* impl = container_of(thiz, atd_list_impl_t, handle);
+    ev_list_insert_before(&impl->l, p, n);
+}
+
+static void _list_insert_after(struct atd_list* thiz, std_list_node_t* p, std_list_node_t* n)
+{
+    atd_list_impl_t* impl = container_of(thiz, atd_list_impl_t, handle);
+    ev_list_insert_after(&impl->l, p, n);
+}
+
+static void _list_erase(struct atd_list* thiz, std_list_node_t* n)
+{
+    atd_list_impl_t* impl = container_of(thiz, atd_list_impl_t, handle);
+    ev_list_erase(&impl->l, n);
+}
+
+static size_t _list_size(struct atd_list* thiz)
+{
+    atd_list_impl_t* impl = container_of(thiz, atd_list_impl_t, handle);
+    return ev_list_size(&impl->l);
+}
+
+static std_list_node_t* _list_pop_front(struct atd_list* thiz)
+{
+    atd_list_impl_t* impl = container_of(thiz, atd_list_impl_t, handle);
+    return ev_list_pop_front(&impl->l);
+}
+
+static std_list_node_t* _list_pop_back(struct atd_list* thiz)
+{
+    atd_list_impl_t* impl = container_of(thiz, atd_list_impl_t, handle);
+    return ev_list_pop_back(&impl->l);
+}
+
+static std_list_node_t* _list_begin(struct atd_list* thiz)
+{
+    atd_list_impl_t* impl = container_of(thiz, atd_list_impl_t, handle);
+    return ev_list_begin(&impl->l);
+}
+
+static std_list_node_t* _list_end(struct atd_list* thiz)
+{
+    atd_list_impl_t* impl = container_of(thiz, atd_list_impl_t, handle);
+    return ev_list_end(&impl->l);
+}
+
+static std_list_node_t* _list_next(struct atd_list* thiz, const std_list_node_t* node)
+{
+    (void)thiz;
+    return ev_list_next(node);
+}
+
+static std_list_node_t* _list_prev(struct atd_list* thiz, const std_list_node_t* n)
+{
+    (void)thiz;
+    return ev_list_prev(n);
+}
+
+static void _list_migrate(struct atd_list* thiz, struct atd_list* src)
+{
+    atd_list_impl_t* impl = container_of(thiz, atd_list_impl_t, handle);
+    atd_list_impl_t* src_impl = container_of(src, atd_list_impl_t, handle);
+    ev_list_migrate(&impl->l, &src_impl->l);
+}
+
+static atd_list_t* api_new_list(void)
+{
+    atd_list_impl_t* impl = malloc(sizeof(atd_list_impl_t));
+    impl->handle.destroy = _list_destroy;
+    impl->handle.push_front = _list_push_front;
+    impl->handle.push_back = _list_push_back;
+    impl->handle.insert_before = _list_insert_before;
+    impl->handle.insert_after = _list_insert_after;
+    impl->handle.erase = _list_erase;
+    impl->handle.size = _list_size;
+    impl->handle.pop_front = _list_pop_front;
+    impl->handle.pop_back = _list_pop_back;
+    impl->handle.begin = _list_begin;
+    impl->handle.end = _list_end;
+    impl->handle.next = _list_next;
+    impl->handle.prev = _list_prev;
+    impl->handle.migrate = _list_migrate;
+    ev_list_init(&impl->l);
+    return &impl->handle;
+}
+
+/******************************************************************************
 * C API: new_sem
 ******************************************************************************/
 typedef struct atd_sem_impl
@@ -584,6 +700,7 @@ static atd_coroutine_t* api_find_coroutine(lua_State* L)
 
 atd_api_t api = {
     uv_hrtime,              /* .hrtime */
+    api_new_list,           /* .new_list */
     api_new_sem,            /* .new_sem */
     api_new_thread,         /* .new_thread */
     api_new_async,          /* .new_async */

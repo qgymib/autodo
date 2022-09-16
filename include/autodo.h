@@ -59,6 +59,139 @@ typedef void (*atd_async_fn)(void* arg);
 typedef void (*atd_thread_fn)(void* arg);
 typedef void (*atd_timer_fn)(void* arg);
 
+/**
+ * @brief The list node.
+ * This node must put in your struct.
+ */
+typedef struct atd_list_node_s
+{
+    struct atd_list_node_s*    p_after;    /**< Pointer to next node */
+    struct atd_list_node_s*    p_before;   /**< Pointer to previous node */
+} std_list_node_t;
+
+typedef struct atd_list
+{
+    /**
+     * @brief Destroy list.
+     * @warning It does not free internal node, so you need to clear the list first.
+     * @param[in] thiz      This object.
+     */
+    void(*destroy)(struct atd_list* thiz);
+
+    /**
+     * @brief Insert a node to the head of the list.
+     * @warning the node must not exist in any list.
+     * @warning MT-UnSafe
+     * @param[in] thiz      This object.
+     * @param[in,out] n     Pointer to a new node
+     */
+    void (*push_front)(struct atd_list* thiz, std_list_node_t* n);
+
+    /**
+      * @brief Insert a node to the tail of the list.
+      * @warning the node must not exist in any list.
+      * @warning MT-UnSafe
+      * @param[in] thiz      This object.
+      * @param[in,out] n     Pointer to a new node
+      */
+    void (*push_back)(struct atd_list* thiz, std_list_node_t* n);
+
+    /**
+     * @brief Insert a node in front of a given node.
+     * @warning the node must not exist in any list.
+     * @warning MT-UnSafe
+     * @param[in] thiz      This object.
+     * @param[in,out] p     Pointer to a exist node
+     * @param[in,out] n     Pointer to a new node
+     */
+    void (*insert_before)(struct atd_list* thiz, std_list_node_t* p, std_list_node_t* n);
+
+    /**
+     * @brief Insert a node right after a given node.
+     * @warning the node must not exist in any list.
+     * @warning MT-UnSafe
+     * @param[in] thiz      This object.
+     * @param[in,out] p     Pointer to a exist node
+     * @param[in,out] n     Pointer to a new node
+     */
+    void (*insert_after)(struct atd_list* thiz, std_list_node_t* p, std_list_node_t* n);
+
+    /**
+     * @brief Delete a exist node
+     * @warning The node must already in the list.
+     * @warning MT-UnSafe
+     * @param[in] thiz      This object.
+     * @param[in,out] n     The node you want to delete
+     */
+    void (*erase)(struct atd_list* thiz, std_list_node_t* n);
+
+    /**
+     * @brief Get the number of nodes in the list.
+     * @warning MT-UnSafe
+     * @param[in] thiz      This object.
+     * @return          The number of nodes
+     */
+    size_t (*size)(struct atd_list* thiz);
+
+    /**
+     * @brief Get the first node and remove it from the list.
+     * @warning MT-UnSafe
+     * @param[in] thiz      This object.
+     * @return              The first node
+     */
+    std_list_node_t* (*pop_front)(struct atd_list* thiz);
+
+    /**
+     * @brief Get the last node and remove it from the list.
+     * @warning MT-UnSafe
+     * @param[in] thiz      This object.
+     * @return              The last node
+     */
+    std_list_node_t* (*pop_back)(struct atd_list* thiz);
+
+    /**
+     * @brief Get the first node.
+     * @warning MT-UnSafe
+     * @param[in] thiz      This object.
+     * @return              The first node
+     */
+    std_list_node_t* (*begin)(struct atd_list* thiz);
+
+    /**
+     * @brief Get the last node.
+     * @warning MT-UnSafe
+     * @param[in] thiz      This object.
+     * @return              The last node
+     */
+    std_list_node_t* (*end)(struct atd_list* thiz);
+
+    /**
+     * @brief Get next node.
+     * @warning MT-UnSafe
+     * @param[in] thiz      This object.
+     * @param[in] node      Current node.
+     * @return              The next node
+     */
+    std_list_node_t* (*next)(struct atd_list* thiz, const std_list_node_t* node);
+
+    /**
+     * @brief Get previous node.
+     * @warning MT-UnSafe
+     * @param[in] thiz      This object.
+     * @param[in] n         current node
+     * @return              previous node
+     */
+    std_list_node_t* (*prev)(struct atd_list* thiz, const std_list_node_t* n);
+
+    /**
+     * @brief Move all elements from \p src into the end of this object.
+     * @warning MT-UnSafe
+     * @param[in] thiz  This object.
+     * @param[in] src   Source list.
+     */
+    void (*migrate)(struct atd_list* thiz, struct atd_list* src);
+} atd_list_t;
+
 typedef struct atd_sem
 {
     /**
@@ -291,6 +424,13 @@ typedef struct atd_api_s
      * @return nanoseconds.
      */
     uint64_t (*hrtime)(void);
+
+    /**
+     * @brief Create a new list.
+     * @note MT-Safe
+     * @return  List object.
+     */
+    atd_list_t* (*new_list)(void);
 
     /**
      * @brief Create a new semaphore.

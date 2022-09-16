@@ -32,7 +32,7 @@ typedef struct atd_coroutine_impl atd_coroutine_impl_t;
 
 struct atd_coroutine_hook
 {
-    ev_list_node_t          node;
+    std_list_node_t         node;
     atd_coroutine_hook_fn   fn;
     void*                   arg;
     atd_coroutine_impl_t*   impl;
@@ -40,61 +40,61 @@ struct atd_coroutine_hook
 
 struct atd_coroutine_impl
 {
-    ev_list_node_t      q_node;         /**< Schedule queue node */
-    ev_map_node_t       t_node;         /**< Schedule table node */
+    std_list_node_t         q_node;         /**< Schedule queue node */
+    ev_map_node_t           t_node;         /**< Schedule table node */
 
-    atd_coroutine_t     base;           /**< Base object */
+    atd_coroutine_t         base;           /**< Base object */
 
     struct
     {
-        int             ref_key;        /**< Reference key of coroutine in Lua VM */
+        int                 ref_key;        /**< Reference key of coroutine in Lua VM */
     } data;
 
     struct
     {
-        ev_list_t       queue;          /**< Schedule hook queue */
-        ev_list_node_t* it;             /**< Global iterator */
+        ev_list_t          queue;          /**< Schedule hook queue */
+        std_list_node_t*    it;             /**< Global iterator */
     } hook;
 };
 
 typedef struct atd_runtime
 {
-    lua_State*          L;              /**< Lua VM */
-    uv_loop_t           loop;           /**< Event loop */
-    uv_async_t          notifier;       /**< Event notifier */
+    lua_State*              L;              /**< Lua VM */
+    uv_loop_t               loop;           /**< Event loop */
+    uv_async_t              notifier;       /**< Event notifier */
 
     struct
     {
-        int             looping;        /**< Looping */
+        int                 looping;        /**< Looping */
     } flag;
 
     struct
     {
-        void*           data;           /**< Script content */
-        size_t          size;           /**< Script size */
+        void*               data;           /**< Script content */
+        size_t              size;           /**< Script size */
     } script;
 
     struct
     {
-        char*           script_name;    /**< Script name */
-        char*           script_path;    /**< Path to run script */
+        char*               script_name;    /**< Script name */
+        char*               script_path;    /**< Path to run script */
     } config;
 
     struct
     {
-        ev_map_t        all_table;      /**< All registered coroutine */
-        ev_list_t       busy_queue;     /**< Coroutine that ready to schedule */
-        ev_list_t       wait_queue;     /**< Coroutine that wait for some events */
+        ev_map_t            all_table;      /**< All registered coroutine */
+        ev_list_t          busy_queue;     /**< Coroutine that ready to schedule */
+        ev_list_t          wait_queue;     /**< Coroutine that wait for some events */
     } schedule;
 
     struct
     {
-        char            errbuf[1024];
+        char                errbuf[1024];
     } cache;
 
     struct
     {
-        jmp_buf         point;
+        jmp_buf             point;
     } check;
 } atd_runtime_t;
 

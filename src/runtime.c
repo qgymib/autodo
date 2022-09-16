@@ -55,7 +55,7 @@ static void _runtime_destroy_thread(atd_runtime_t* rt, lua_State* L, atd_corouti
 
 static void _runtime_gc_release_coroutine(atd_runtime_t* rt)
 {
-    ev_list_node_t* it;
+    std_list_node_t* it;
     while ((it = ev_list_begin(&rt->schedule.busy_queue)) != NULL)
     {
         atd_coroutine_impl_t* thr = container_of(it, atd_coroutine_impl_t, q_node);
@@ -120,7 +120,7 @@ static void _thread_trigger_hook(atd_coroutine_impl_t* thr)
 
 static int _runtime_schedule_one_pass(atd_runtime_t* rt, lua_State* L)
 {
-    ev_list_node_t* it = ev_list_begin(&rt->schedule.busy_queue);
+    std_list_node_t* it = ev_list_begin(&rt->schedule.busy_queue);
     while (it != NULL)
     {
         atd_coroutine_impl_t* thr = container_of(it, atd_coroutine_impl_t, q_node);
