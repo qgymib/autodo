@@ -700,6 +700,7 @@ static atd_coroutine_t* api_find_coroutine(lua_State* L)
 
 atd_api_t api = {
     uv_hrtime,              /* .hrtime */
+    uv_sleep,               /* .sleep */
     api_new_list,           /* .new_list */
     api_new_sem,            /* .new_sem */
     api_new_thread,         /* .new_thread */

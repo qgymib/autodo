@@ -426,6 +426,12 @@ typedef struct atd_api_s
     uint64_t (*hrtime)(void);
 
     /**
+     * @brief Causes the calling thread to sleep for \p ms milliseconds.
+     * @param[in] ms    Milliseconds.
+     */
+    void (*sleep)(uint32_t ms);
+
+    /**
      * @brief Create a new list.
      * @note MT-Safe
      * @return  List object.
