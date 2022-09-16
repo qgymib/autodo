@@ -592,3 +592,8 @@ atd_api_t api = {
     api_register_coroutine, /* .register_coroutine */
     api_find_coroutine,     /* .find_coroutine */
 };
+
+atd_api_t* atd_api(void)
+{
+    return &api;
+}

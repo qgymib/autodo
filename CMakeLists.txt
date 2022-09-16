@@ -76,6 +76,10 @@ target_include_directories(${PROJECT_NAME}
 SET_TARGET_PROPERTIES(${PROJECT_NAME} PROPERTIES PREFIX "")
 setup_target_wall(${PROJECT_NAME})
 
+if (CMAKE_C_COMPILER_ID STREQUAL "MSVC")
+    target_compile_options(${name} PRIVATE /DATD_API_EXPORT)
+endif ()
+
 ###############################################################################
 # Dependency
 ###############################################################################

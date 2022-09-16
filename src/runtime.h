@@ -109,12 +109,12 @@ extern atd_runtime_t*   g_rt;
  * @param[in] argv  Argument list.
  * @return          Always 0.
  */
-int atd_init_runtime(int argc, char* argv[]);
+API_LOCAL int atd_init_runtime(int argc, char* argv[]);
 
 /**
  * @brief Exit runtime.
  */
-void atd_exit_runtime(void);
+API_LOCAL void atd_exit_runtime(void);
 
 /**
  * @brief Run scheduler.
@@ -129,7 +129,7 @@ void atd_exit_runtime(void);
  * @param[in] L     The thread that host scheduler.
  * @return          Error code.
  */
-int atd_schedule(atd_runtime_t* rt, lua_State* L);
+API_LOCAL int atd_schedule(atd_runtime_t* rt, lua_State* L);
 
 #ifdef __cplusplus
 }

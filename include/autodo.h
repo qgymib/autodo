@@ -37,6 +37,16 @@
         (thr)->status != LUA_OK\
     )
 
+#if defined(_WIN32)
+#   if defined(ATD_API_EXPORT)
+#       define ATD_API __declspec(dllexport)
+#   else
+#       define ATD_API __declspec(dllimport)
+#   endif
+#else
+#   define ATD_API
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -255,9 +265,9 @@ struct atd_coroutine
 /**
  * @brief Autodo API.
  *
- * To get this api structure, use following c code:
+ * To get this api structure, either by #atd_api() or:
  *
- * ```lua
+ * ```c
  * lua_getglobal(L, "auto");
  * lua_getfield(L, -1, "api");
  * atd_api_t* api = lua_touserdata(-1);
@@ -269,7 +279,7 @@ struct atd_coroutine
  * @warning For functions have tag `MT-UnSafe`, it means you must call these
  *   functions in the same thread as lua vm host.
  */
-typedef struct atd_api
+typedef struct atd_api_s
 {
     /**
      * @brief Returns the current high-resolution real time in nanoseconds.
@@ -350,6 +360,16 @@ typedef struct atd_api
      */
     atd_coroutine_t* (*find_coroutine)(lua_State* L);
 } atd_api_t;
+
+/**
+ * @brief Get API.
+ *
+ * This function call is extremely cheap, it returns the address of a
+ * predefined structure. So it should be ok not to cache the result.
+ *
+ * @return API.
+ */
+ATD_API atd_api_t* atd_api(void);
 
 #ifdef __cplusplus
 }
