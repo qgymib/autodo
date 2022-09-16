@@ -192,6 +192,133 @@ typedef struct atd_list
     void (*migrate)(struct atd_list* self, struct atd_list* src);
 } atd_list_t;
 
+/**
+ * @brief ev_map_low node
+ * @see EV_MAP_LOW_NODE_INIT
+ */
+typedef struct atd_map_node
+{
+    struct atd_map_node* __rb_parent_color;  /**< parent node | color */
+    struct atd_map_node* rb_right;           /**< right node */
+    struct atd_map_node* rb_left;            /**< left node */
+} atd_map_node_t;
+
+/**
+ * @brief Compare function.
+ * @param[in] key1  The key in the map
+ * @param[in] key2  The key user given
+ * @param[in] arg   User defined argument
+ * @return          -1 if key1 < key2. 1 if key1 > key2. 0 if key1 == key2.
+ */
+typedef int(*atd_map_cmp_fn)(const atd_map_node_t* key1, const atd_map_node_t* key2, void* arg);
+
+typedef struct atd_map
+{
+    /**
+     * @brief Destroy this object.
+     * @warning MT-UnSafe
+     * @param[in] self  The pointer to the map.
+     */
+    void (*destroy)(struct atd_map* self);
+
+    /**
+     * @brief Insert the node into map.
+     * @warning the node must not exist in any map.
+     * @warning MT-UnSafe
+     * @param[in] self  The pointer to the map.
+     * @param[in] node  The node
+     * @return          NULL if success, otherwise return the original node.
+     */
+    atd_map_node_t* (*insert)(struct atd_map* self, atd_map_node_t* node);
+
+    /**
+     * @brief Replace a existing data with \p node.
+     * @warning MT-UnSafe
+     * @param[in] self  The pointer to the map.
+     * @param[in] node  The node to insert.
+     * @return          NULL if no existing data, otherwise return the replaced node.
+     */
+    atd_map_node_t* (*replace)(struct atd_map* self, atd_map_node_t* node);
+
+    /**
+     * @brief Delete the node from the map.
+     * @warning The node must already in the map.
+     * @warning MT-UnSafe
+     * @param[in] self  The pointer to the map.
+     * @param[in] node  The node
+     */
+    void (*erase)(struct atd_map* self, atd_map_node_t* node);
+
+    /**
+     * @brief Get the number of nodes in the map.
+     * @warning MT-UnSafe
+     * @param[in] self  The pointer to the map.
+     * @return          The number of nodes
+     */
+    size_t (*size)(struct atd_map* self);
+
+    /**
+     * @brief Finds element with specific key.
+     * @warning MT-UnSafe
+     * @param[in] self  The pointer to the map.
+     * @param[in] key   The key
+     * @return          An iterator point to the found node
+     */
+    atd_map_node_t* (*find)(struct atd_map* self, const atd_map_node_t* key);
+
+    /**
+     * @brief Returns an iterator to the first element not less than the given key.
+     * @warning MT-UnSafe
+     * @param[in] self  The pointer to the map.
+     * @param[in] key   The key
+     * @return          An iterator point to the found node
+     */
+    atd_map_node_t* (*find_lower)(struct atd_map* self, const atd_map_node_t* key);
+
+    /**
+     * @brief Returns an iterator to the first element greater than the given key.
+     * @warning MT-UnSafe
+     * @param[in] self  The pointer to the map.
+     * @param[in] key   The key
+     * @return          An iterator point to the found node
+     */
+    atd_map_node_t* (*find_upper)(struct atd_map* self, const atd_map_node_t* key);
+
+    /**
+     * @brief Returns an iterator to the beginning.
+     * @warning MT-UnSafe
+     * @param[in] self  The pointer to the map.
+     * @return          An iterator
+     */
+    atd_map_node_t* (*begin)(struct atd_map* self);
+
+    /**
+     * @brief Returns an iterator to the end.
+     * @warning MT-UnSafe
+     * @param[in] self  The pointer to the map.
+     * @return          An iterator
+     */
+    atd_map_node_t* (*end)(struct atd_map* self);
+
+    /**
+     * @brief Get an iterator next to the given one.
+     * @warning MT-UnSafe
+     * @param[in] self  The pointer to the map.
+     * @param[in] node  Current iterator
+     * @return          Next iterator
+     */
+    atd_map_node_t* (*next)(struct atd_map* self, const atd_map_node_t* node);
+
+    /**
+     * @brief Get an iterator before the given one.
+     * @warning MT-UnSafe
+     * @param[in] self  The pointer to the map.
+     * @param[in] node  Current iterator
+     * @return          Previous iterator
+     */
+    atd_map_node_t* (*prev)(struct atd_map* self, const atd_map_node_t* node);
+} atd_map_t;
+
 typedef struct atd_sem
 {
     /**
@@ -437,6 +564,14 @@ typedef struct atd_api_s
      * @return  List object.
      */
     atd_list_t* (*new_list)(void);
+
+    /**
+     * @brief Create a new map.
+     * @param[in] cmp   Compare function.
+     * @param[in] arg   User defined argument passed to \p cmp.
+     * @return          Map object.
+     */
+    atd_map_t* (*new_map)(atd_map_cmp_fn cmp, void* arg);
 
     /**
      * @brief Create a new semaphore.

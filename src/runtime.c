@@ -88,7 +88,7 @@ static int _init_parse_args(int argc, char* argv[])
     return _init_parse_args_finalize(argv[0]);
 }
 
-static int _on_cmp_thread(const ev_map_node_t* key1, const ev_map_node_t* key2, void* arg)
+static int _on_cmp_thread(const atd_map_node_t* key1, const atd_map_node_t* key2, void* arg)
 {
     (void)arg;
     atd_coroutine_impl_t* t1 = container_of(key1, atd_coroutine_impl_t, t_node);

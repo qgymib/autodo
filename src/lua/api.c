@@ -170,6 +170,107 @@ static atd_list_t* api_new_list(void)
 }
 
 /******************************************************************************
+* C API: new_map
+******************************************************************************/
+
+typedef struct atd_map_impl
+{
+    atd_map_t   handle;
+    ev_map_t    map;
+} atd_map_impl_t;
+
+static void _map_destroy(struct atd_map* self)
+{
+    atd_map_impl_t* impl = container_of(self, atd_map_impl_t, handle);
+    free(impl);
+}
+
+static atd_map_node_t* _map_insert(struct atd_map* self, atd_map_node_t* node)
+{
+    atd_map_impl_t* impl = container_of(self, atd_map_impl_t, handle);
+    return ev_map_insert(&impl->map, node);
+}
+
+static atd_map_node_t* _map_replace(struct atd_map* self, atd_map_node_t* node)
+{
+    atd_map_impl_t* impl = container_of(self, atd_map_impl_t, handle);
+    return ev_map_replace(&impl->map, node);
+}
+
+static void _map_erase(struct atd_map* self, atd_map_node_t* node)
+{
+    atd_map_impl_t* impl = container_of(self, atd_map_impl_t, handle);
+    ev_map_erase(&impl->map, node);
+}
+
+static size_t _map_size(struct atd_map* self)
+{
+    atd_map_impl_t* impl = container_of(self, atd_map_impl_t, handle);
+    return ev_map_size(&impl->map);
+}
+
+static atd_map_node_t* _map_find(struct atd_map* self, const atd_map_node_t* key)
+{
+    atd_map_impl_t* impl = container_of(self, atd_map_impl_t, handle);
+    return ev_map_find(&impl->map, key);
+}
+
+static atd_map_node_t* _map_find_lower(struct atd_map* self, const atd_map_node_t* key)
+{
+    atd_map_impl_t* impl = container_of(self, atd_map_impl_t, handle);
+    return ev_map_find_lower(&impl->map, key);
+}
+
+static atd_map_node_t* _map_find_upper(struct atd_map* self, const atd_map_node_t* key)
+{
+    atd_map_impl_t* impl = container_of(self, atd_map_impl_t, handle);
+    return ev_map_find_upper(&impl->map, key);
+}
+
+static atd_map_node_t* _map_begin(struct atd_map* self)
+{
+    atd_map_impl_t* impl = container_of(self, atd_map_impl_t, handle);
+    return ev_map_begin(&impl->map);
+}
+
+static atd_map_node_t* _map_end(struct atd_map* self)
+{
+    atd_map_impl_t* impl = container_of(self, atd_map_impl_t, handle);
+    return ev_map_end(&impl->map);
+}
+
+static atd_map_node_t* _map_next(struct atd_map* self, const atd_map_node_t* node)
+{
+    (void)self;
+    return ev_map_next(node);
+}
+
+static atd_map_node_t* _map_prev(struct atd_map* self, const atd_map_node_t* node)
+{
+    (void)self;
+    return ev_map_prev(node);
+}
+
+static atd_map_t* api_new_map(atd_map_cmp_fn cmp, void* arg)
+{
+    atd_map_impl_t* impl = malloc(sizeof(atd_map_impl_t));
+    impl->handle.destroy = _map_destroy;
+    impl->handle.insert = _map_insert;
+    impl->handle.replace = _map_replace;
+    impl->handle.erase = _map_erase;
+    impl->handle.size = _map_size;
+    impl->handle.find = _map_find;
+    impl->handle.find_lower = _map_find_lower;
+    impl->handle.find_upper = _map_find_upper;
+    impl->handle.begin = _map_begin;
+    impl->handle.end = _map_end;
+    impl->handle.next = _map_next;
+    impl->handle.prev = _map_prev;
+    ev_map_init(&impl->map, cmp, arg);
+    return &impl->handle;
+}
+
+/******************************************************************************
 * C API: new_sem
 ******************************************************************************/
 typedef struct atd_sem_impl
@@ -688,7 +789,7 @@ static atd_coroutine_t* api_find_coroutine(lua_State* L)
     atd_coroutine_impl_t tmp;
     tmp.base.L = L;
 
-    ev_map_node_t* it = ev_map_find(&g_rt->schedule.all_table, &tmp.t_node);
+    atd_map_node_t* it = ev_map_find(&g_rt->schedule.all_table, &tmp.t_node);
     if (it == NULL)
     {
         return NULL;
@@ -702,6 +803,7 @@ atd_api_t api = {
     uv_hrtime,              /* .hrtime */
     uv_sleep,               /* .sleep */
     api_new_list,           /* .new_list */
+    api_new_map,            /* .new_map */
     api_new_sem,            /* .new_sem */
     api_new_thread,         /* .new_thread */
     api_new_async,          /* .new_async */

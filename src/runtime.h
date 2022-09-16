@@ -41,7 +41,7 @@ struct atd_coroutine_hook
 struct atd_coroutine_impl
 {
     std_list_node_t         q_node;         /**< Schedule queue node */
-    ev_map_node_t           t_node;         /**< Schedule table node */
+    atd_map_node_t           t_node;         /**< Schedule table node */
 
     atd_coroutine_t         base;           /**< Base object */
 
