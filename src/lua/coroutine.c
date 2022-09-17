@@ -21,7 +21,7 @@ static int _coroutine_gc(lua_State* L)
 
     if (co->hook != NULL)
     {
-        co->thr->unhook(co->thr, co->hook);
+        api.coroutine.unhook(co->thr, co->hook);
         co->hook = NULL;
     }
 
@@ -42,13 +42,13 @@ static void _on_coroutine_state_change(atd_coroutine_t* coroutine, void* arg)
     }
 
     /* Remove the hook */
-    co->thr->unhook(co->thr, co->hook);
+    api.coroutine.unhook(co->thr, co->hook);
     co->hook = NULL;
 
     /* Wakeup */
     if (co->await_thr != NULL)
     {
-        co->await_thr->set_schedule_state(co->await_thr, LUA_TNONE);
+        api.coroutine.set_state(co->await_thr, LUA_TNONE);
     }
 
     co->flag_have_result = 1;
@@ -97,7 +97,7 @@ static int _coroutine_on_resume(lua_State *L, int status, lua_KContext ctx)
     }
 
     /* Add to wait_queue */
-    co->await_thr->set_schedule_state(co->await_thr, LUA_YIELD);
+    api.coroutine.set_state(co->await_thr, LUA_YIELD);
 
     /* Yield */
     return lua_yieldk(L, 0, (lua_KContext)co, _coroutine_on_resume);
@@ -106,7 +106,7 @@ static int _coroutine_on_resume(lua_State *L, int status, lua_KContext ctx)
 static int _coroutine_await(lua_State* L)
 {
     lua_coroutine_t* co = lua_touserdata(L, 1);
-    co->await_thr = api.find_coroutine(L);
+    co->await_thr = api.coroutine.find(L);
 
     return _coroutine_on_resume(L, LUA_YIELD, (lua_KContext)co);
 }
@@ -119,7 +119,7 @@ int atd_lua_coroutine(lua_State *L)
     memset(co, 0, sizeof(*co));
 
     /* Initialize */
-    co->thr = api.register_coroutine(lua_newthread(L)); lua_pop(L, 1);
+    co->thr = api.coroutine.host(lua_newthread(L)); lua_pop(L, 1);
     co->storage = lua_newthread(L);
     co->ref_storage = luaL_ref(L, LUA_REGISTRYINDEX);
 
@@ -150,7 +150,7 @@ int atd_lua_coroutine(lua_State *L)
     co->thr->nresults = sp - 1;
 
     /* Care about thread state change */
-    co->hook = co->thr->hook(co->thr, _on_coroutine_state_change, co);
+    co->hook = api.coroutine.hook(co->thr, _on_coroutine_state_change, co);
 
     return 1;
 }

@@ -56,7 +56,7 @@ static void rb_set_parent_color(atd_map_node_t* rb, atd_map_node_t* p, int color
 }
 
 static void __rb_change_child(atd_map_node_t* old_node, atd_map_node_t* new_node,
-                              atd_map_node_t* parent, ev_map_low_t* root)
+                              atd_map_node_t* parent, atd_map_t* root)
 {
     if (parent)
     {
@@ -81,7 +81,7 @@ static void __rb_change_child(atd_map_node_t* old_node, atd_map_node_t* new_node
 * - old gets assigned new as a parent and 'color' as a color.
 */
 static void __rb_rotate_set_parents(atd_map_node_t* old, atd_map_node_t* new_node,
-                                    ev_map_low_t* root, int color)
+    atd_map_t* root, int color)
 {
     atd_map_node_t* parent = rb_parent(old);
     new_node->__rb_parent_color = old->__rb_parent_color;
@@ -89,7 +89,7 @@ static void __rb_rotate_set_parents(atd_map_node_t* old, atd_map_node_t* new_nod
     __rb_change_child(old, new_node, parent, root);
 }
 
-static void __rb_insert(atd_map_node_t* node, ev_map_low_t* root)
+static void __rb_insert(atd_map_node_t* node, atd_map_t* root)
 {
     atd_map_node_t* parent = rb_red_parent(node), * gparent, * tmp;
 
@@ -215,7 +215,7 @@ static void rb_set_parent(atd_map_node_t* rb, atd_map_node_t* p)
     rb->__rb_parent_color = (struct atd_map_node*)(rb_color(rb) | (uintptr_t)p);
 }
 
-static atd_map_node_t* __rb_erase_augmented(atd_map_node_t* node, ev_map_low_t* root)
+static atd_map_node_t* __rb_erase_augmented(atd_map_node_t* node, atd_map_t* root)
 {
     atd_map_node_t* child = node->rb_right, * tmp = node->rb_left;
     atd_map_node_t* parent, * rebalance;
@@ -316,8 +316,7 @@ static atd_map_node_t* __rb_erase_augmented(atd_map_node_t* node, ev_map_low_t* 
 * Inline version for rb_erase() use - we want to be able to inline
 * and eliminate the dummy_rotate callback there
 */
-static void
-____rb_erase_color(atd_map_node_t* parent, ev_map_low_t* root)
+static void ____rb_erase_color(atd_map_node_t* parent, atd_map_t* root)
 {
     atd_map_node_t* node = NULL, * sibling, * tmp1, * tmp2;
 
@@ -482,12 +481,12 @@ void ev_map_low_link_node(atd_map_node_t* node,
     return;
 }
 
-void ev_map_low_insert_color(atd_map_node_t* node, ev_map_low_t* root)
+void ev_map_low_insert_color(atd_map_node_t* node, atd_map_t* root)
 {
     __rb_insert(node, root);
 }
 
-void ev_map_low_erase(ev_map_low_t* root, atd_map_node_t* node)
+void ev_map_low_erase(atd_map_t* root, atd_map_node_t* node)
 {
     atd_map_node_t* rebalance;
     rebalance = __rb_erase_augmented(node, root);
@@ -503,7 +502,7 @@ void ev_map_low_erase(ev_map_low_t* root, atd_map_node_t* node)
 /*
 * This function returns the first node (in sort order) of the tree.
 */
-atd_map_node_t* ev_map_low_first(const ev_map_low_t* root)
+atd_map_node_t* ev_map_low_first(const atd_map_t* root)
 {
     atd_map_node_t* n = root->rb_root;
 
@@ -514,7 +513,7 @@ atd_map_node_t* ev_map_low_first(const ev_map_low_t* root)
     return n;
 }
 
-atd_map_node_t* ev_map_low_last(const ev_map_low_t* root)
+atd_map_node_t* ev_map_low_last(const atd_map_t* root)
 {
     atd_map_node_t* n = root->rb_root;
 
@@ -584,17 +583,17 @@ atd_map_node_t* ev_map_low_prev(const atd_map_node_t* node)
     return parent;
 }
 
-void ev_map_init(ev_map_t* handler, atd_map_cmp_fn cmp, void* arg)
+void ev_map_init(atd_map_t* handler, atd_map_cmp_fn cmp, void* arg)
 {
-    handler->map_low = (ev_map_low_t)EV_MAP_LOW_INIT;
+    handler->rb_root = NULL;
     handler->cmp.cmp = cmp;
     handler->cmp.arg = arg;
     handler->size = 0;
 }
 
-atd_map_node_t* ev_map_insert(ev_map_t* handler, atd_map_node_t* node)
+atd_map_node_t* ev_map_insert(atd_map_t* handler, atd_map_node_t* node)
 {
-    atd_map_node_t **new_node = &(handler->map_low.rb_root), *parent = NULL;
+    atd_map_node_t **new_node = &(handler->rb_root), *parent = NULL;
 
     /* Figure out where to put new node */
     while (*new_node)
@@ -618,14 +617,14 @@ atd_map_node_t* ev_map_insert(ev_map_t* handler, atd_map_node_t* node)
 
     handler->size++;
     ev_map_low_link_node(node, parent, new_node);
-    ev_map_low_insert_color(node, &handler->map_low);
+    ev_map_low_insert_color(node, handler);
 
     return 0;
 }
 
-atd_map_node_t* ev_map_replace(ev_map_t* handler, atd_map_node_t* node)
+atd_map_node_t* ev_map_replace(atd_map_t* handler, atd_map_node_t* node)
 {
-    atd_map_node_t** new_node = &(handler->map_low.rb_root), * parent = NULL;
+    atd_map_node_t** new_node = &(handler->rb_root), * parent = NULL;
     handler->size++;
 
     /* Figure out where to put new node */
@@ -669,25 +668,25 @@ atd_map_node_t* ev_map_replace(ev_map_t* handler, atd_map_node_t* node)
     }
 
     ev_map_low_link_node(node, parent, new_node);
-    ev_map_low_insert_color(node, &handler->map_low);
+    ev_map_low_insert_color(node, handler);
 
     return NULL;
 }
 
-void ev_map_erase(ev_map_t* handler, atd_map_node_t* node)
+void ev_map_erase(atd_map_t* handler, atd_map_node_t* node)
 {
     handler->size--;
-    ev_map_low_erase(&handler->map_low, node);
+    ev_map_low_erase(handler, node);
 }
 
-size_t ev_map_size(const ev_map_t* handler)
+size_t ev_map_size(const atd_map_t* handler)
 {
     return handler->size;
 }
 
-atd_map_node_t* ev_map_find(const ev_map_t* handler, const atd_map_node_t* key)
+atd_map_node_t* ev_map_find(const atd_map_t* handler, const atd_map_node_t* key)
 {
-    atd_map_node_t* node = handler->map_low.rb_root;
+    atd_map_node_t* node = handler->rb_root;
 
     while (node)
     {
@@ -710,10 +709,10 @@ atd_map_node_t* ev_map_find(const ev_map_t* handler, const atd_map_node_t* key)
     return NULL;
 }
 
-atd_map_node_t* ev_map_find_lower(const ev_map_t* handler, const atd_map_node_t* key)
+atd_map_node_t* ev_map_find_lower(const atd_map_t* handler, const atd_map_node_t* key)
 {
     atd_map_node_t* lower_node = NULL;
-    atd_map_node_t* node = handler->map_low.rb_root;
+    atd_map_node_t* node = handler->rb_root;
     while (node)
     {
         int result = handler->cmp.cmp(key, node, handler->cmp.arg);
@@ -735,10 +734,10 @@ atd_map_node_t* ev_map_find_lower(const ev_map_t* handler, const atd_map_node_t*
     return lower_node;
 }
 
-atd_map_node_t* ev_map_find_upper(const ev_map_t* handler, const atd_map_node_t* key)
+atd_map_node_t* ev_map_find_upper(const atd_map_t* handler, const atd_map_node_t* key)
 {
     atd_map_node_t* upper_node = NULL;
-    atd_map_node_t* node = handler->map_low.rb_root;
+    atd_map_node_t* node = handler->rb_root;
 
     while (node)
     {
@@ -766,14 +765,14 @@ atd_map_node_t* ev_map_find_upper(const ev_map_t* handler, const atd_map_node_t*
     return upper_node;
 }
 
-atd_map_node_t* ev_map_begin(const ev_map_t* handler)
+atd_map_node_t* ev_map_begin(const atd_map_t* handler)
 {
-    return ev_map_low_first(&handler->map_low);
+    return ev_map_low_first(handler);
 }
 
-atd_map_node_t* ev_map_end(const ev_map_t* handler)
+atd_map_node_t* ev_map_end(const atd_map_t* handler)
 {
-    return ev_map_low_last(&handler->map_low);
+    return ev_map_low_last(handler);
 }
 
 atd_map_node_t* ev_map_next(const atd_map_node_t* node)

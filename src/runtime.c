@@ -145,7 +145,7 @@ static int _runtime_schedule_one_pass(atd_runtime_t* rt, lua_State* L)
         }
 
         /* Coroutine either finish execution or error happen.  */
-        thr->base.set_schedule_state(&thr->base, ret);
+        api.coroutine.set_state(&thr->base, ret);
         /* Call hook */
         _thread_trigger_hook(thr);
 

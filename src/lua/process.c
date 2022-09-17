@@ -28,8 +28,8 @@ typedef struct lua_process
 
     struct
     {
-        ev_list_t       data_stdout;
-        ev_list_t       data_stderr;
+        atd_list_t       data_stdout;
+        atd_list_t       data_stderr;
     } cache;
 } lua_process_t;
 
@@ -54,7 +54,7 @@ static void _lua_process_stdout(atd_process_t* proc, void* data,
     ev_list_push_back(&process->cache.data_stdout, &cache->node);
 
 wakeup_host_co:
-    process->host_co->set_schedule_state(process->host_co, LUA_TNONE);
+    api.coroutine.set_state(process->host_co, LUA_TNONE);
 }
 
 static void _lua_process_stderr(atd_process_t* proc, void* data,
@@ -77,7 +77,7 @@ static void _lua_process_stderr(atd_process_t* proc, void* data,
     ev_list_push_back(&process->cache.data_stderr, &cache->node);
 
 wakeup_host_co:
-    process->host_co->set_schedule_state(process->host_co, LUA_TNONE);
+    api.coroutine.set_state(process->host_co, LUA_TNONE);
 }
 
 static int _lua_process_table_to_cfg(lua_State* L, int idx, lua_process_t* process)
@@ -183,7 +183,7 @@ static int _lua_process_gc(lua_State *L)
 
     if (process->process != NULL)
     {
-        process->process->kill(process->process, 9);
+        api.process.kill(process->process, 9);
         process->process = NULL;
     }
 
@@ -228,7 +228,7 @@ static int _lua_process_kill(lua_State *L)
 
     if (process->process != NULL)
     {
-        process->process->kill(process->process, signum);
+        api.process.kill(process->process, signum);
         process->process = NULL;
     }
 
@@ -248,7 +248,7 @@ static int _lua_process_on_stdout_resume(lua_State *L, int status, lua_KContext 
 
     if (ev_list_size(&process->cache.data_stdout) == 0)
     {
-        process->host_co->set_schedule_state(process->host_co, LUA_YIELD);
+        api.coroutine.set_state(process->host_co, LUA_YIELD);
         return lua_yieldk(L, 0, (lua_KContext)process,
             _lua_process_on_stdout_resume);
     }
@@ -280,7 +280,7 @@ static int _lua_process_on_stderr_resume(lua_State *L, int status, lua_KContext 
 
     if (ev_list_size(&process->cache.data_stderr) == 0)
     {
-        process->host_co->set_schedule_state(process->host_co, LUA_YIELD);
+        api.coroutine.set_state(process->host_co, LUA_YIELD);
         return lua_yieldk(L, 0, (lua_KContext)process,
             _lua_process_on_stderr_resume);
     }
@@ -328,7 +328,7 @@ int atd_lua_process(lua_State *L)
     lua_process_t* process = lua_newuserdata(L, sizeof(lua_process_t));
     memset(process, 0, sizeof(*process));
 
-    process->host_co = api.find_coroutine(L);
+    process->host_co = api.coroutine.find(L);
     ev_list_init(&process->cache.data_stdout);
     ev_list_init(&process->cache.data_stderr);
 
@@ -352,7 +352,7 @@ int atd_lua_process(lua_State *L)
 
     _lua_process_table_to_cfg(L, 1, process);
 
-    if ((process->process = api.new_process(&process->cfg)) == NULL)
+    if ((process->process = api.process.create(&process->cfg)) == NULL)
     {
         lua_pop(L, 1);
         return 0;

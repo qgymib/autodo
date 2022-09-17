@@ -25,8 +25,8 @@ extern "C" {
  */
 
 /**
- * @brief Static initializer for #ev_list_t
- * @see ev_list_t
+ * @brief Static initializer for #atd_list_t
+ * @see atd_list_t
  */
 #define EV_LIST_INIT            { NULL, NULL, 0 }
 
@@ -37,21 +37,11 @@ extern "C" {
 #define EV_LIST_NODE_INIT       { NULL, NULL }
 
 /**
- * @brief Double Linked List
- */
-typedef struct ev_list_s
-{
-    std_list_node_t*        head;       /**< Pointer to HEAD node */
-    std_list_node_t*        tail;       /**< Pointer to TAIL node */
-    size_t                  size;       /**< The number of total nodes */
-} ev_list_t;
-
-/**
  * @brief Initialize Double Linked List.
  * @note It is guarantee that memset() to zero have the same affect.
  * @param[out] handler  Pointer to list
  */
-void ev_list_init(ev_list_t* handler);
+void ev_list_init(atd_list_t* handler);
 
 /**
  * @brief Insert a node to the head of the list.
@@ -59,7 +49,7 @@ void ev_list_init(ev_list_t* handler);
  * @param[in,out] handler   Pointer to list
  * @param[in,out] node      Pointer to a new node
  */
-void ev_list_push_front(ev_list_t* handler, std_list_node_t* node);
+void ev_list_push_front(atd_list_t* handler, std_list_node_t* node);
 
 /**
  * @brief Insert a node to the tail of the list.
@@ -67,7 +57,7 @@ void ev_list_push_front(ev_list_t* handler, std_list_node_t* node);
  * @param[in,out] handler   Pointer to list
  * @param[in,out] node      Pointer to a new node
  */
-void ev_list_push_back(ev_list_t* handler, std_list_node_t* node);
+void ev_list_push_back(atd_list_t* handler, std_list_node_t* node);
 
 /**
  * @brief Insert a node in front of a given node.
@@ -76,7 +66,7 @@ void ev_list_push_back(ev_list_t* handler, std_list_node_t* node);
  * @param[in,out] pos       Pointer to a exist node
  * @param[in,out] node      Pointer to a new node
  */
-void ev_list_insert_before(ev_list_t* handler, std_list_node_t* pos, std_list_node_t* node);
+void ev_list_insert_before(atd_list_t* handler, std_list_node_t* pos, std_list_node_t* node);
 
 /**
  * @brief Insert a node right after a given node.
@@ -85,7 +75,7 @@ void ev_list_insert_before(ev_list_t* handler, std_list_node_t* pos, std_list_no
  * @param[in,out] pos       Pointer to a exist node
  * @param[in,out] node      Pointer to a new node
  */
-void ev_list_insert_after(ev_list_t* handler, std_list_node_t* pos, std_list_node_t* node);
+void ev_list_insert_after(atd_list_t* handler, std_list_node_t* pos, std_list_node_t* node);
 
 /**
  * @brief Delete a exist node
@@ -93,42 +83,42 @@ void ev_list_insert_after(ev_list_t* handler, std_list_node_t* pos, std_list_nod
  * @param[in,out] handler   Pointer to list
  * @param[in,out] node      The node you want to delete
  */
-void ev_list_erase(ev_list_t* handler, std_list_node_t* node);
+void ev_list_erase(atd_list_t* handler, std_list_node_t* node);
 
 /**
  * @brief Get the number of nodes in the list.
  * @param[in] handler   Pointer to list
  * @return              The number of nodes
  */
-size_t ev_list_size(const ev_list_t* handler);
+size_t ev_list_size(const atd_list_t* handler);
 
 /**
  * @brief Get the first node and remove it from the list.
  * @param[in,out] handler   Pointer to list
  * @return                  The first node
  */
-std_list_node_t* ev_list_pop_front(ev_list_t* handler);
+std_list_node_t* ev_list_pop_front(atd_list_t* handler);
 
 /**
  * @brief Get the last node and remove it from the list.
  * @param[in,out] handler   Pointer to list
  * @return                  The last node
  */
-std_list_node_t* ev_list_pop_back(ev_list_t* handler);
+std_list_node_t* ev_list_pop_back(atd_list_t* handler);
 
 /**
  * @brief Get the first node.
  * @param[in] handler   Pointer to list
  * @return              The first node
  */
-std_list_node_t* ev_list_begin(const ev_list_t* handler);
+std_list_node_t* ev_list_begin(const atd_list_t* handler);
 
 /**
  * @brief Get the last node.
  * @param[in] handler   The handler of list
  * @return              The last node
  */
-std_list_node_t* ev_list_end(const ev_list_t* handler);
+std_list_node_t* ev_list_end(const atd_list_t* handler);
 
 /**
 * @brief Get next node.
@@ -149,7 +139,7 @@ std_list_node_t* ev_list_prev(const std_list_node_t* node);
  * @param[in] dst   Destination list.
  * @param[in] src   Source list.
  */
-void ev_list_migrate(ev_list_t* dst, ev_list_t* src);
+void ev_list_migrate(atd_list_t* dst, atd_list_t* src);
 
 /**
  * @} EV_UTILS/EV_UTILS_LIST

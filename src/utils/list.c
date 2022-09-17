@@ -1,7 +1,7 @@
 #include <string.h>
 #include "list.h"
 
-static void _list_lite_set_once(ev_list_t* handler, std_list_node_t* node)
+static void _list_lite_set_once(atd_list_t* handler, std_list_node_t* node)
 {
     handler->head = node;
     handler->tail = node;
@@ -10,12 +10,12 @@ static void _list_lite_set_once(ev_list_t* handler, std_list_node_t* node)
     handler->size = 1;
 }
 
-void ev_list_init(ev_list_t* handler)
+void ev_list_init(atd_list_t* handler)
 {
     memset(handler, 0, sizeof(*handler));
 }
 
-void ev_list_push_back(ev_list_t* handler, std_list_node_t* node)
+void ev_list_push_back(atd_list_t* handler, std_list_node_t* node)
 {
     if (handler->head == NULL)
     {
@@ -30,7 +30,7 @@ void ev_list_push_back(ev_list_t* handler, std_list_node_t* node)
     handler->size++;
 }
 
-void ev_list_insert_before(ev_list_t* handler, std_list_node_t* pos, std_list_node_t* node)
+void ev_list_insert_before(atd_list_t* handler, std_list_node_t* pos, std_list_node_t* node)
 {
     if (handler->head == pos)
     {
@@ -45,7 +45,7 @@ void ev_list_insert_before(ev_list_t* handler, std_list_node_t* pos, std_list_no
     handler->size++;
 }
 
-void ev_list_insert_after(ev_list_t* handler, std_list_node_t* pos, std_list_node_t* node)
+void ev_list_insert_after(atd_list_t* handler, std_list_node_t* pos, std_list_node_t* node)
 {
     if (handler->tail == pos)
     {
@@ -60,7 +60,7 @@ void ev_list_insert_after(ev_list_t* handler, std_list_node_t* pos, std_list_nod
     handler->size++;
 }
 
-void ev_list_push_front(ev_list_t* handler, std_list_node_t* node)
+void ev_list_push_front(atd_list_t* handler, std_list_node_t* node)
 {
     if (handler->head == NULL)
     {
@@ -75,12 +75,12 @@ void ev_list_push_front(ev_list_t* handler, std_list_node_t* node)
     handler->size++;
 }
 
-std_list_node_t* ev_list_begin(const ev_list_t* handler)
+std_list_node_t* ev_list_begin(const atd_list_t* handler)
 {
     return handler->head;
 }
 
-std_list_node_t* ev_list_end(const ev_list_t* handler)
+std_list_node_t* ev_list_end(const atd_list_t* handler)
 {
     return handler->tail;
 }
@@ -95,7 +95,7 @@ std_list_node_t* ev_list_prev(const std_list_node_t* node)
     return node->p_before;
 }
 
-void ev_list_erase(ev_list_t* handler, std_list_node_t* node)
+void ev_list_erase(atd_list_t* handler, std_list_node_t* node)
 {
     handler->size--;
 
@@ -129,7 +129,7 @@ fin:
     node->p_before = NULL;
 }
 
-std_list_node_t* ev_list_pop_front(ev_list_t* handler)
+std_list_node_t* ev_list_pop_front(atd_list_t* handler)
 {
     std_list_node_t* node = handler->head;
     if (node == NULL)
@@ -141,7 +141,7 @@ std_list_node_t* ev_list_pop_front(ev_list_t* handler)
     return node;
 }
 
-std_list_node_t* ev_list_pop_back(ev_list_t* handler)
+std_list_node_t* ev_list_pop_back(atd_list_t* handler)
 {
     std_list_node_t* node = handler->tail;
     if (node == NULL)
@@ -153,12 +153,12 @@ std_list_node_t* ev_list_pop_back(ev_list_t* handler)
     return node;
 }
 
-size_t ev_list_size(const ev_list_t* handler)
+size_t ev_list_size(const atd_list_t* handler)
 {
     return handler->size;
 }
 
-void ev_list_migrate(ev_list_t* dst, ev_list_t* src)
+void ev_list_migrate(atd_list_t* dst, atd_list_t* src)
 {
     if (src->head == NULL)
     {

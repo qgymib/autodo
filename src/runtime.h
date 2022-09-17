@@ -52,7 +52,7 @@ struct atd_coroutine_impl
 
     struct
     {
-        ev_list_t           queue;          /**< Schedule hook queue */
+        atd_list_t           queue;          /**< Schedule hook queue */
         std_list_node_t*    it;             /**< Global iterator */
     } hook;
 };
@@ -83,9 +83,9 @@ typedef struct atd_runtime
 
     struct
     {
-        ev_map_t            all_table;      /**< All registered coroutine */
-        ev_list_t           busy_queue;     /**< Coroutine that ready to schedule */
-        ev_list_t           wait_queue;     /**< Coroutine that wait for some events */
+        atd_map_t           all_table;      /**< All registered coroutine */
+        atd_list_t           busy_queue;     /**< Coroutine that ready to schedule */
+        atd_list_t           wait_queue;     /**< Coroutine that wait for some events */
     } schedule;
 
     struct
