@@ -58,6 +58,7 @@ set(auto_src_list
     src/lua/sleep.c
     src/utils/list.c
     src/utils/map.c
+    src/utils/ringbuffer.c
     src/main.c
     src/package.c
     src/runtime.c
