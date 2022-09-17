@@ -42,7 +42,7 @@ static int _user_thread(lua_State* L)
 
 static int _run_script(lua_State* L, atd_runtime_t* rt)
 {
-    atd_coroutine_t* thr = api.coroutine.host(lua_newthread(L));
+    atd_coroutine_t* thr = auto_api()->coroutine.host(lua_newthread(L));
     lua_pop(L, 1);
 
     lua_pushcfunction(thr->L, _user_thread);

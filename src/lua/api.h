@@ -16,7 +16,7 @@ extern "C" {
 /**
 * @brief Exposed api.
 */
-extern auto_api_t api;
+extern const auto_api_t api;
 
 /**
  * @brief Initialize builtin library.

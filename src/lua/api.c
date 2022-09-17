@@ -46,7 +46,7 @@ void auto_init_libs(lua_State *L)
     luaL_newlib(L, s_funcs);
 
     /* Register C api */
-    lua_pushlightuserdata(L, &api);
+    lua_pushlightuserdata(L, (void*)&api);
     lua_setfield(L, -2, "api");
 
     /* Set as global variable */
@@ -418,7 +418,7 @@ static atd_process_t* api_process_create(atd_process_cfg_t* cfg)
     impl->spawn_ret = uv_spawn(&g_rt->loop, &impl->process, &opt);
     if (impl->spawn_ret != 0)
     {
-        api.process.kill(impl, SIGKILL);
+        auto_api()->process.kill(impl, SIGKILL);
         return NULL;
     }
 
@@ -546,7 +546,7 @@ static atd_coroutine_t* api_coroutine_find(lua_State* L)
     return &impl->base;
 }
 
-auto_api_t api = {
+const auto_api_t api = {
     uv_hrtime,                              /* .hrtime */
     {
         ev_list_init,                       /* .list.init */
@@ -614,7 +614,7 @@ auto_api_t api = {
     },
 };
 
-auto_api_t* auto_api(void)
+const auto_api_t* auto_api(void)
 {
     return &api;
 }

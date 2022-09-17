@@ -193,7 +193,7 @@ struct atd_coroutine
  * ```c
  * lua_getglobal(L, "auto");
  * lua_getfield(L, -1, "api");
- * auto_api_t* api = lua_touserdata(-1);
+ * const auto_api_t* api = lua_touserdata(-1);
  * ```
  *
  * The lifetime of api is the same as host progress, so you are free to use it
@@ -674,7 +674,7 @@ typedef struct auto_api_s {
  *
  * @return API.
  */
-AUTO_API auto_api_t* auto_api(void);
+AUTO_API const auto_api_t* auto_api(void);
 
 #ifdef __cplusplus
 }
