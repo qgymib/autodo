@@ -2,6 +2,22 @@
 #define __AUTO_DO_H__
 
 #include <stdint.h>
+#include <stdlib.h>
+#include <stdio.h>
+
+#define AUTO_VERSION_MAJOR  0
+#define AUTO_VERSION_MINOR  0
+#define AUTO_VERSION_PATCH  1
+
+/**
+ * @brief Shortcut for #auto_get_api().
+ *
+ * It is recommend to cache this result to avoid multiple duplicated lookup.
+ *
+ * @return      The API struct.
+ */
+#define AUTO_GET_API()  \
+    (auto_get_api(AUTO_VERSION_MAJOR, AUTO_VERSION_MINOR, AUTO_VERSION_PATCH))
 
 /**
  * @brief Check if the coroutine \p thr is in busy state.
@@ -39,12 +55,12 @@
 
 #if defined(_WIN32)
 #   if defined(AUTO_API_EXPORT)
-#       define AUTO_API __declspec(dllexport)
+#       define AUTO_EXPORT_API  __declspec(dllexport)
 #   else
-#       define AUTO_API __declspec(dllimport)
+#       define AUTO_EXPORT_API  __declspec(dllimport)
 #   endif
 #else
-#   define AUTO_API
+#   define AUTO_EXPORT_API
 #endif
 
 #ifdef __cplusplus
@@ -188,11 +204,15 @@ struct atd_coroutine
 /**
  * @brief Autodo API.
  *
- * To get this api structure, either by #auto_api() or:
+ * To get this api structure, either by #AUTO_GET_API() or by following c code:
  *
  * ```c
  * lua_getglobal(L, "auto");
- * lua_getfield(L, -1, "api");
+ * lua_getfield(L, -1, "get_c_api");
+ * lua_pushnumber(L, AUTO_VERSION_MAJOR);
+ * lua_pushnumber(L, AUTO_VERSION_MINOR);
+ * lua_pushnumber(L, AUTO_VERSION_PATCH);
+ * lua_call(L, 3, 1);
  * const auto_api_t* api = lua_touserdata(-1);
  * ```
  *
@@ -203,17 +223,6 @@ struct atd_coroutine
  *   functions in the same thread as lua vm host.
  */
 typedef struct auto_api_s {
-    /**
-     * @brief Returns the current high-resolution real time in nanoseconds.
-     *
-     * It is relative to an arbitrary time in the past. It is not related to
-     * the time of day and therefore not subject to clock drift.
-     *
-     * @note MT-Safe
-     * @return nanoseconds.
-     */
-    uint64_t (*hrtime)(void);
-
     struct
     {
         /**
@@ -664,17 +673,38 @@ typedef struct auto_api_s {
          */
         void (*set_state)(atd_coroutine_t* self, int state);
     } coroutine;
+
+    struct
+    {
+        /**
+         * @brief Returns the current high-resolution real time in nanoseconds.
+         *
+         * It is relative to an arbitrary time in the past. It is not related to
+         * the time of day and therefore not subject to clock drift.
+         *
+         * @note MT-Safe
+         * @return nanoseconds.
+         */
+        uint64_t (*hrtime)(void);
+    } misc;
 } auto_api_t;
 
 /**
- * @brief Get API.
+ * @brief Get API by version.
  *
- * This function call is extremely cheap, it returns the address of a
- * predefined structure. So it should be ok not to cache the result.
+ * Due to API is exported by struct, it is extremely easy to cause ABI unstable
+ * (as the layout of struct is likely to change).
  *
- * @return API.
+ * To ensure library developer can have relatively ABI, the API struct is
+ * versioned: developer will get matching API struct by the header version.
+ *
+ * @see #AUTO_GET_API()
+ * @param[in] major     Major version.
+ * @param[in] minor     Minor version.
+ * @param[in] patch     Patch version.
+ * @return              Required API struct.
  */
-AUTO_API const auto_api_t* auto_api(void);
+AUTO_EXPORT_API const auto_api_t* auto_get_api(unsigned major, unsigned minor, unsigned patch);
 
 #ifdef __cplusplus
 }

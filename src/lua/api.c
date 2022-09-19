@@ -40,14 +40,23 @@ static const luaL_Reg s_funcs[] = {
 
 #undef EXPAND_MAP_AS_LUA_FUNCTION
 
+static int _auto_get_c_api(lua_State *L)
+{
+    unsigned major = lua_tointeger(L, 1);
+    unsigned minor = lua_tointeger(L, 2);
+    unsigned patch = lua_tointeger(L, 3);
+    lua_pushlightuserdata(L, (void*)auto_get_api(major, minor, patch));
+    return 1;
+}
+
 void auto_init_libs(lua_State *L)
 {
     /* Create lua api table */
     luaL_newlib(L, s_funcs);
 
     /* Register C api */
-    lua_pushlightuserdata(L, (void*)&api);
-    lua_setfield(L, -2, "api");
+    lua_pushcfunction(L, _auto_get_c_api);
+    lua_setfield(L, -2, "get_c_api");
 
     /* Set as global variable */
     lua_setglobal(L, "auto");
@@ -418,7 +427,7 @@ static atd_process_t* api_process_create(atd_process_cfg_t* cfg)
     impl->spawn_ret = uv_spawn(&g_rt->loop, &impl->process, &opt);
     if (impl->spawn_ret != 0)
     {
-        auto_api()->process.kill(impl, SIGKILL);
+        api.process.kill(impl, SIGKILL);
         return NULL;
     }
 
@@ -547,7 +556,6 @@ static atd_coroutine_t* api_coroutine_find(lua_State* L)
 }
 
 const auto_api_t api = {
-    uv_hrtime,                              /* .hrtime */
     {
         ev_list_init,                       /* .list.init */
         ev_list_push_front,                 /* .list.push_front */
@@ -612,9 +620,17 @@ const auto_api_t api = {
         api_coroutine_unhook,               /* .coroutine.unhook */
         api_coroutine_set_schedule_state,   /* .coroutine.set_schedule_state */
     },
+    {
+        uv_hrtime,                          /* .hrtime */
+    },
 };
 
-const auto_api_t* auto_api(void)
+const auto_api_t* auto_get_api(unsigned major, unsigned minor, unsigned patch)
 {
-    return &api;
+    if (AUTO_VERSION_MAJOR == major && AUTO_VERSION_MINOR == minor && AUTO_VERSION_PATCH == patch)
+    {
+        return &api;
+    }
+
+    return NULL;
 }
