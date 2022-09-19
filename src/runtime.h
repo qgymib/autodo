@@ -102,7 +102,7 @@ typedef struct atd_runtime
 /**
  * @brief Global runtime.
  */
-extern atd_runtime_t*   g_rt;
+AUTO_LOCAL extern atd_runtime_t*    g_rt;
 
 /**
  * @brief Initialize runtime.
@@ -110,12 +110,12 @@ extern atd_runtime_t*   g_rt;
  * @param[in] argv  Argument list.
  * @return          Always 0.
  */
-API_LOCAL int atd_init_runtime(int argc, char* argv[]);
+AUTO_LOCAL int atd_init_runtime(int argc, char* argv[]);
 
 /**
  * @brief Exit runtime.
  */
-API_LOCAL void atd_exit_runtime(void);
+AUTO_LOCAL void atd_exit_runtime(void);
 
 /**
  * @brief Run scheduler.
@@ -130,7 +130,7 @@ API_LOCAL void atd_exit_runtime(void);
  * @param[in] L     The thread that host scheduler.
  * @return          Error code.
  */
-API_LOCAL int atd_schedule(atd_runtime_t* rt, lua_State* L);
+AUTO_LOCAL int atd_schedule(atd_runtime_t* rt, lua_State* L);
 
 #ifdef __cplusplus
 }

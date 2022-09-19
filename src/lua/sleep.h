@@ -12,7 +12,7 @@ extern "C" {
  * @param[in] L Lua VM.
  * @return      0.
  */
-API_LOCAL int atd_lua_sleep(lua_State *L);
+AUTO_LOCAL int atd_lua_sleep(lua_State *L);
 
 #ifdef __cplusplus
 }

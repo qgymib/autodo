@@ -53,7 +53,7 @@ typedef struct
     unsigned char   probe[1024];    /**< Probe */
 } atd_probe_t;
 
-void auto_init_probe(atd_probe_t* probe);
+AUTO_LOCAL void auto_init_probe(atd_probe_t* probe);
 
 /**
  * @brief Find binary data.
@@ -65,31 +65,31 @@ void auto_init_probe(atd_probe_t* probe);
  * @param[in] fsmLen    The length of \p fsm.
  * @return              The position of result data.
  */
-int aeda_find(const void* data, size_t dataLen, const void* key, size_t keyLen, int32_t* fsm, size_t fsmLen);
+AUTO_LOCAL int aeda_find(const void* data, size_t dataLen, const void* key, size_t keyLen, int32_t* fsm, size_t fsmLen);
 
 /**
  * @brief Get filename extension
  * @param[in] filename  File name.
  * @return              Extension.
  */
-const char* get_filename_ext(const char *filename);
+AUTO_LOCAL const char* get_filename_ext(const char *filename);
 
 /**
  * @brief Get filename
  * @param[in] filename  Full filename
  * @return              File name.
  */
-const char* get_filename(const char *filename);
+AUTO_LOCAL const char* get_filename(const char *filename);
 
 /**
  * @see [strerror_r(3)](https://man7.org/linux/man-pages/man3/strerror.3.html)
  */
-const char* atd_strerror(int errcode, char* buffer, size_t size);
+AUTO_LOCAL const char* atd_strerror(int errcode, char* buffer, size_t size);
 
 /**
  * @see [strdup(3)](https://man7.org/linux/man-pages/man3/strdup.3.html)
  */
-char* atd_strdup(const char* s);
+AUTO_LOCAL char* atd_strdup(const char* s);
 
 /**
  * @brief Read file content
@@ -97,7 +97,7 @@ char* atd_strdup(const char* s);
  * @param[out] data File content
  * @return          File size.
  */
-int atd_readfile(const char* path, void** data, size_t* size);
+AUTO_LOCAL int atd_readfile(const char* path, void** data, size_t* size);
 
 /**
  * @brief Read self.
@@ -105,7 +105,7 @@ int atd_readfile(const char* path, void** data, size_t* size);
  * @param size
  * @return
  */
-int atd_read_self(void** data, size_t* size);
+AUTO_LOCAL int atd_read_self(void** data, size_t* size);
 
 /**
  * @brief Read self and get the script part.
@@ -113,7 +113,7 @@ int atd_read_self(void** data, size_t* size);
  * @param[out] size Script size.
  * @return          Error code.
  */
-int atd_read_self_script(void** data, size_t* size);
+AUTO_LOCAL int atd_read_self_script(void** data, size_t* size);
 
 /**
  * @brief Read self and get the executable part.
@@ -121,7 +121,7 @@ int atd_read_self_script(void** data, size_t* size);
  * @param[out] size Executable size.
  * @return          Error code.
  */
-int atd_read_self_exec(void** data, size_t* size);
+AUTO_LOCAL int atd_read_self_exec(void** data, size_t* size);
 
 /**
  * @brief Compile script \p src into \p dst.
@@ -130,14 +130,14 @@ int atd_read_self_exec(void** data, size_t* size);
  * @param[in] dst   Destination path.
  * @return          Error code.
  */
-int atd_compile_script(lua_State* L, const char* src, const char* dst);
+AUTO_LOCAL int atd_compile_script(lua_State* L, const char* src, const char* dst);
 
 /**
  * @brief Check whether the \p path is absolute.
  * @param[in] path  File path.
  * @return          bool.
  */
-int atd_isabs(const char* path);
+AUTO_LOCAL int atd_isabs(const char* path);
 
 #ifdef __cplusplus
 }

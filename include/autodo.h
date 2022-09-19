@@ -12,8 +12,9 @@
 /**
  * @brief Shortcut for #auto_get_api().
  *
- * It is recommend to cache this result to avoid multiple duplicated lookup.
- *
+ * @note It is recommend to cache this result to avoid multiple duplicated lookup.
+ * @note Use #AUTO_LOCAL as prefix to avoid implicit conflict.
+ * @see #AUTO_LOCAL
  * @return      The API struct.
  */
 #define AUTO_GET_API()  \
@@ -53,14 +54,38 @@
         (thr)->status != LUA_OK\
     )
 
+/**
+ * @brief Declare as public interface.
+ */
 #if defined(_WIN32)
 #   if defined(AUTO_API_EXPORT)
-#       define AUTO_EXPORT_API  __declspec(dllexport)
+#       define AUTO_PUBLIC  __declspec(dllexport)
 #   else
-#       define AUTO_EXPORT_API  __declspec(dllimport)
+#       define AUTO_PUBLIC  __declspec(dllimport)
 #   endif
 #else
-#   define AUTO_EXPORT_API
+#   define AUTO_PUBLIC
+#endif
+
+/**
+ * @brief Force export symbol.
+ */
+#if defined(_WIN32)
+#   define AUTO_EXPORT  __declspec(dllexport)
+#else
+#   define AUTO_EXPORT
+#endif
+
+/**
+ * @brief Declare as internal interface.
+ *
+ * It is recommend to declare every internal function and variable as
+ * #AUTO_LOCAL to avoid implicit conflict.
+ */
+#if defined(_WIN32)
+#   define AUTO_LOCAL
+#else
+#   define AUTO_LOCAL   __attribute__ ((visibility ("hidden")))
 #endif
 
 #ifdef __cplusplus
@@ -704,7 +729,7 @@ typedef struct auto_api_s {
  * @param[in] patch     Patch version.
  * @return              Required API struct.
  */
-AUTO_EXPORT_API const auto_api_t* auto_get_api(unsigned major, unsigned minor, unsigned patch);
+AUTO_PUBLIC const auto_api_t* auto_get_api(unsigned major, unsigned minor, unsigned patch);
 
 #ifdef __cplusplus
 }

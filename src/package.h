@@ -12,7 +12,7 @@ extern "C" {
  * @param[in] L     Lua VM.
  * @return
  */
-int atd_package_loader(lua_State* L);
+AUTO_LOCAL int atd_package_loader(lua_State* L);
 
 #ifdef __cplusplus
 }

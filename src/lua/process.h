@@ -23,7 +23,7 @@ extern "C" {
  * @param L
  * @return
  */
-API_LOCAL int atd_lua_process(lua_State *L);
+AUTO_LOCAL int atd_lua_process(lua_State *L);
 
 #ifdef __cplusplus
 }
