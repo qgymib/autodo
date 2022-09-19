@@ -252,7 +252,7 @@ typedef struct auto_api_s {
     {
         /**
          * @brief Create a new list.
-         * @note MT-Safe
+         * @warning MT-UnSafe
          * @return  List object.
          */
         void (*init)(atd_list_t* handler);
@@ -373,6 +373,7 @@ typedef struct auto_api_s {
     {
         /**
          * @brief Initialize the map referenced by handler.
+         * @warning MT-UnSafes
          * @param[out] self     The pointer to the map
          * @param[in] cmp       The compare function. Must not NULL
          * @param[in] arg       User defined argument. Can be anything
@@ -520,13 +521,14 @@ typedef struct auto_api_s {
 
         /**
          * @brief Wait for thread finish and release this object.
-         * @note MT-Safe
+         * @warning MT-UnSafe
          * @param[in] self  This object.
          */
         void (*join)(atd_thread_t* self);
 
         /**
          * @brief Causes the calling thread to sleep for \p ms milliseconds.
+         * @note MT-Safe
          * @param[in] ms    Milliseconds.
          */
         void (*sleep)(uint32_t ms);
@@ -711,6 +713,17 @@ typedef struct auto_api_s {
          * @return nanoseconds.
          */
         uint64_t (*hrtime)(void);
+
+        /**
+         * @brief Find binary data.
+         * @note MT-Safe
+         * @param[in] data  Binary data to find.
+         * @param[in] size  Binary data size in bytes.
+         * @param[in] key   The needle data.
+         * @param[in] len   The needle data length in bytes.
+         * @return          The position of result data.
+         */
+        ssize_t (*search)(const void* data, size_t size, const void* key, size_t len);
     } misc;
 } auto_api_t;
 
@@ -724,6 +737,7 @@ typedef struct auto_api_s {
  * versioned: developer will get matching API struct by the header version.
  *
  * @see #AUTO_GET_API()
+ * @note MT-Safe
  * @param[in] major     Major version.
  * @param[in] minor     Minor version.
  * @param[in] patch     Patch version.

@@ -63,7 +63,7 @@ void auto_init_libs(lua_State *L)
 }
 
 /******************************************************************************
-* C API: new_sem
+* C API: .sem
 ******************************************************************************/
 struct atd_sem_s
 {
@@ -94,7 +94,7 @@ static atd_sem_t* api_sem_create(unsigned int value)
 }
 
 /******************************************************************************
-* C API: new_thread
+* C API: .thread
 ******************************************************************************/
 struct atd_thread_s
 {
@@ -119,7 +119,7 @@ static atd_thread_t* api_thread_create(atd_thread_fn fn, void* arg)
 }
 
 /******************************************************************************
-* C API: new_async
+* C API: .async
 ******************************************************************************/
 
 struct atd_sync_s
@@ -162,7 +162,7 @@ static atd_sync_t* api_async_create(atd_async_fn fn, void* arg)
 }
 
 /******************************************************************************
-* C API: new_timer
+* C API: .timer
 ******************************************************************************/
 
 struct atd_timer_s
@@ -210,7 +210,7 @@ static atd_timer_t* api_timer_create(void)
 }
 
 /******************************************************************************
-* C API: new_process
+* C API: .process
 ******************************************************************************/
 
 struct atd_process_s
@@ -438,7 +438,7 @@ static atd_process_t* api_process_create(atd_process_cfg_t* cfg)
 }
 
 /******************************************************************************
-* C API: register_coroutine
+* C API: .coroutine
 ******************************************************************************/
 
 static void api_coroutine_set_schedule_state(struct atd_coroutine* self, int state)
@@ -536,10 +536,6 @@ static atd_coroutine_t* api_coroutine_host(lua_State* L)
     return &thr->base;
 }
 
-/******************************************************************************
-* C API: find_coroutine
-******************************************************************************/
-
 static atd_coroutine_t* api_coroutine_find(lua_State* L)
 {
     atd_coroutine_impl_t tmp;
@@ -553,6 +549,18 @@ static atd_coroutine_t* api_coroutine_find(lua_State* L)
 
     atd_coroutine_impl_t* impl = container_of(it, atd_coroutine_impl_t, t_node);
     return &impl->base;
+}
+
+/******************************************************************************
+* C API: .misc
+******************************************************************************/
+
+static ssize_t api_search(const void* data, size_t size, const void* key, size_t len)
+{
+    int32_t* fsm = malloc(sizeof(int) * len);
+    ssize_t ret = aeda_find(data, size, key, len, fsm, len);
+    free(fsm);
+    return ret;
 }
 
 const auto_api_t api = {
@@ -621,7 +629,8 @@ const auto_api_t api = {
         api_coroutine_set_schedule_state,   /* .coroutine.set_schedule_state */
     },
     {
-        uv_hrtime,                          /* .hrtime */
+        uv_hrtime,                          /* .misc.hrtime */
+        api_search,                         /* .misc.search */
     },
 };
 
