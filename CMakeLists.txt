@@ -53,6 +53,7 @@ endfunction()
 set(auto_src_list
     src/lua/api.c
     src/lua/coroutine.c
+    src/lua/int64.c
     src/lua/process.c
     src/lua/screenshot.c
     src/lua/sleep.c
@@ -77,8 +78,10 @@ target_include_directories(${PROJECT_NAME}
 SET_TARGET_PROPERTIES(${PROJECT_NAME} PROPERTIES PREFIX "")
 setup_target_wall(${PROJECT_NAME})
 
-if (CMAKE_C_COMPILER_ID STREQUAL "MSVC")
-    target_compile_options(${name} PRIVATE /DAUTO_API_EXPORT)
+if (WIN32)
+    target_compile_options(${PROJECT_NAME} PRIVATE /DAUTO_API_EXPORT)
+else ()
+    target_link_libraries(${PROJECT_NAME} PRIVATE m)
 endif ()
 
 ###############################################################################

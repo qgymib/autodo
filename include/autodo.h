@@ -704,6 +704,26 @@ typedef struct auto_api_s {
     struct
     {
         /**
+         * @brief Push a signed int64_t integer onto top of stack.
+         * @param[in] L         Lua VM.
+         * @param[in] value     Integer value.
+         * @return              Always 1.
+         */
+        int (*push_value)(lua_State *L, int64_t value);
+
+        /**
+         * @brief Get int64_t integer
+         * @param[in] L         Lua VM.
+         * @param[in] idx       Stack index.
+         * @param[out] value    Integer value.
+         * @return              bool.
+         */
+        int (*get_value)(lua_State *L, int idx, int64_t* value);
+    } int64;
+
+    struct
+    {
+        /**
          * @brief Returns the current high-resolution real time in nanoseconds.
          *
          * It is relative to an arbitrary time in the past. It is not related to

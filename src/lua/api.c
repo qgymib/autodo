@@ -2,6 +2,7 @@
 #include <string.h>
 #include "runtime.h"
 #include "lua/coroutine.h"
+#include "lua/int64.h"
 #include "lua/process.h"
 #include "lua/screenshot.h"
 #include "lua/sleep.h"
@@ -627,6 +628,10 @@ const auto_api_t api = {
         api_coroutine_hook,                 /* .coroutine.hook */
         api_coroutine_unhook,               /* .coroutine.unhook */
         api_coroutine_set_schedule_state,   /* .coroutine.set_schedule_state */
+    },
+    {
+        api_int64_push_value,               /* .int64.push_value */
+        api_int64_get_value,    /* .int64.get_value */
     },
     {
         uv_hrtime,                          /* .misc.hrtime */
