@@ -486,103 +486,6 @@ void ev_map_low_insert_color(atd_map_node_t* node, atd_map_t* root)
     __rb_insert(node, root);
 }
 
-void ev_map_low_erase(atd_map_t* root, atd_map_node_t* node)
-{
-    atd_map_node_t* rebalance;
-    rebalance = __rb_erase_augmented(node, root);
-    if (rebalance)
-    {
-        ____rb_erase_color(rebalance, root);
-    }
-    node->rb_left = NULL;
-    node->rb_right = NULL;
-    node->__rb_parent_color = NULL;
-}
-
-/*
-* This function returns the first node (in sort order) of the tree.
-*/
-atd_map_node_t* ev_map_low_first(const atd_map_t* root)
-{
-    atd_map_node_t* n = root->rb_root;
-
-    if (!n)
-        return NULL;
-    while (n->rb_left)
-        n = n->rb_left;
-    return n;
-}
-
-atd_map_node_t* ev_map_low_last(const atd_map_t* root)
-{
-    atd_map_node_t* n = root->rb_root;
-
-    if (!n)
-        return NULL;
-    while (n->rb_right)
-        n = n->rb_right;
-    return n;
-}
-
-atd_map_node_t* ev_map_low_next(const atd_map_node_t* node)
-{
-    atd_map_node_t* parent;
-
-    if (RB_EMPTY_NODE(node))
-        return NULL;
-
-    /*
-    * If we have a right-hand child, go down and then left as far
-    * as we can.
-    */
-    if (node->rb_right) {
-        node = node->rb_right;
-        while (node->rb_left)
-            node = node->rb_left;
-        return (atd_map_node_t*)node;
-    }
-
-    /*
-    * No right-hand children. Everything down and left is smaller than us,
-    * so any 'next' node must be in the general direction of our parent.
-    * Go up the tree; any time the ancestor is a right-hand child of its
-    * parent, keep going up. First time it's a left-hand child of its
-    * parent, said parent is our 'next' node.
-    */
-    while ((parent = rb_parent(node)) != NULL && node == parent->rb_right)
-        node = parent;
-
-    return parent;
-}
-
-atd_map_node_t* ev_map_low_prev(const atd_map_node_t* node)
-{
-    atd_map_node_t* parent;
-
-    if (RB_EMPTY_NODE(node))
-        return NULL;
-
-    /*
-    * If we have a left-hand child, go down and then right as far
-    * as we can.
-    */
-    if (node->rb_left) {
-        node = node->rb_left;
-        while (node->rb_right)
-            node = node->rb_right;
-        return (atd_map_node_t*)node;
-    }
-
-    /*
-    * No left-hand children. Go up till we find an ancestor which
-    * is a right-hand child of its parent.
-    */
-    while ((parent = rb_parent(node)) != NULL && node == parent->rb_left)
-        node = parent;
-
-    return parent;
-}
-
 void ev_map_init(atd_map_t* handler, atd_map_cmp_fn cmp, void* arg)
 {
     handler->rb_root = NULL;
@@ -673,10 +576,19 @@ atd_map_node_t* ev_map_replace(atd_map_t* handler, atd_map_node_t* node)
     return NULL;
 }
 
-void ev_map_erase(atd_map_t* handler, atd_map_node_t* node)
+void ev_map_erase(atd_map_t* self, atd_map_node_t* node)
 {
-    handler->size--;
-    ev_map_low_erase(handler, node);
+    self->size--;
+
+    atd_map_node_t* rebalance;
+    rebalance = __rb_erase_augmented(node, self);
+    if (rebalance)
+    {
+        ____rb_erase_color(rebalance, self);
+    }
+    node->rb_left = NULL;
+    node->rb_right = NULL;
+    node->__rb_parent_color = NULL;
 }
 
 size_t ev_map_size(const atd_map_t* handler)
@@ -765,22 +677,105 @@ atd_map_node_t* ev_map_find_upper(const atd_map_t* handler, const atd_map_node_t
     return upper_node;
 }
 
-atd_map_node_t* ev_map_begin(const atd_map_t* handler)
+atd_map_node_t* ev_map_begin(const atd_map_t* self)
 {
-    return ev_map_low_first(handler);
+    atd_map_node_t* n = self->rb_root;
+
+    if (n == NULL)
+    {
+        return NULL;
+    }
+    while (n->rb_left)
+    {
+        n = n->rb_left;
+    }
+    return n;
 }
 
-atd_map_node_t* ev_map_end(const atd_map_t* handler)
+atd_map_node_t* ev_map_end(const atd_map_t* self)
 {
-    return ev_map_low_last(handler);
+    atd_map_node_t* n = self->rb_root;
+
+    if (n == NULL)
+    {
+        return NULL;
+    }
+    while (n->rb_right)
+    {
+        n = n->rb_right;
+    }
+    return n;
 }
 
 atd_map_node_t* ev_map_next(const atd_map_node_t* node)
 {
-    return ev_map_low_next(node);
+    atd_map_node_t* parent;
+
+    if (RB_EMPTY_NODE(node))
+    {
+        return NULL;
+    }
+
+    /*
+     * If we have a right-hand child, go down and then left as far
+     * as we can.
+     */
+    if (node->rb_right)
+    {
+        node = node->rb_right;
+        while (node->rb_left)
+        {
+            node = node->rb_left;
+        }
+        return (atd_map_node_t*)node;
+    }
+
+    /*
+     * No right-hand children. Everything down and left is smaller than us,
+     * so any 'next' node must be in the general direction of our parent.
+     * Go up the tree; any time the ancestor is a right-hand child of its
+     * parent, keep going up. First time it's a left-hand child of its
+     * parent, said parent is our 'next' node.
+     */
+    while ((parent = rb_parent(node)) != NULL && node == parent->rb_right)
+    {
+        node = parent;
+    }
+
+    return parent;
 }
 
 atd_map_node_t* ev_map_prev(const atd_map_node_t* node)
 {
-    return ev_map_low_prev(node);
+    atd_map_node_t* parent;
+
+    if (RB_EMPTY_NODE(node))
+    {
+        return NULL;
+    }
+
+    /*
+     * If we have a left-hand child, go down and then right as far
+     * as we can.
+     */
+    if (node->rb_left)
+    {
+        node = node->rb_left;
+        while (node->rb_right)
+        {
+            node = node->rb_right;
+        }
+        return (atd_map_node_t*)node;
+    }
+
+    /*
+     * No left-hand children. Go up till we find an ancestor which
+     * is a right-hand child of its parent.
+     */
+    while ((parent = rb_parent(node)) != NULL && node == parent->rb_left)
+    {
+        node = parent;
+    }
+
+    return parent;
 }

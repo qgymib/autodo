@@ -170,7 +170,6 @@ static void _init_runtime(int argc, char* argv[])
     uv_loop_init(&g_rt->loop);
     uv_async_init(&g_rt->loop, &g_rt->notifier, _on_runtime_notify);
 
-    g_rt->flag.looping = 1;
     ev_list_init(&g_rt->schedule.busy_queue);
     ev_list_init(&g_rt->schedule.wait_queue);
     ev_map_init(&g_rt->schedule.all_table, _on_cmp_thread, NULL);
@@ -256,7 +255,7 @@ void atd_exit_runtime(void)
 
 int atd_schedule(atd_runtime_t* rt, lua_State* L)
 {
-    while(rt->flag.looping)
+    for (;;)
     {
         _runtime_schedule_one_pass(rt, L);
 

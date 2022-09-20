@@ -8,16 +8,6 @@
 #include "utils/map.h"
 
 /**
- * @brief Terminate script if necessary.
- */
-#define AUTO_CHECK_TERM() \
-    do {\
-        if (!g_rt->flag.looping) {\
-            longjmp(g_rt->check.point, 1);\
-        }\
-    } while(0)
-
-/**
  * @brief The period of check global looping flag.
  * This is a appropriate in milliseconds
  */
@@ -41,7 +31,7 @@ struct atd_coroutine_hook
 struct atd_coroutine_impl
 {
     std_list_node_t         q_node;         /**< Schedule queue node */
-    atd_map_node_t           t_node;         /**< Schedule table node */
+    atd_map_node_t          t_node;         /**< Schedule table node */
 
     atd_coroutine_t         base;           /**< Base object */
 
@@ -52,7 +42,7 @@ struct atd_coroutine_impl
 
     struct
     {
-        atd_list_t           queue;          /**< Schedule hook queue */
+        atd_list_t          queue;          /**< Schedule hook queue */
         std_list_node_t*    it;             /**< Global iterator */
     } hook;
 };
@@ -62,11 +52,6 @@ typedef struct atd_runtime
     lua_State*              L;              /**< Lua VM */
     uv_loop_t               loop;           /**< Event loop */
     uv_async_t              notifier;       /**< Event notifier */
-
-    struct
-    {
-        int                 looping;        /**< Looping */
-    } flag;
 
     struct
     {
@@ -84,8 +69,8 @@ typedef struct atd_runtime
     struct
     {
         atd_map_t           all_table;      /**< All registered coroutine */
-        atd_list_t           busy_queue;     /**< Coroutine that ready to schedule */
-        atd_list_t           wait_queue;     /**< Coroutine that wait for some events */
+        atd_list_t          busy_queue;     /**< Coroutine that ready to schedule */
+        atd_list_t          wait_queue;     /**< Coroutine that wait for some events */
     } schedule;
 
     struct

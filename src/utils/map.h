@@ -90,34 +90,6 @@ extern "C" {
     } while (0)
 
 /**
- * @brief Returns an iterator to the beginning
- * @param root      The pointer to the map
- * @return          An iterator
- */
-AUTO_LOCAL atd_map_node_t* ev_map_low_first(const atd_map_t* root);
-
-/**
- * @brief Returns an iterator to the end
- * @param root      The pointer to the map
- * @return          An iterator
- */
-AUTO_LOCAL atd_map_node_t* ev_map_low_last(const atd_map_t* root);
-
-/**
- * @brief Get an iterator next to the given one.
- * @param node      Current iterator
- * @return          Next iterator
- */
-AUTO_LOCAL atd_map_node_t* ev_map_low_next(const atd_map_node_t* node);
-
-/**
- * @brief Get an iterator before the given one.
- * @param node      Current iterator
- * @return          Previous iterator
- */
-AUTO_LOCAL atd_map_node_t* ev_map_low_prev(const atd_map_node_t* node);
-
-/**
  * @brief Inserting data into the tree.
  *
  * The insert instead must be implemented
@@ -142,32 +114,10 @@ AUTO_LOCAL void ev_map_low_link_node(atd_map_node_t* node,
 AUTO_LOCAL void ev_map_low_insert_color(atd_map_node_t* node, atd_map_t* root);
 
 /**
- * @brief Delete the node from the map.
- * @warning The node must already in the map.
- * @param root      The pointer to the map
- * @param node      The node
- */
-AUTO_LOCAL void ev_map_low_erase(atd_map_t* root, atd_map_node_t* node);
-
-/**
  * @defgroup EV_UTILS_MAP Map
  * @ingroup EV_UTILS
  * @{
  */
-
-/**
- * @brief Static initializer for #atd_map_t
- * @see atd_map_t
- * @param[in] cmp   Compare function
- * @param[in] arg   Argument for compare function
- */
-#define EV_MAP_INIT(cmp, arg)   { EV_MAP_LOW_INIT, { cmp, arg }, 0 }
-
-/**
- * @brief Static initializer for #atd_map_node_t
- * @see atd_map_node_t
- */
-#define EV_MAP_NODE_INIT        EV_MAP_LOW_NODE_INIT
 
 /**
  * @brief Initialize the map referenced by handler.
@@ -191,10 +141,10 @@ AUTO_LOCAL atd_map_node_t* ev_map_replace(atd_map_t* handler, atd_map_node_t* no
 /**
  * @brief Delete the node from the map.
  * @warning The node must already in the map.
- * @param handler   The pointer to the map
+ * @param self   The pointer to the map
  * @param node      The node
  */
-AUTO_LOCAL void ev_map_erase(atd_map_t* handler, atd_map_node_t* node);
+AUTO_LOCAL void ev_map_erase(atd_map_t* self, atd_map_node_t* node);
 
 /**
  * @brief Get the number of nodes in the map.

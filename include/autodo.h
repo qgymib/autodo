@@ -88,6 +88,22 @@
 #   define AUTO_LOCAL   __attribute__ ((visibility ("hidden")))
 #endif
 
+/**
+ * @brief cast a member of a structure out to the containing structure.
+ */
+#if !defined(container_of)
+#if defined(__GNUC__) || defined(__clang__)
+#   define container_of(ptr, type, member)   \
+        ({ \
+            const typeof(((type *)0)->member)*__mptr = (ptr); \
+            (type *)((char *)__mptr - offsetof(type, member)); \
+        })
+#else
+#   define container_of(ptr, type, member)   \
+        ((type *) ((char *) (ptr) - offsetof(type, member)))
+#endif
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -138,7 +154,8 @@ typedef struct atd_map_node
  * @param[in] arg   User defined argument
  * @return          -1 if key1 < key2. 1 if key1 > key2. 0 if key1 == key2.
  */
-typedef int(*atd_map_cmp_fn)(const atd_map_node_t* key1, const atd_map_node_t* key2, void* arg);
+typedef int(*atd_map_cmp_fn)(const atd_map_node_t* key1,
+    const atd_map_node_t* key2, void* arg);
 
 /**
  * @brief Map implemented as red-black tree
