@@ -268,6 +268,29 @@ typedef struct auto_api_s {
     struct
     {
         /**
+         * @brief The same as [malloc(3)](https://man7.org/linux/man-pages/man3/free.3.html).
+         */
+        void* (*malloc)(size_t size);
+
+        /**
+         * @brief The same as [free(3p)](https://man7.org/linux/man-pages/man3/free.3p.html).
+         */
+        void (*free)(void* ptr);
+
+        /**
+         * @brief The same as [calloc(3p)](https://man7.org/linux/man-pages/man3/calloc.3p.html).
+         */
+        void* (*calloc)(size_t nmemb, size_t size);
+
+        /**
+         * @brief The same as [realloc(3p)](https://man7.org/linux/man-pages/man3/realloc.3p.html).
+         */
+        void* (*realloc)(void *ptr, size_t size);
+    } mem;
+
+    struct
+    {
+        /**
          * @brief Create a new list.
          * @warning MT-UnSafe
          * @return  List object.

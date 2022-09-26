@@ -215,6 +215,12 @@ static ssize_t api_search(const void* data, size_t size, const void* key, size_t
 
 const auto_api_t api = {
     {
+        malloc,                             /* .mem.malloc */
+        free,                               /* .mem.free */
+        calloc,                             /* .mem.calloc */
+        realloc,                            /* .mem.realloc */
+    },
+    {
         ev_list_init,                       /* .list.init */
         ev_list_push_front,                 /* .list.push_front */
         ev_list_push_back,                  /* .list.push_back */
