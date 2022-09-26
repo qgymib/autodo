@@ -75,14 +75,13 @@ target_include_directories(${PROJECT_NAME}
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
-SET_TARGET_PROPERTIES(${PROJECT_NAME} PROPERTIES PREFIX "")
 setup_target_wall(${PROJECT_NAME})
 
-if (WIN32)
-    target_compile_options(${PROJECT_NAME} PRIVATE /DAUTO_API_EXPORT)
-else ()
+if (NOT WIN32)
     target_link_libraries(${PROJECT_NAME} PRIVATE m)
 endif ()
+
+
 
 ###############################################################################
 # Dependency

@@ -1,3 +1,4 @@
+#define AUTO_API_EXPORT
 #include <stdlib.h>
 #include <string.h>
 #include "runtime.h"
