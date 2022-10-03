@@ -3,6 +3,10 @@
 
 #include "autodo.h"
 
+#define ERR_HINT_NOT_IN_MANAGED_COROUTINE   "you are not in managed coroutine"
+#define ERR_HINT_STDOUT_DISABLED            "stdout have been disabled"
+#define ERR_HINT_STDIN_DISABLED             "stdin have been disabled"
+
 #ifdef __cplusplus
 extern "C" {
 #endif

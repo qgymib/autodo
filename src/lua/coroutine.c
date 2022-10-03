@@ -112,7 +112,7 @@ static int _coroutine_await(lua_State* L)
     return _coroutine_on_resume(L, LUA_YIELD, (lua_KContext)co);
 }
 
-int atd_lua_coroutine(lua_State *L)
+int auto_new_coroutine(lua_State *L)
 {
     int sp = lua_gettop(L);
 

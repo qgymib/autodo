@@ -17,7 +17,7 @@
  * @brief Lua API list.
  */
 #define AUTO_LUA_API_MAP(xx) \
-    xx("coroutine",         atd_lua_coroutine)      \
+    xx("coroutine",         auto_new_coroutine)     \
     xx("process",           atd_lua_process)        \
     xx("screenshot",        atd_lua_screenshot)     \
     xx("sleep",             atd_lua_sleep)

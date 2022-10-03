@@ -305,7 +305,7 @@ static int _lua_process_await_stdout(lua_State *L)
     lua_process_t* process = lua_touserdata(L, 1);
     if (!process->flag.have_stdout)
     {
-        return luaL_error(L, "stdout have been disabled");
+        return luaL_error(L, ERR_HINT_STDOUT_DISABLED);
     }
 
     return _lua_process_on_stdout_resume(L, LUA_YIELD, (lua_KContext)process);
@@ -317,7 +317,7 @@ static int _lua_process_await_stderr(lua_State *L)
 
     if (!process->flag.have_stderr)
     {
-        return luaL_error(L, "stderr have been disabled");
+        return luaL_error(L, ERR_HINT_STDIN_DISABLED);
     }
 
     return _lua_process_on_stderr_resume(L, LUA_YIELD, (lua_KContext)process);
@@ -330,6 +330,11 @@ int atd_lua_process(lua_State *L)
     memset(process, 0, sizeof(*process));
 
     process->host_co = api.coroutine.find(L);
+    if (process->host_co == NULL)
+    {
+        return luaL_error(L, ERR_HINT_NOT_IN_MANAGED_COROUTINE);
+    }
+
     ev_list_init(&process->cache.data_stdout);
     ev_list_init(&process->cache.data_stderr);
 
