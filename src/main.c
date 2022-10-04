@@ -137,11 +137,6 @@ int main(int argc, char* argv[])
 
     _init_lua_runtime(argc, argv);
 
-    if (setjmp(g_rt->check.point) != 0)
-    {
-        goto vm_exit;
-    }
-
     lua_pushcfunction(g_rt->L, _lua_run);
     int ret = lua_pcall(g_rt->L, 0, 0, 0);
     if (ret != LUA_OK)
@@ -149,6 +144,5 @@ int main(int argc, char* argv[])
         fprintf(stderr, "%s\n", lua_tostring(g_rt->L, -1));
     }
 
-vm_exit:
     return ret;
 }

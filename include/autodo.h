@@ -124,15 +124,15 @@ typedef struct atd_list_node_s
 {
     struct atd_list_node_s*    p_after;    /**< Pointer to next node */
     struct atd_list_node_s*    p_before;   /**< Pointer to previous node */
-} std_list_node_t;
+} atd_list_node_t;
 
 /**
  * @brief Double Linked List
  */
 typedef struct atd_list_s
 {
-    std_list_node_t*        head;       /**< Pointer to HEAD node */
-    std_list_node_t*        tail;       /**< Pointer to TAIL node */
+    atd_list_node_t*        head;       /**< Pointer to HEAD node */
+    atd_list_node_t*        tail;       /**< Pointer to TAIL node */
     size_t                  size;       /**< The number of total nodes */
 } atd_list_t;
 
@@ -304,7 +304,7 @@ typedef struct auto_api_s {
          * @param[in] self      This object.
          * @param[in,out] n     Pointer to a new node
          */
-        void (*push_front)(atd_list_t* self, std_list_node_t* n);
+        void (*push_front)(atd_list_t* self, atd_list_node_t* n);
 
         /**
           * @brief Insert a node to the tail of the list.
@@ -313,7 +313,7 @@ typedef struct auto_api_s {
           * @param[in] self      This object.
           * @param[in,out] n     Pointer to a new node
           */
-        void (*push_back)(atd_list_t* self, std_list_node_t* n);
+        void (*push_back)(atd_list_t* self, atd_list_node_t* n);
 
         /**
          * @brief Insert a node in front of a given node.
@@ -323,7 +323,7 @@ typedef struct auto_api_s {
          * @param[in,out] p     Pointer to a exist node
          * @param[in,out] n     Pointer to a new node
          */
-        void (*insert_before)(atd_list_t* self, std_list_node_t* p, std_list_node_t* n);
+        void (*insert_before)(atd_list_t* self, atd_list_node_t* p, atd_list_node_t* n);
 
         /**
          * @brief Insert a node right after a given node.
@@ -333,7 +333,7 @@ typedef struct auto_api_s {
          * @param[in,out] p     Pointer to a exist node
          * @param[in,out] n     Pointer to a new node
          */
-        void (*insert_after)(atd_list_t* self, std_list_node_t* p, std_list_node_t* n);
+        void (*insert_after)(atd_list_t* self, atd_list_node_t* p, atd_list_node_t* n);
 
         /**
          * @brief Delete a exist node
@@ -342,7 +342,7 @@ typedef struct auto_api_s {
          * @param[in] self      This object.
          * @param[in,out] n     The node you want to delete
          */
-        void (*erase)(atd_list_t* self, std_list_node_t* n);
+        void (*erase)(atd_list_t* self, atd_list_node_t* n);
 
         /**
          * @brief Get the number of nodes in the list.
@@ -358,7 +358,7 @@ typedef struct auto_api_s {
          * @param[in] self      This object.
          * @return              The first node
          */
-        std_list_node_t* (*pop_front)(atd_list_t* self);
+        atd_list_node_t* (*pop_front)(atd_list_t* self);
 
         /**
          * @brief Get the last node and remove it from the list.
@@ -366,7 +366,7 @@ typedef struct auto_api_s {
          * @param[in] self      This object.
          * @return              The last node
          */
-        std_list_node_t* (*pop_back)(atd_list_t* self);
+        atd_list_node_t* (*pop_back)(atd_list_t* self);
 
         /**
          * @brief Get the first node.
@@ -374,7 +374,7 @@ typedef struct auto_api_s {
          * @param[in] self      This object.
          * @return              The first node
          */
-        std_list_node_t* (*begin)(const atd_list_t* self);
+        atd_list_node_t* (*begin)(const atd_list_t* self);
 
         /**
          * @brief Get the last node.
@@ -382,7 +382,7 @@ typedef struct auto_api_s {
          * @param[in] self      This object.
          * @return              The last node
          */
-        std_list_node_t* (*end)(const atd_list_t* self);
+        atd_list_node_t* (*end)(const atd_list_t* self);
 
         /**
          * @brief Get next node.
@@ -390,7 +390,7 @@ typedef struct auto_api_s {
          * @param[in] node      Current node.
          * @return              The next node
          */
-        std_list_node_t* (*next)(const std_list_node_t* node);
+        atd_list_node_t* (*next)(const atd_list_node_t* node);
 
         /**
          * @brief Get previous node.
@@ -398,7 +398,7 @@ typedef struct auto_api_s {
          * @param[in] node      current node
          * @return              previous node
          */
-        std_list_node_t* (*prev)(const std_list_node_t* node);
+        atd_list_node_t* (*prev)(const atd_list_node_t* node);
 
         /**
          * @brief Move all elements from \p src into the end of \p dst.

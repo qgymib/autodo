@@ -55,7 +55,7 @@ static void _runtime_destroy_thread(atd_runtime_t* rt, lua_State* L, atd_corouti
 
 static void _runtime_gc_release_coroutine(atd_runtime_t* rt)
 {
-    std_list_node_t* it;
+    atd_list_node_t * it;
     while ((it = ev_list_begin(&rt->schedule.busy_queue)) != NULL)
     {
         atd_coroutine_impl_t* thr = container_of(it, atd_coroutine_impl_t, q_node);
@@ -120,7 +120,7 @@ static void _thread_trigger_hook(atd_coroutine_impl_t* thr)
 
 static int _runtime_schedule_one_pass(atd_runtime_t* rt, lua_State* L)
 {
-    std_list_node_t* it = ev_list_begin(&rt->schedule.busy_queue);
+    atd_list_node_t * it = ev_list_begin(&rt->schedule.busy_queue);
     while (it != NULL)
     {
         atd_coroutine_impl_t* thr = container_of(it, atd_coroutine_impl_t, q_node);
@@ -150,7 +150,7 @@ static int _runtime_schedule_one_pass(atd_runtime_t* rt, lua_State* L)
         _thread_trigger_hook(thr);
 
         /* Error affect main thread */
-        if (ret != LUA_OK)
+        if (ret != LUA_OK && !thr->flags.protect)
         {
             lua_xmove(thr->base.L, L, 1);
             return lua_error(L);

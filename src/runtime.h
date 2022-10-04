@@ -2,7 +2,6 @@
 #define __AUTO_RUNTIME_H__
 
 #include <uv.h>
-#include <setjmp.h>
 #include "lua/api.h"
 #include "utils/list.h"
 #include "utils/map.h"
@@ -22,7 +21,7 @@ typedef struct atd_coroutine_impl atd_coroutine_impl_t;
 
 struct atd_coroutine_hook
 {
-    std_list_node_t         node;
+    atd_list_node_t         node;
     atd_coroutine_hook_fn   fn;
     void*                   arg;
     atd_coroutine_impl_t*   impl;
@@ -30,7 +29,7 @@ struct atd_coroutine_hook
 
 struct atd_coroutine_impl
 {
-    std_list_node_t         q_node;         /**< Schedule queue node */
+    atd_list_node_t         q_node;         /**< Schedule queue node */
     atd_map_node_t          t_node;         /**< Schedule table node */
 
     atd_coroutine_t         base;           /**< Base object */
@@ -43,8 +42,13 @@ struct atd_coroutine_impl
     struct
     {
         atd_list_t          queue;          /**< Schedule hook queue */
-        std_list_node_t*    it;             /**< Global iterator */
+        atd_list_node_t*    it;             /**< Global iterator */
     } hook;
+
+    struct
+    {
+        unsigned            protect : 1;    /**< Run in protected mode */
+    } flags;
 };
 
 typedef struct atd_runtime
@@ -77,11 +81,6 @@ typedef struct atd_runtime
     {
         char                errbuf[1024];
     } cache;
-
-    struct
-    {
-        jmp_buf             point;
-    } check;
 } atd_runtime_t;
 
 /**
