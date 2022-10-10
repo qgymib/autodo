@@ -18,6 +18,8 @@ static int _package_download_and_load(lua_State* L, const char* package_name)
 int atd_package_loader(lua_State* L)
 {
     int ret;
+
+    atd_runtime_t* rt = auto_get_runtime(L);
     int sp = lua_gettop(L);
 
     const char* package_name = lua_tostring(L, 1);
@@ -38,7 +40,7 @@ int atd_package_loader(lua_State* L)
     else
     {
         load_path = lua_pushfstring(L, "%s/%s.%s",
-            g_rt->config.script_path, package_name, ext);
+            rt->config.script_path, package_name, ext);
     }
 
     uv_lib_t lib;

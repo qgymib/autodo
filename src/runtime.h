@@ -27,30 +27,6 @@ struct atd_coroutine_hook
     atd_coroutine_impl_t*   impl;
 };
 
-struct atd_coroutine_impl
-{
-    atd_list_node_t         q_node;         /**< Schedule queue node */
-    atd_map_node_t          t_node;         /**< Schedule table node */
-
-    atd_coroutine_t         base;           /**< Base object */
-
-    struct
-    {
-        int                 ref_key;        /**< Reference key of coroutine in Lua VM */
-    } data;
-
-    struct
-    {
-        atd_list_t          queue;          /**< Schedule hook queue */
-        atd_list_node_t*    it;             /**< Global iterator */
-    } hook;
-
-    struct
-    {
-        unsigned            protect : 1;    /**< Run in protected mode */
-    } flags;
-};
-
 typedef struct atd_runtime
 {
     lua_State*              L;              /**< Lua VM */
@@ -83,10 +59,30 @@ typedef struct atd_runtime
     } cache;
 } atd_runtime_t;
 
-/**
- * @brief Global runtime.
- */
-AUTO_LOCAL extern atd_runtime_t*    g_rt;
+struct atd_coroutine_impl
+{
+    atd_list_node_t         q_node;         /**< Schedule queue node */
+    atd_map_node_t          t_node;         /**< Schedule table node */
+
+    atd_runtime_t*          rt;
+    atd_coroutine_t         base;           /**< Base object */
+
+    struct
+    {
+        int                 ref_key;        /**< Reference key of coroutine in Lua VM */
+    } data;
+
+    struct
+    {
+        atd_list_t          queue;          /**< Schedule hook queue */
+        atd_list_node_t*    it;             /**< Global iterator */
+    } hook;
+
+    struct
+    {
+        unsigned            protect : 1;    /**< Run in protected mode */
+    } flags;
+};
 
 /**
  * @brief Initialize runtime.
@@ -94,12 +90,9 @@ AUTO_LOCAL extern atd_runtime_t*    g_rt;
  * @param[in] argv  Argument list.
  * @return          Always 0.
  */
-AUTO_LOCAL int atd_init_runtime(int argc, char* argv[]);
+AUTO_LOCAL int atd_init_runtime(lua_State* L, int argc, char* argv[]);
 
-/**
- * @brief Exit runtime.
- */
-AUTO_LOCAL void atd_exit_runtime(void);
+AUTO_LOCAL atd_runtime_t* auto_get_runtime(lua_State* L);
 
 /**
  * @brief Run scheduler.

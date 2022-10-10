@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "runtime.h"
+#include "coroutine.h"
 #include "process.h"
 #include "utils.h"
 #include "utils/list.h"
@@ -34,6 +35,41 @@ typedef struct lua_process
     } cache;
 } lua_process_t;
 
+struct atd_process_s
+{
+    atd_runtime_t*          rt;
+    uv_process_t            process;
+
+    atd_process_stdio_fn    stdout_fn;
+    atd_process_stdio_fn    stderr_fn;
+    void*                   arg;
+
+    int                     spawn_ret;
+    int64_t                 exit_status;
+    int                     term_signal;
+
+    uv_pipe_t               pip_stdin;
+    uv_pipe_t               pip_stdout;
+    uv_pipe_t               pip_stderr;
+
+    int                     flag_process_exit;
+    int                     flag_stdin_exit;
+    int                     flag_stdout_exit;
+    int                     flag_stderr_exit;
+};
+
+typedef struct atd_process_write
+{
+    uv_write_t              req;
+    atd_process_t*          impl;
+
+    void*                   data;
+    size_t                  size;
+
+    atd_process_stdio_fn    cb;
+    void*                   arg;
+} atd_process_write_t;
+
 static void _lua_process_stdout(atd_process_t* proc, void* data,
     size_t size, int status, void* arg)
 {
@@ -55,7 +91,7 @@ static void _lua_process_stdout(atd_process_t* proc, void* data,
     ev_list_push_back(&process->cache.data_stdout, &cache->node);
 
 wakeup_host_co:
-    api.coroutine.set_state(process->host_co, LUA_TNONE);
+    api_coroutine.set_state(process->host_co, LUA_TNONE);
 }
 
 static void _lua_process_stderr(atd_process_t* proc, void* data,
@@ -78,7 +114,7 @@ static void _lua_process_stderr(atd_process_t* proc, void* data,
     ev_list_push_back(&process->cache.data_stderr, &cache->node);
 
 wakeup_host_co:
-    api.coroutine.set_state(process->host_co, LUA_TNONE);
+    api_coroutine.set_state(process->host_co, LUA_TNONE);
 }
 
 static int _lua_process_table_to_cfg(lua_State* L, int idx, lua_process_t* process)
@@ -177,6 +213,64 @@ static int _lua_process_table_to_cfg(lua_State* L, int idx, lua_process_t* proce
     return 0;
 }
 
+static void _process_on_close(atd_process_t* impl)
+{
+    if (!impl->flag_process_exit || !impl->flag_stdin_exit || !impl->flag_stdout_exit || !impl->flag_stderr_exit)
+    {
+        return;
+    }
+
+    free(impl);
+}
+
+static void _process_on_process_close(uv_handle_t* handle)
+{
+    atd_process_t* impl = container_of((uv_process_t*)handle, atd_process_t, process);
+    impl->flag_process_exit = 1;
+    _process_on_close(impl);
+}
+
+static void _process_on_stdin_close(uv_handle_t* handle)
+{
+    atd_process_t* impl = container_of((uv_pipe_t*)handle, atd_process_t, pip_stdin);
+    impl->flag_stdin_exit = 1;
+    _process_on_close(impl);
+}
+
+static void _process_on_stdout_close(uv_handle_t* handle)
+{
+    atd_process_t* impl = container_of((uv_pipe_t*)handle, atd_process_t, pip_stdout);
+    impl->flag_stdout_exit = 1;
+    _process_on_close(impl);
+}
+
+static void _process_on_stderr_close(uv_handle_t* handle)
+{
+    atd_process_t* impl = container_of((uv_pipe_t*)handle, atd_process_t, pip_stderr);
+    impl->flag_stderr_exit = 1;
+    _process_on_close(impl);
+}
+
+static void _process_kill(atd_process_t* self, int signum)
+{
+    if (self->spawn_ret == 0)
+    {
+        uv_process_kill(&self->process, signum);
+    }
+
+    uv_close((uv_handle_t*)&self->process, _process_on_process_close);
+    uv_close((uv_handle_t*)&self->pip_stdin, _process_on_stdin_close);
+
+    if (!self->flag_stdout_exit)
+    {
+        uv_close((uv_handle_t*)&self->pip_stdout, _process_on_stdout_close);
+    }
+    if (!self->flag_stderr_exit)
+    {
+        uv_close((uv_handle_t*)&self->pip_stderr, _process_on_stderr_close);
+    }
+}
+
 static int _lua_process_gc(lua_State *L)
 {
     size_t i;
@@ -184,7 +278,7 @@ static int _lua_process_gc(lua_State *L)
 
     if (process->process != NULL)
     {
-        api.process.kill(process->process, 9);
+        _process_kill(process->process, 9);
         process->process = NULL;
     }
 
@@ -229,7 +323,7 @@ static int _lua_process_kill(lua_State *L)
 
     if (process->process != NULL)
     {
-        api.process.kill(process->process, signum);
+        _process_kill(process->process, signum);
         process->process = NULL;
     }
 
@@ -249,7 +343,7 @@ static int _lua_process_on_stdout_resume(lua_State *L, int status, lua_KContext 
 
     if (ev_list_size(&process->cache.data_stdout) == 0)
     {
-        api.coroutine.set_state(process->host_co, LUA_YIELD);
+        api_coroutine.set_state(process->host_co, LUA_YIELD);
         return lua_yieldk(L, 0, (lua_KContext)process,
             _lua_process_on_stdout_resume);
     }
@@ -281,7 +375,7 @@ static int _lua_process_on_stderr_resume(lua_State *L, int status, lua_KContext 
 
     if (ev_list_size(&process->cache.data_stderr) == 0)
     {
-        api.coroutine.set_state(process->host_co, LUA_YIELD);
+        api_coroutine.set_state(process->host_co, LUA_YIELD);
         return lua_yieldk(L, 0, (lua_KContext)process,
             _lua_process_on_stderr_resume);
     }
@@ -323,138 +417,18 @@ static int _lua_process_await_stderr(lua_State *L)
     return _lua_process_on_stderr_resume(L, LUA_YIELD, (lua_KContext)process);
 }
 
-int atd_lua_process(lua_State *L)
-{
-    luaL_checktype(L, 1, LUA_TTABLE);
-    lua_process_t* process = lua_newuserdata(L, sizeof(lua_process_t));
-    memset(process, 0, sizeof(*process));
-
-    process->host_co = api.coroutine.find(L);
-    if (process->host_co == NULL)
-    {
-        return luaL_error(L, ERR_HINT_NOT_IN_MANAGED_COROUTINE);
-    }
-
-    ev_list_init(&process->cache.data_stdout);
-    ev_list_init(&process->cache.data_stderr);
-
-    static const luaL_Reg s_process_meta[] = {
-        { "__gc",           _lua_process_gc },
-        { NULL,             NULL },
-    };
-    static const luaL_Reg s_process_method[] = {
-        { "kill",           _lua_process_kill },
-        { "await_stdout",   _lua_process_await_stdout },
-        { "await_stderr",   _lua_process_await_stderr },
-        { NULL,             NULL },
-    };
-    if (luaL_newmetatable(L, "__auto_process") != 0)
-    {
-        luaL_setfuncs(L, s_process_meta, 0);
-        luaL_newlib(L, s_process_method);
-        lua_setfield(L, -2, "__index");
-    }
-    lua_setmetatable(L, -2);
-
-    _lua_process_table_to_cfg(L, 1, process);
-
-    if ((process->process = api.process.create(&process->cfg)) == NULL)
-    {
-        lua_pop(L, 1);
-        return 0;
-    }
-
-    return 1;
-}
-
-/******************************************************************************
-* C API: .process
-******************************************************************************/
-
-struct atd_process_s
-{
-    uv_process_t            process;
-
-    atd_process_stdio_fn    stdout_fn;
-    atd_process_stdio_fn    stderr_fn;
-    void*                   arg;
-
-    int                     spawn_ret;
-    int64_t                 exit_status;
-    int                     term_signal;
-
-    uv_pipe_t               pip_stdin;
-    uv_pipe_t               pip_stdout;
-    uv_pipe_t               pip_stderr;
-
-    int                     flag_process_exit;
-    int                     flag_stdin_exit;
-    int                     flag_stdout_exit;
-    int                     flag_stderr_exit;
-};
-
-typedef struct atd_process_write
-{
-    uv_write_t              req;
-    atd_process_t*          impl;
-
-    void*                   data;
-    size_t                  size;
-
-    atd_process_stdio_fn    cb;
-    void*                   arg;
-} atd_process_write_t;
-
-static void _process_on_close(atd_process_t* impl)
-{
-    if (!impl->flag_process_exit || !impl->flag_stdin_exit || !impl->flag_stdout_exit || !impl->flag_stderr_exit)
-    {
-        return;
-    }
-
-    free(impl);
-}
-
-static void _process_on_process_close(uv_handle_t* handle)
-{
-    atd_process_t* impl = container_of((uv_process_t*)handle, atd_process_t, process);
-    impl->flag_process_exit = 1;
-    _process_on_close(impl);
-}
-
-static void _process_on_stdin_close(uv_handle_t* handle)
-{
-    atd_process_t* impl = container_of((uv_pipe_t*)handle, atd_process_t, pip_stdin);
-    impl->flag_stdin_exit = 1;
-    _process_on_close(impl);
-}
-
-static void _process_on_stdout_close(uv_handle_t* handle)
-{
-    atd_process_t* impl = container_of((uv_pipe_t*)handle, atd_process_t, pip_stdout);
-    impl->flag_stdout_exit = 1;
-    _process_on_close(impl);
-}
-
-static void _process_on_stderr_close(uv_handle_t* handle)
-{
-    atd_process_t* impl = container_of((uv_pipe_t*)handle, atd_process_t, pip_stderr);
-    impl->flag_stderr_exit = 1;
-    _process_on_close(impl);
-}
-
-static void _process_write_done(uv_write_t *req, int status)
-{
-    atd_process_write_t* p_req = container_of(req, atd_process_write_t, req);
-    p_req->cb(p_req->impl, p_req->data, p_req->size, status, p_req->arg);
-    free(p_req);
-}
-
 static void _process_alloc_cb(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf)
 {
     (void)handle;
     buf->len = suggested_size;
     buf->base = malloc(suggested_size);
+}
+
+static void _process_on_exit(uv_process_t* process, int64_t exit_status, int term_signal)
+{
+    atd_process_t* impl = container_of(process, atd_process_t, process);
+    impl->exit_status = exit_status;
+    impl->term_signal = term_signal;
 }
 
 static void _process_on_stderr(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf)
@@ -491,18 +465,14 @@ static void _process_on_stdout(uv_stream_t* stream, ssize_t nread, const uv_buf_
     }
 }
 
-static void _process_on_exit(uv_process_t* process, int64_t exit_status, int term_signal)
+static atd_process_t* _process_create(lua_State* L, atd_process_cfg_t* cfg)
 {
-    atd_process_t* impl = container_of(process, atd_process_t, process);
-    impl->exit_status = exit_status;
-    impl->term_signal = term_signal;
-}
+    atd_runtime_t* rt = auto_get_runtime(L);
 
-atd_process_t* api_process_create(atd_process_cfg_t* cfg)
-{
     atd_process_t* impl = malloc(sizeof(atd_process_t));
     memset(impl, 0, sizeof(*impl));
 
+    impl->rt = rt;
     impl->stdout_fn = cfg->stdout_fn;
     impl->stderr_fn = cfg->stderr_fn;
     impl->arg = cfg->arg;
@@ -510,13 +480,13 @@ atd_process_t* api_process_create(atd_process_cfg_t* cfg)
     uv_stdio_container_t stdios[3];
     memset(stdios, 0, sizeof(stdios));
 
-    uv_pipe_init(&g_rt->loop, &impl->pip_stdin, 0);
+    uv_pipe_init(&rt->loop, &impl->pip_stdin, 0);
     stdios[0].flags = UV_CREATE_PIPE | UV_READABLE_PIPE;
     stdios[0].data.stream = (uv_stream_t*)&impl->pip_stdin;
 
     if (impl->stdout_fn != NULL)
     {
-        uv_pipe_init(&g_rt->loop, &impl->pip_stdout, 0);
+        uv_pipe_init(&rt->loop, &impl->pip_stdout, 0);
         stdios[1].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
         stdios[1].data.stream = (uv_stream_t*)&impl->pip_stdout;
     }
@@ -527,7 +497,7 @@ atd_process_t* api_process_create(atd_process_cfg_t* cfg)
 
     if (impl->stderr_fn != NULL)
     {
-        uv_pipe_init(&g_rt->loop, &impl->pip_stderr, 0);
+        uv_pipe_init(&rt->loop, &impl->pip_stderr, 0);
         stdios[2].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
         stdios[2].data.stream = (uv_stream_t*)&impl->pip_stderr;
     }
@@ -546,23 +516,75 @@ atd_process_t* api_process_create(atd_process_cfg_t* cfg)
     opt.stdio = stdios;
     opt.stdio_count = 3;
 
-    impl->spawn_ret = uv_spawn(&g_rt->loop, &impl->process, &opt);
+    impl->spawn_ret = uv_spawn(&rt->loop, &impl->process, &opt);
     if (impl->spawn_ret != 0)
     {
-        api.process.kill(impl, SIGKILL);
+        _process_kill(impl, SIGKILL);
         return NULL;
     }
 
     uv_read_start((uv_stream_t*)&impl->pip_stdout, _process_alloc_cb,
-        _process_on_stdout);
+                  _process_on_stdout);
     uv_read_start((uv_stream_t*)&impl->pip_stderr, _process_alloc_cb,
-        _process_on_stderr);
+                  _process_on_stderr);
 
     return impl;
 }
 
-int api_process_send_to_stdin(atd_process_t* self, void* data,
-    size_t size, atd_process_stdio_fn cb, void* arg)
+int atd_lua_process(lua_State *L)
+{
+    luaL_checktype(L, 1, LUA_TTABLE);
+
+    lua_process_t* process = lua_newuserdata(L, sizeof(lua_process_t));
+    memset(process, 0, sizeof(*process));
+
+    process->host_co = api_coroutine.find(L);
+    if (process->host_co == NULL)
+    {
+        return luaL_error(L, ERR_HINT_NOT_IN_MANAGED_COROUTINE);
+    }
+
+    ev_list_init(&process->cache.data_stdout);
+    ev_list_init(&process->cache.data_stderr);
+
+    static const luaL_Reg s_process_meta[] = {
+        { "__gc",           _lua_process_gc },
+        { NULL,             NULL },
+    };
+    static const luaL_Reg s_process_method[] = {
+        { "kill",           _lua_process_kill },
+        { "await_stdout",   _lua_process_await_stdout },
+        { "await_stderr",   _lua_process_await_stderr },
+        { NULL,             NULL },
+    };
+    if (luaL_newmetatable(L, "__auto_process") != 0)
+    {
+        luaL_setfuncs(L, s_process_meta, 0);
+        luaL_newlib(L, s_process_method);
+        lua_setfield(L, -2, "__index");
+    }
+    lua_setmetatable(L, -2);
+
+    _lua_process_table_to_cfg(L, 1, process);
+
+    if ((process->process = _process_create(L, &process->cfg)) == NULL)
+    {
+        lua_pop(L, 1);
+        return 0;
+    }
+
+    return 1;
+}
+
+static void _process_write_done(uv_write_t *req, int status)
+{
+    atd_process_write_t* p_req = container_of(req, atd_process_write_t, req);
+    p_req->cb(p_req->impl, p_req->data, p_req->size, status, p_req->arg);
+    free(p_req);
+}
+
+static int _process_send_to_stdin(atd_process_t* self, void* data,
+                                  size_t size, atd_process_stdio_fn cb, void* arg)
 {
     atd_process_write_t* p_req = malloc(sizeof(atd_process_write_t));
     p_req->impl = self;
@@ -576,22 +598,8 @@ int api_process_send_to_stdin(atd_process_t* self, void* data,
                     _process_write_done);
 }
 
-void api_process_kill(atd_process_t* self, int signum)
-{
-    if (self->spawn_ret == 0)
-    {
-        uv_process_kill(&self->process, signum);
-    }
-
-    uv_close((uv_handle_t*)&self->process, _process_on_process_close);
-    uv_close((uv_handle_t*)&self->pip_stdin, _process_on_stdin_close);
-
-    if (!self->flag_stdout_exit)
-    {
-        uv_close((uv_handle_t*)&self->pip_stdout, _process_on_stdout_close);
-    }
-    if (!self->flag_stderr_exit)
-    {
-        uv_close((uv_handle_t*)&self->pip_stderr, _process_on_stderr_close);
-    }
-}
+const auto_api_process_t api_process = {
+    _process_create,                 /* .process.create */
+    _process_kill,                   /* .process.kill */
+    _process_send_to_stdin,          /* .process.send_to_stdin */
+};

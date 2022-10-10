@@ -7,12 +7,14 @@
 #define INT64_MATH_TEMPLATE(L, idx1, idx2, F)   \
     int64_t v1 = _int64_get_value_fast(L, idx1);\
     int64_t v2 = _int64_get_value_fast(L, idx2);\
-    return api_int64_push_value(L, F(v1, v2))
+    return _int64_push_value(L, F(v1, v2))
 
 typedef struct atd_int64
 {
     int64_t value;
 } atd_int64_t;
+
+static int _int64_push_value(lua_State *L, int64_t value);
 
 static int64_t _int64_get_value_fast(lua_State* L, int idx)
 {
@@ -69,7 +71,7 @@ static int _int64_pow_compat(lua_State* L)
 static int _int64_unm(lua_State* L)
 {
     atd_int64_t* v = lua_touserdata(L, 1);
-    return api_int64_push_value(L, -(v->value));
+    return _int64_push_value(L, -(v->value));
 }
 
 static int _int64_bor(lua_State* L)
@@ -96,7 +98,7 @@ static int _int64_bxor(lua_State* L)
 static int _int64_bnot(lua_State* L)
 {
     atd_int64_t* v = lua_touserdata(L, 1);
-    return api_int64_push_value(L, ~(v->value));
+    return _int64_push_value(L, ~(v->value));
 }
 
 static int _int64_eq_compat(lua_State* L)
@@ -130,7 +132,7 @@ static int _int64_tostring(lua_State* L)
     return 1;
 }
 
-int api_int64_push_value(lua_State *L, int64_t value)
+static int _int64_push_value(lua_State *L, int64_t value)
 {
     atd_int64_t* v = lua_newuserdata(L, sizeof(atd_int64_t));
     v->value = value;
@@ -163,7 +165,7 @@ int api_int64_push_value(lua_State *L, int64_t value)
     return 1;
 }
 
-int api_int64_get_value(lua_State *L, int idx, int64_t* value)
+static int _int64_get_value(lua_State *L, int idx, int64_t* value)
 {
     atd_int64_t* v = luaL_testudata(L, idx, INT64_TYPE);
     if (v == NULL)
@@ -175,3 +177,8 @@ int api_int64_get_value(lua_State *L, int idx, int64_t* value)
     *value = v->value;
     return 1;
 }
+
+const auto_api_int64_t api_int64 = {
+    _int64_push_value,               /* .int64.push_value */
+    _int64_get_value,                /* .int64.get_value */
+};

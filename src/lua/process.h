@@ -9,6 +9,11 @@ extern "C" {
 #endif
 
 /**
+ * @brief Exposed api for process.
+ */
+AUTO_LOCAL extern const auto_api_process_t api_process;
+
+/**
  * @brief Create process.
  *
  * ```
@@ -25,11 +30,6 @@ extern "C" {
  * @return
  */
 AUTO_LOCAL int atd_lua_process(lua_State *L);
-
-AUTO_LOCAL atd_process_t* api_process_create(atd_process_cfg_t* cfg);
-AUTO_LOCAL void api_process_kill(atd_process_t* self, int signum);
-AUTO_LOCAL int api_process_send_to_stdin(atd_process_t* self, void* data,
-    size_t size, atd_process_stdio_fn cb, void* arg);
 
 #ifdef __cplusplus
 }

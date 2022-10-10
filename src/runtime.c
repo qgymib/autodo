@@ -1,4 +1,5 @@
 #include "runtime.h"
+#include "lua/coroutine.h"
 #include "utils.h"
 #include <string.h>
 #include <stdlib.h>
@@ -8,8 +9,6 @@
  * @brief Global runtime.
  */
 #define AUTO_GLOBAL "_AUTO_G"
-
-atd_runtime_t*   g_rt;
 
 static void _print_usage(const char* name)
 {
@@ -23,9 +22,9 @@ static void _print_usage(const char* name)
     exit(EXIT_SUCCESS);
 }
 
-static int _init_parse_args_finalize(const char* name)
+static int _init_parse_args_finalize(atd_runtime_t* rt, const char* name)
 {
-    if (g_rt->config.script_file == NULL && g_rt->script.data == NULL)
+    if (rt->config.script_file == NULL && rt->script.data == NULL)
     {
         _print_usage(name);
     }
@@ -68,7 +67,7 @@ static void _runtime_gc_release_coroutine(atd_runtime_t* rt)
     }
 }
 
-static int _init_parse_args(int argc, char* argv[])
+static int _init_parse_args(atd_runtime_t* rt, int argc, char* argv[])
 {
     int i;
     for (i = 1; i < argc; i++)
@@ -78,14 +77,14 @@ static int _init_parse_args(int argc, char* argv[])
             _print_usage(get_filename(argv[0]));
         }
 
-        if (g_rt->config.script_file != NULL)
+        if (rt->config.script_file != NULL)
         {
-            free(g_rt->config.script_file);
+            free(rt->config.script_file);
         }
-        g_rt->config.script_file = atd_strdup(argv[i]);
+        rt->config.script_file = atd_strdup(argv[i]);
     }
 
-    return _init_parse_args_finalize(argv[0]);
+    return _init_parse_args_finalize(rt, argv[0]);
 }
 
 static int _on_cmp_thread(const atd_map_node_t* key1, const atd_map_node_t* key2, void* arg)
@@ -145,7 +144,7 @@ static int _runtime_schedule_one_pass(atd_runtime_t* rt, lua_State* L)
         }
 
         /* Coroutine either finish execution or error happen.  */
-        api.coroutine.set_state(&thr->base, ret);
+        api_coroutine.set_state(&thr->base, ret);
         /* Call hook */
         _thread_trigger_hook(thr);
 
@@ -163,94 +162,110 @@ static int _runtime_schedule_one_pass(atd_runtime_t* rt, lua_State* L)
     return 0;
 }
 
-static void _init_runtime(int argc, char* argv[])
+static void _init_runtime(atd_runtime_t* rt, int argc, char* argv[])
 {
-    g_rt->L = luaL_newstate();;
+    uv_loop_init(&rt->loop);
+    uv_async_init(&rt->loop, &rt->notifier, _on_runtime_notify);
 
-    uv_loop_init(&g_rt->loop);
-    uv_async_init(&g_rt->loop, &g_rt->notifier, _on_runtime_notify);
-
-    ev_list_init(&g_rt->schedule.busy_queue);
-    ev_list_init(&g_rt->schedule.wait_queue);
-    ev_map_init(&g_rt->schedule.all_table, _on_cmp_thread, NULL);
+    ev_list_init(&rt->schedule.busy_queue);
+    ev_list_init(&rt->schedule.wait_queue);
+    ev_map_init(&rt->schedule.all_table, _on_cmp_thread, NULL);
 
     int ret;
-    if ((ret = atd_read_self_script(&g_rt->script.data, &g_rt->script.size)) != 0)
+    if ((ret = atd_read_self_script(&rt->script.data, &rt->script.size)) != 0)
     {
         fprintf(stderr, "read self failed: %s(%d)\n",
-                atd_strerror(ret, g_rt->cache.errbuf, sizeof(g_rt->cache.errbuf)), ret);
+                atd_strerror(ret, rt->cache.errbuf, sizeof(rt->cache.errbuf)), ret);
         exit(EXIT_FAILURE);
     }
 
     /* Command line argument is only parsed when script is not embed */
-    if (g_rt->script.data == NULL)
+    if (rt->script.data == NULL)
     {
-        _init_parse_args(argc, argv);
+        _init_parse_args(rt, argc, argv);
     }
 }
 
-int atd_init_runtime(int argc, char* argv[])
-{
-    uv_setup_args(argc, argv);
-    uv_disable_stdio_inheritance();
-
-    g_rt = malloc(sizeof(atd_runtime_t));
-    memset(g_rt, 0, sizeof(*g_rt));
-
-    _init_runtime(argc, argv);
-
-    return 0;
-}
-
-void atd_exit_runtime(void)
+static void _runtime_exit(atd_runtime_t* rt)
 {
     int ret;
 
     /* Release all coroutine */
-    _runtime_gc_release_coroutine(g_rt);
-
-    lua_close(g_rt->L);
-    g_rt->L = NULL;
+    _runtime_gc_release_coroutine(rt);
 
     /* Close all handles */
-    uv_close((uv_handle_t*)&g_rt->notifier, NULL);
-    uv_run(&g_rt->loop, UV_RUN_DEFAULT);
+    uv_close((uv_handle_t*)&rt->notifier, NULL);
+    uv_run(&rt->loop, UV_RUN_DEFAULT);
 
-    if ((ret = uv_loop_close(&g_rt->loop)) != 0)
+    if ((ret = uv_loop_close(&rt->loop)) != 0)
     {
         fprintf(stderr, "close event loop failed:%s:%d\n",
-                uv_strerror_r(ret, g_rt->cache.errbuf, sizeof(g_rt->cache.errbuf)), ret);
-        uv_print_all_handles(&g_rt->loop, stderr);
+                uv_strerror_r(ret, rt->cache.errbuf, sizeof(rt->cache.errbuf)), ret);
+        uv_print_all_handles(&rt->loop, stderr);
         abort();
     }
 
-    if (g_rt->script.data != NULL)
+    if (rt->script.data != NULL)
     {
-        free(g_rt->script.data);
-        g_rt->script.data = NULL;
+        free(rt->script.data);
+        rt->script.data = NULL;
     }
-    g_rt->script.size = 0;
+    rt->script.size = 0;
 
-    if (g_rt->config.script_file != NULL)
+    if (rt->config.script_file != NULL)
     {
-        free(g_rt->config.script_file);
-        g_rt->config.script_file = NULL;
+        free(rt->config.script_file);
+        rt->config.script_file = NULL;
     }
-    if (g_rt->config.script_path != NULL)
+    if (rt->config.script_path != NULL)
     {
-        free(g_rt->config.script_path);
-        g_rt->config.script_path = NULL;
+        free(rt->config.script_path);
+        rt->config.script_path = NULL;
     }
-    if (g_rt->config.script_name != NULL)
+    if (rt->config.script_name != NULL)
     {
-        free(g_rt->config.script_name);
-        g_rt->config.script_name = NULL;
+        free(rt->config.script_name);
+        rt->config.script_name = NULL;
     }
+}
 
-    free(g_rt);
-    g_rt = NULL;
+static int _auto_runtime_gc(lua_State* L)
+{
+    atd_runtime_t* rt = lua_touserdata(L, 1);
+    _runtime_exit(rt);
+    return 0;
+}
 
-    uv_library_shutdown();
+int atd_init_runtime(lua_State* L, int argc, char* argv[])
+{
+    atd_runtime_t* rt = lua_newuserdata(L, sizeof(atd_runtime_t));
+
+    memset(rt, 0, sizeof(atd_runtime_t));
+    rt->L = L;
+
+    static const luaL_Reg s_auto_meta[] = {
+        { "__gc", _auto_runtime_gc },
+        { NULL, NULL },
+    };
+    if (luaL_newmetatable(L, AUTO_GLOBAL) != 0)
+    {
+        luaL_setfuncs(L, s_auto_meta, 0);
+    }
+    lua_setmetatable(L, -2);
+
+    lua_setglobal(L, AUTO_GLOBAL);
+
+    _init_runtime(rt, argc, argv);
+
+    return 0;
+}
+
+atd_runtime_t* auto_get_runtime(lua_State* L)
+{
+    lua_getglobal(L, AUTO_GLOBAL);
+    atd_runtime_t* rt = lua_touserdata(L, -1);
+    lua_pop(L, 1);
+    return rt;
 }
 
 int atd_schedule(atd_runtime_t* rt, lua_State* L)

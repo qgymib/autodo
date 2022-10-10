@@ -2,6 +2,7 @@
 #include "package.h"
 #include "utils.h"
 #include "lua/api.h"
+#include "lua/coroutine.h"
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -13,12 +14,12 @@
  * @param[in] L     Lua VM.
  * @return          true to continue, false to stop.
  */
-static void _init_lua_runtime(int argc, char* argv[])
+static void _init_lua_runtime(lua_State* L, int argc, char* argv[])
 {
-    atd_init_runtime(argc, argv);
+    luaL_openlibs(L);
 
-    luaL_openlibs(g_rt->L);
-    auto_init_libs(g_rt->L);
+    atd_init_runtime(L, argc, argv);
+    auto_init_libs(L);
 }
 
 static int _user_thread_on_resume(lua_State *L, int status, lua_KContext ctx)
@@ -30,8 +31,10 @@ static int _user_thread_on_resume(lua_State *L, int status, lua_KContext ctx)
 
 static int _user_thread(lua_State* L)
 {
-    if (luaL_loadbuffer(L, g_rt->script.data, g_rt->script.size,
-                        g_rt->config.script_name) != LUA_OK)
+    atd_runtime_t* rt = auto_get_runtime(L);
+
+    if (luaL_loadbuffer(L, rt->script.data, rt->script.size,
+        rt->config.script_name) != LUA_OK)
     {
         return lua_error(L);
     }
@@ -42,7 +45,7 @@ static int _user_thread(lua_State* L)
 
 static int _run_script(lua_State* L, atd_runtime_t* rt)
 {
-    atd_coroutine_t* thr = api.coroutine.host(lua_newthread(L));
+    atd_coroutine_t* thr = api_coroutine.host(lua_newthread(L));
     lua_pop(L, 1);
 
     lua_pushcfunction(thr->L, _user_thread);
@@ -114,18 +117,20 @@ static void _inject_require_searcher(lua_State* L)
 
 static int _lua_run(lua_State* L)
 {
+    atd_runtime_t* rt = auto_get_runtime(L);
+
     _inject_require_searcher(L);
 
     /* Load script if necessary */
-    if (g_rt->config.script_file != NULL)
+    if (rt->config.script_file != NULL)
     {
-        _lua_load_script(g_rt, L);
+        _lua_load_script(rt, L);
     }
 
     /* Run script */
-    if (g_rt->script.data != NULL)
+    if (rt->script.data != NULL)
     {
-        return _run_script(L, g_rt);
+        return _run_script(L, rt);
     }
 
     return luaL_error(L, "no operation");
@@ -133,16 +138,21 @@ static int _lua_run(lua_State* L)
 
 int main(int argc, char* argv[])
 {
-    atexit(atd_exit_runtime);
+    uv_setup_args(argc, argv);
+    uv_disable_stdio_inheritance();
 
-    _init_lua_runtime(argc, argv);
+    lua_State* L = luaL_newstate();
+    _init_lua_runtime(L, argc, argv);
 
-    lua_pushcfunction(g_rt->L, _lua_run);
-    int ret = lua_pcall(g_rt->L, 0, 0, 0);
+    lua_pushcfunction(L, _lua_run);
+    int ret = lua_pcall(L, 0, 0, 0);
     if (ret != LUA_OK)
     {
-        fprintf(stderr, "%s\n", lua_tostring(g_rt->L, -1));
+        fprintf(stderr, "%s\n", lua_tostring(L, -1));
     }
+
+    lua_close(L);
+    uv_library_shutdown();
 
     return ret;
 }
