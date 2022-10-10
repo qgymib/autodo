@@ -17,8 +17,15 @@ typedef struct lua_process_cache
 typedef struct lua_process
 {
     atd_process_t*      process;
-    atd_coroutine_t*    host_co;
     atd_process_cfg_t   cfg;
+
+    struct
+    {
+        atd_list_t      stdout_wait_queue;  /**< #process_wait_record_t */
+        atd_list_t      stderr_wait_queue;  /**< #process_wait_record_t */
+        atd_list_t      stdout_cache;       /**< Stdout data from child process */
+        atd_list_t      stderr_cache;       /**< Stderr data from child process */
+    } await;
 
     struct
     {
@@ -27,12 +34,6 @@ typedef struct lua_process
         int             have_stderr;
         int             have_error;
     } flag;
-
-    struct
-    {
-        atd_list_t       data_stdout;
-        atd_list_t       data_stderr;
-    } cache;
 } lua_process_t;
 
 struct atd_process_s
@@ -70,11 +71,22 @@ typedef struct atd_process_write
     void*                   arg;
 } atd_process_write_t;
 
+typedef struct process_wait_record
+{
+    atd_list_node_t         node;
+    struct
+    {
+        atd_coroutine_t*    wait_coroutine; /**< The waiting coroutine */
+        lua_process_t*      process;        /**< The process handle */
+    } data;
+} process_wait_record_t;
+
 static void _lua_process_stdout(atd_process_t* proc, void* data,
     size_t size, int status, void* arg)
 {
     (void)proc;
     lua_process_t* process = arg;
+    atd_list_node_t* it;
 
     /* Wakeup when error */
     if (status < 0)
@@ -88,10 +100,15 @@ static void _lua_process_stdout(atd_process_t* proc, void* data,
     cache->size = size;
     memcpy(cache->data, data, size);
 
-    ev_list_push_back(&process->cache.data_stdout, &cache->node);
+    ev_list_push_back(&process->await.stdout_cache, &cache->node);
 
 wakeup_host_co:
-    api_coroutine.set_state(process->host_co, LUA_TNONE);
+    it = ev_list_begin(&process->await.stdout_wait_queue);
+    for (; it != NULL; it = ev_list_next(it))
+    {
+        process_wait_record_t* record = container_of(it, process_wait_record_t, node);
+        api_coroutine.set_state(record->data.wait_coroutine, LUA_TNONE);
+    }
 }
 
 static void _lua_process_stderr(atd_process_t* proc, void* data,
@@ -99,6 +116,7 @@ static void _lua_process_stderr(atd_process_t* proc, void* data,
 {
     (void)proc;
     lua_process_t* process = arg;
+    atd_list_node_t* it;
 
     if (status < 0)
     {
@@ -111,10 +129,15 @@ static void _lua_process_stderr(atd_process_t* proc, void* data,
     cache->size = size;
     memcpy(cache->data, data, size);
 
-    ev_list_push_back(&process->cache.data_stderr, &cache->node);
+    ev_list_push_back(&process->await.stderr_cache, &cache->node);
 
 wakeup_host_co:
-    api_coroutine.set_state(process->host_co, LUA_TNONE);
+    it = ev_list_begin(&process->await.stderr_wait_queue);
+    for (; it != NULL; it = ev_list_next(it))
+    {
+        process_wait_record_t* record = container_of(it, process_wait_record_t, node);
+        api_coroutine.set_state(record->data.wait_coroutine, LUA_TNONE);
+    }
 }
 
 static int _lua_process_table_to_cfg(lua_State* L, int idx, lua_process_t* process)
@@ -257,7 +280,10 @@ static void _process_kill(atd_process_t* self, int signum)
     {
         uv_process_kill(&self->process, signum);
     }
+}
 
+static void _process_release(atd_process_t* self)
+{
     uv_close((uv_handle_t*)&self->process, _process_on_process_close);
     uv_close((uv_handle_t*)&self->pip_stdin, _process_on_stdin_close);
 
@@ -278,7 +304,7 @@ static int _lua_process_gc(lua_State *L)
 
     if (process->process != NULL)
     {
-        _process_kill(process->process, 9);
+        _process_release(process->process);
         process->process = NULL;
     }
 
@@ -324,7 +350,6 @@ static int _lua_process_kill(lua_State *L)
     if (process->process != NULL)
     {
         _process_kill(process->process, signum);
-        process->process = NULL;
     }
 
     return 0;
@@ -334,29 +359,33 @@ static int _lua_process_on_stdout_resume(lua_State *L, int status, lua_KContext 
 {
     (void)status;
     atd_list_node_t * it;
-    lua_process_t* process = (lua_process_t*)ctx;
+    process_wait_record_t* record = (process_wait_record_t*)ctx;
+    lua_process_t* process = record->data.process;
 
     if (process->flag.have_error)
     {
         return 0;
     }
 
-    if (ev_list_size(&process->cache.data_stdout) == 0)
+    if (ev_list_size(&process->await.stdout_cache) == 0)
     {
-        api_coroutine.set_state(process->host_co, LUA_YIELD);
-        return lua_yieldk(L, 0, (lua_KContext)process,
+        api_coroutine.set_state(record->data.wait_coroutine, LUA_YIELD);
+        return lua_yieldk(L, 0, (lua_KContext)record,
             _lua_process_on_stdout_resume);
     }
 
     luaL_Buffer buf;
     luaL_buffinit(L, &buf);
 
-    while ((it = ev_list_pop_front(&process->cache.data_stdout)) != NULL)
+    while ((it = ev_list_pop_front(&process->await.stdout_cache)) != NULL)
     {
         lua_process_cache_t* cache = container_of(it, lua_process_cache_t, node);
         luaL_addlstring(&buf, cache->data, cache->size);
         free(cache);
     }
+
+    ev_list_erase(&process->await.stdout_wait_queue, &record->node);
+    free(record);
 
     luaL_pushresult(&buf);
     return 1;
@@ -366,29 +395,33 @@ static int _lua_process_on_stderr_resume(lua_State *L, int status, lua_KContext 
 {
     (void)status;
     atd_list_node_t * it;
-    lua_process_t* process = (lua_process_t*)ctx;
+    process_wait_record_t* record = (process_wait_record_t*)ctx;
+    lua_process_t* process = record->data.process;
 
     if (process->flag.have_error)
     {
         return 0;
     }
 
-    if (ev_list_size(&process->cache.data_stderr) == 0)
+    if (ev_list_size(&process->await.stderr_cache) == 0)
     {
-        api_coroutine.set_state(process->host_co, LUA_YIELD);
-        return lua_yieldk(L, 0, (lua_KContext)process,
+        api_coroutine.set_state(record->data.wait_coroutine, LUA_YIELD);
+        return lua_yieldk(L, 0, (lua_KContext)record,
             _lua_process_on_stderr_resume);
     }
 
     luaL_Buffer buf;
     luaL_buffinit(L, &buf);
 
-    while ((it = ev_list_pop_front(&process->cache.data_stderr)) != NULL)
+    while ((it = ev_list_pop_front(&process->await.stderr_cache)) != NULL)
     {
         lua_process_cache_t* cache = container_of(it, lua_process_cache_t, node);
         luaL_addlstring(&buf, cache->data, cache->size);
         free(cache);
     }
+
+    ev_list_erase(&process->await.stderr_wait_queue, &record->node);
+    free(record);
 
     luaL_pushresult(&buf);
     return 1;
@@ -402,7 +435,13 @@ static int _lua_process_await_stdout(lua_State *L)
         return luaL_error(L, ERR_HINT_STDOUT_DISABLED);
     }
 
-    return _lua_process_on_stdout_resume(L, LUA_YIELD, (lua_KContext)process);
+    process_wait_record_t* record = malloc(sizeof(process_wait_record_t));
+
+    record->data.process = process;
+    record->data.wait_coroutine = api_coroutine.find(L);
+    ev_list_push_back(&process->await.stdout_wait_queue, &record->node);
+
+    return _lua_process_on_stdout_resume(L, LUA_YIELD, (lua_KContext)record);
 }
 
 static int _lua_process_await_stderr(lua_State *L)
@@ -414,7 +453,13 @@ static int _lua_process_await_stderr(lua_State *L)
         return luaL_error(L, ERR_HINT_STDIN_DISABLED);
     }
 
-    return _lua_process_on_stderr_resume(L, LUA_YIELD, (lua_KContext)process);
+    process_wait_record_t* record = malloc(sizeof(process_wait_record_t));
+
+    record->data.process = process;
+    record->data.wait_coroutine = api_coroutine.find(L);
+    ev_list_push_back(&process->await.stderr_wait_queue, &record->node);
+
+    return _lua_process_on_stderr_resume(L, LUA_YIELD, (lua_KContext)record);
 }
 
 static void _process_alloc_cb(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf)
@@ -523,10 +568,16 @@ static atd_process_t* _process_create(lua_State* L, atd_process_cfg_t* cfg)
         return NULL;
     }
 
-    uv_read_start((uv_stream_t*)&impl->pip_stdout, _process_alloc_cb,
-                  _process_on_stdout);
-    uv_read_start((uv_stream_t*)&impl->pip_stderr, _process_alloc_cb,
-                  _process_on_stderr);
+    if (impl->stdout_fn != NULL)
+    {
+        uv_read_start((uv_stream_t*)&impl->pip_stdout, _process_alloc_cb,
+            _process_on_stdout);
+    }
+    if (impl->stderr_fn != NULL)
+    {
+        uv_read_start((uv_stream_t*)&impl->pip_stderr, _process_alloc_cb,
+            _process_on_stderr);
+    }
 
     return impl;
 }
@@ -538,24 +589,20 @@ int atd_lua_process(lua_State *L)
     lua_process_t* process = lua_newuserdata(L, sizeof(lua_process_t));
     memset(process, 0, sizeof(*process));
 
-    process->host_co = api_coroutine.find(L);
-    if (process->host_co == NULL)
-    {
-        return luaL_error(L, ERR_HINT_NOT_IN_MANAGED_COROUTINE);
-    }
-
-    ev_list_init(&process->cache.data_stdout);
-    ev_list_init(&process->cache.data_stderr);
+    ev_list_init(&process->await.stdout_wait_queue);
+    ev_list_init(&process->await.stderr_wait_queue);
+    ev_list_init(&process->await.stdout_cache);
+    ev_list_init(&process->await.stderr_cache);
 
     static const luaL_Reg s_process_meta[] = {
-        { "__gc",           _lua_process_gc },
-        { NULL,             NULL },
+        { "__gc",   _lua_process_gc },
+        { NULL,     NULL },
     };
     static const luaL_Reg s_process_method[] = {
-        { "kill",           _lua_process_kill },
-        { "await_stdout",   _lua_process_await_stdout },
-        { "await_stderr",   _lua_process_await_stderr },
-        { NULL,             NULL },
+        { "kill",   _lua_process_kill },
+        { "cout",   _lua_process_await_stdout },
+        { "cerr",   _lua_process_await_stderr },
+        { NULL,     NULL },
     };
     if (luaL_newmetatable(L, "__auto_process") != 0)
     {
@@ -584,7 +631,7 @@ static void _process_write_done(uv_write_t *req, int status)
 }
 
 static int _process_send_to_stdin(atd_process_t* self, void* data,
-                                  size_t size, atd_process_stdio_fn cb, void* arg)
+    size_t size, atd_process_stdio_fn cb, void* arg)
 {
     atd_process_write_t* p_req = malloc(sizeof(atd_process_write_t));
     p_req->impl = self;
