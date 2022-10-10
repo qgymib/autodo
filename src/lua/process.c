@@ -27,9 +27,6 @@ typedef struct atd_process_cfg
     const char*             cwd;        /**< (Optional) Working directory. */
     char**                  args;       /**< Arguments passed to process. */
     char**                  envs;       /**< (Optional) Environments passed to process. */
-    atd_process_stdio_fn    stdout_fn;  /**< (Optional) Child stdout callback. */
-    atd_process_stdio_fn    stderr_fn;  /**< (Optional) Child stderr callback. */
-    void*                   arg;        /**< User defined data passed to \p stdout_fn and \p stderr_fn */
 } atd_process_cfg_t;
 
 typedef struct lua_process_cache
@@ -41,35 +38,32 @@ typedef struct lua_process_cache
 
 typedef struct lua_process
 {
-    atd_process_t*      process;
-    atd_process_cfg_t   cfg;                /**< Process configuration */
+    atd_process_t*          process;
+    atd_process_cfg_t       cfg;                /**< Process configuration */
 
     struct
     {
-        atd_list_t      stdin_wait_queue;   /**< #process_write_record_t */
-        atd_list_t      stdout_wait_queue;  /**< #process_wait_record_t */
-        atd_list_t      stderr_wait_queue;  /**< #process_wait_record_t */
-        atd_list_t      stdout_cache;       /**< #lua_process_cache_t. Stdout data from child process */
-        atd_list_t      stderr_cache;       /**< #lua_process_cache_t. Stderr data from child process */
+        atd_list_t          stdin_wait_queue;   /**< #process_write_record_t */
+        atd_list_t          stdout_wait_queue;  /**< #process_wait_record_t */
+        atd_list_t          stderr_wait_queue;  /**< #process_wait_record_t */
+        atd_list_t          stdout_cache;       /**< #lua_process_cache_t. Stdout data from child process */
+        atd_list_t          stderr_cache;       /**< #lua_process_cache_t. Stderr data from child process */
     } await;
 
     struct
     {
-        int             have_stdin;
-        int             have_stdout;
-        int             have_stderr;
-        int             have_error;
+        int                 have_stdin;
+        int                 have_stdout;
+        int                 have_stderr;
+        int                 have_error;
     } flag;
 } lua_process_t;
 
 struct atd_process_s
 {
-    atd_runtime_t*          rt;
-    uv_process_t            process;
-
-    atd_process_stdio_fn    stdout_fn;
-    atd_process_stdio_fn    stderr_fn;
-    void*                   arg;
+    atd_runtime_t*          rt;                 /**< Runtime */
+    lua_process_t*          belong;             /**< Lua object handle */
+    uv_process_t            process;            /**< Process handle */
 
     int                     spawn_ret;
     int64_t                 exit_status;
@@ -108,12 +102,15 @@ typedef struct process_wait_record
     } data;
 } process_wait_record_t;
 
-static void _lua_process_stdout(atd_process_t* proc, void* data,
-    size_t size, int status, void* arg)
+static void _lua_process_stdout(atd_process_t* proc, void* data, size_t size, int status)
 {
-    (void)proc;
-    lua_process_t* process = arg;
     atd_list_node_t* it;
+    lua_process_t* process = proc->belong;
+
+    if (process == NULL)
+    {
+        return;
+    }
 
     /* Wakeup when error */
     if (status < 0)
@@ -139,11 +136,15 @@ wakeup_host_co:
 }
 
 static void _lua_process_stderr(atd_process_t* proc, void* data,
-    size_t size, int status, void* arg)
+    size_t size, int status)
 {
-    (void)proc;
-    lua_process_t* process = arg;
     atd_list_node_t* it;
+    lua_process_t* process = proc->belong;
+
+    if (process == NULL)
+    {
+        return;
+    }
 
     if (status < 0)
     {
@@ -171,7 +172,6 @@ static int _lua_process_table_to_cfg(lua_State* L, int idx, lua_process_t* proce
 {
     size_t i;
     int sp = lua_gettop(L);
-    process->cfg.arg = process;
 
     /* SP + 1 */
     if (lua_getfield(L, idx, "path") != LUA_TSTRING)
@@ -250,16 +250,6 @@ static int _lua_process_table_to_cfg(lua_State* L, int idx, lua_process_t* proce
     }
     lua_pop(L, 1);
 
-    if (process->flag.have_stdout)
-    {
-        process->cfg.stdout_fn = _lua_process_stdout;
-    }
-
-    if (process->flag.have_stderr)
-    {
-        process->cfg.stderr_fn = _lua_process_stderr;
-    }
-
     return 0;
 }
 
@@ -311,6 +301,7 @@ static void _process_kill(atd_process_t* self, int signum)
 
 static void _process_release(atd_process_t* self)
 {
+    self->belong = NULL;
     uv_close((uv_handle_t*)&self->process, _process_on_process_close);
     uv_close((uv_handle_t*)&self->pip_stdin, _process_on_stdin_close);
 
@@ -564,7 +555,7 @@ static void _process_on_stderr(uv_stream_t* stream, ssize_t nread, const uv_buf_
 
     if (buf->base != NULL)
     {
-        impl->stderr_fn(impl, buf->base, nread, nread, impl->arg);
+        _lua_process_stderr(impl, buf->base, nread, nread);
         free(buf->base);
     }
 }
@@ -581,22 +572,20 @@ static void _process_on_stdout(uv_stream_t* stream, ssize_t nread, const uv_buf_
 
     if (buf->base != NULL)
     {
-        impl->stdout_fn(impl, buf->base, nread, nread, impl->arg);
+        _lua_process_stdout(impl, buf->base, nread, nread);
         free(buf->base);
     }
 }
 
-static atd_process_t* _process_create(lua_State* L, atd_process_cfg_t* cfg)
+static atd_process_t* _process_create(lua_State* L, lua_process_t* process, atd_process_cfg_t* cfg)
 {
     atd_runtime_t* rt = auto_get_runtime(L);
 
     atd_process_t* impl = malloc(sizeof(atd_process_t));
     memset(impl, 0, sizeof(*impl));
 
+    impl->belong = process;
     impl->rt = rt;
-    impl->stdout_fn = cfg->stdout_fn;
-    impl->stderr_fn = cfg->stderr_fn;
-    impl->arg = cfg->arg;
 
     uv_stdio_container_t stdios[3];
     memset(stdios, 0, sizeof(stdios));
@@ -605,7 +594,7 @@ static atd_process_t* _process_create(lua_State* L, atd_process_cfg_t* cfg)
     stdios[0].flags = UV_CREATE_PIPE | UV_READABLE_PIPE;
     stdios[0].data.stream = (uv_stream_t*)&impl->pip_stdin;
 
-    if (impl->stdout_fn != NULL)
+    if (process->flag.have_stdout)
     {
         uv_pipe_init(&rt->loop, &impl->pip_stdout, 0);
         stdios[1].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
@@ -616,7 +605,7 @@ static atd_process_t* _process_create(lua_State* L, atd_process_cfg_t* cfg)
         impl->flag_stdout_exit = 1;
     }
 
-    if (impl->stderr_fn != NULL)
+    if (process->flag.have_stderr)
     {
         uv_pipe_init(&rt->loop, &impl->pip_stderr, 0);
         stdios[2].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
@@ -640,16 +629,16 @@ static atd_process_t* _process_create(lua_State* L, atd_process_cfg_t* cfg)
     impl->spawn_ret = uv_spawn(&rt->loop, &impl->process, &opt);
     if (impl->spawn_ret != 0)
     {
-        _process_kill(impl, SIGKILL);
+        _process_release(impl);
         return NULL;
     }
 
-    if (impl->stdout_fn != NULL)
+    if (process->flag.have_stdout)
     {
         uv_read_start((uv_stream_t*)&impl->pip_stdout, _process_alloc_cb,
             _process_on_stdout);
     }
-    if (impl->stderr_fn != NULL)
+    if (process->flag.have_stderr)
     {
         uv_read_start((uv_stream_t*)&impl->pip_stderr, _process_alloc_cb,
             _process_on_stderr);
@@ -692,7 +681,7 @@ int atd_lua_process(lua_State* L)
 
     _lua_process_table_to_cfg(L, 1, process);
 
-    if ((process->process = _process_create(L, &process->cfg)) == NULL)
+    if ((process->process = _process_create(L, process, &process->cfg)) == NULL)
     {
         lua_pop(L, 1);
         return 0;
