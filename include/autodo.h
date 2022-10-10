@@ -175,31 +175,6 @@ typedef struct atd_timer_s atd_timer_t;
 struct atd_thread_s;
 typedef struct atd_thread_s atd_thread_t;
 
-struct atd_process_s;
-typedef struct atd_process_s atd_process_t;
-
-/**
- * @brief Process stdio callback.
- * @param[in] process   Process object.
- * @param[in] data      The data to send.
- * @param[in] size      The data size.
- * @param[in] status    IO result.
- * @param[in] arg       User defined argument.
- */
-typedef void (*atd_process_stdio_fn)(atd_process_t* process, void* data,
-    size_t size, int status, void* arg);
-
-typedef struct atd_process_cfg
-{
-    const char*             path;       /**< File path. */
-    const char*             cwd;        /**< (Optional) Working directory. */
-    char**                  args;       /**< Arguments passed to process. */
-    char**                  envs;       /**< (Optional) Environments passed to process. */
-    atd_process_stdio_fn    stdout_fn;  /**< (Optional) Child stdout callback. */
-    atd_process_stdio_fn    stderr_fn;  /**< (Optional) Child stderr callback. */
-    void*                   arg;        /**< User defined data passed to \p stdout_fn and \p stderr_fn */
-} atd_process_cfg_t;
-
 struct atd_coroutine_hook;
 typedef struct atd_coroutine_hook atd_coroutine_hook_t;
 
@@ -616,44 +591,6 @@ typedef struct auto_api_thread_s
      */
     void (*sleep)(uint32_t ms);
 } auto_api_thread_t;
-
-/**
- * @brief Process API.
- *
- * ```lua
- * auto.c_api_process
- * ```
- */
-typedef struct auto_api_process_s
-{
-    /**
-     * @brief Create a new process.
-     * You must release process resource by #auto_api_t::process::kill().
-     * @warning MT-UnSafe
-     * @param[in] cfg   Process configuration.
-     * @return          Process object.
-     */
-    atd_process_t* (*create)(lua_State* L, atd_process_cfg_t *cfg);
-
-    /**
-     * @brief Kill process.
-     * @warning MT-UnSafe
-     * @param[in] self      This object.
-     * @param[in] signum    Signal number.
-     */
-    void (*kill)(atd_process_t* self, int signum);
-
-    /**
-     * @brief Async send data to child process stdin.
-     * @warning MT-UnSafe
-     * @param[in] self      This object.
-     * @param[in] data      The data to send. Do not release it until \p cb is called.
-     * @param[in] size      The data size.
-     * @return              Error code.
-     */
-    int (*send_to_stdin)(atd_process_t* self, void* data, size_t size,
-                         atd_process_stdio_fn cb, void* arg);
-} auto_api_process_t;
 
 /**
  * @brief Coroutine API.

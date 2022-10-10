@@ -9,11 +9,6 @@ extern "C" {
 #endif
 
 /**
- * @brief Exposed api for process.
- */
-AUTO_LOCAL extern const auto_api_process_t api_process;
-
-/**
  * @brief Create process.
  *
  * ```

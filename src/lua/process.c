@@ -7,24 +7,50 @@
 #include "utils.h"
 #include "utils/list.h"
 
+struct atd_process_s;
+typedef struct atd_process_s atd_process_t;
+
+/**
+ * @brief Process stdio callback.
+ * @param[in] process   Process object.
+ * @param[in] data      The data to send.
+ * @param[in] size      The data size.
+ * @param[in] status    IO result.
+ * @param[in] arg       User defined argument.
+ */
+typedef void (*atd_process_stdio_fn)(atd_process_t* process, void* data,
+                                     size_t size, int status, void* arg);
+
+typedef struct atd_process_cfg
+{
+    const char*             path;       /**< File path. */
+    const char*             cwd;        /**< (Optional) Working directory. */
+    char**                  args;       /**< Arguments passed to process. */
+    char**                  envs;       /**< (Optional) Environments passed to process. */
+    atd_process_stdio_fn    stdout_fn;  /**< (Optional) Child stdout callback. */
+    atd_process_stdio_fn    stderr_fn;  /**< (Optional) Child stderr callback. */
+    void*                   arg;        /**< User defined data passed to \p stdout_fn and \p stderr_fn */
+} atd_process_cfg_t;
+
 typedef struct lua_process_cache
 {
-    atd_list_node_t      node;
-    size_t              size;
-    char                data[];
+    atd_list_node_t         node;
+    size_t                  size;
+    char                    data[];
 } lua_process_cache_t;
 
 typedef struct lua_process
 {
     atd_process_t*      process;
-    atd_process_cfg_t   cfg;
+    atd_process_cfg_t   cfg;                /**< Process configuration */
 
     struct
     {
+        atd_list_t      stdin_wait_queue;   /**< #process_write_record_t */
         atd_list_t      stdout_wait_queue;  /**< #process_wait_record_t */
         atd_list_t      stderr_wait_queue;  /**< #process_wait_record_t */
-        atd_list_t      stdout_cache;       /**< Stdout data from child process */
-        atd_list_t      stderr_cache;       /**< Stderr data from child process */
+        atd_list_t      stdout_cache;       /**< #lua_process_cache_t. Stdout data from child process */
+        atd_list_t      stderr_cache;       /**< #lua_process_cache_t. Stderr data from child process */
     } await;
 
     struct
@@ -59,17 +85,18 @@ struct atd_process_s
     int                     flag_stderr_exit;
 };
 
-typedef struct atd_process_write
+typedef struct process_write_record
 {
-    uv_write_t              req;
-    atd_process_t*          impl;
-
-    void*                   data;
-    size_t                  size;
-
-    atd_process_stdio_fn    cb;
-    void*                   arg;
-} atd_process_write_t;
+    atd_list_node_t         node;
+    struct
+    {
+        uv_write_t          req;            /**< Write request */
+        lua_process_t*      process;        /**< Process handle */
+        atd_coroutine_t*    wait_coroutine; /**< The waiting coroutine */
+        size_t              size;           /**< Send data size */
+        char                data[];         /**< Send data */
+    } data;
+} process_write_record_t;
 
 typedef struct process_wait_record
 {
@@ -427,6 +454,55 @@ static int _lua_process_on_stderr_resume(lua_State *L, int status, lua_KContext 
     return 1;
 }
 
+static int _lua_process_on_stdin_resume(lua_State* L, int status, lua_KContext ctx)
+{
+    (void)L; (void)status;
+    process_write_record_t* record = (process_write_record_t*)ctx;
+    lua_process_t* process = record->data.process;
+
+    ev_list_erase(&process->await.stdin_wait_queue, &record->node);
+    free(record);
+
+    return 0;
+}
+
+static void _process_on_write_done(uv_write_t* req, int status)
+{
+    (void)status;
+    process_write_record_t* record = container_of(req, process_write_record_t, data.req);
+    api_coroutine.set_state(record->data.wait_coroutine, LUA_TNONE);
+}
+
+static int _lua_process_async_stdin(lua_State* L)
+{
+    int ret;
+    lua_process_t* process = lua_touserdata(L, 1);
+
+    size_t data_size;
+    const void* data = luaL_checklstring(L, 2, &data_size);
+
+    size_t malloc_size = sizeof(process_write_record_t) + data_size;
+    process_write_record_t* record = malloc(malloc_size);
+
+    record->data.process = process;
+    record->data.wait_coroutine = api_coroutine.find(L);
+    record->data.size = data_size;
+    memcpy(record->data.data, data, data_size);
+    ev_list_push_back(&process->await.stdin_wait_queue, &record->node);
+
+    uv_buf_t buf = uv_buf_init(record->data.data, record->data.size);
+    ret = uv_write(&record->data.req, (uv_stream_t*)&process->process->pip_stdin,
+        &buf, 1, _process_on_write_done);
+    if (ret != 0)
+    {
+        ev_list_erase(&process->await.stdin_wait_queue, &record->node);
+        free(record);
+        return 0;
+    }
+
+    return lua_yieldk(L, 0, (lua_KContext)record, _lua_process_on_stdin_resume);
+}
+
 static int _lua_process_await_stdout(lua_State *L)
 {
     lua_process_t* process = lua_touserdata(L, 1);
@@ -582,13 +658,14 @@ static atd_process_t* _process_create(lua_State* L, atd_process_cfg_t* cfg)
     return impl;
 }
 
-int atd_lua_process(lua_State *L)
+int atd_lua_process(lua_State* L)
 {
     luaL_checktype(L, 1, LUA_TTABLE);
 
     lua_process_t* process = lua_newuserdata(L, sizeof(lua_process_t));
     memset(process, 0, sizeof(*process));
 
+    ev_list_init(&process->await.stdin_wait_queue);
     ev_list_init(&process->await.stdout_wait_queue);
     ev_list_init(&process->await.stderr_wait_queue);
     ev_list_init(&process->await.stdout_cache);
@@ -600,6 +677,7 @@ int atd_lua_process(lua_State *L)
     };
     static const luaL_Reg s_process_method[] = {
         { "kill",   _lua_process_kill },
+        { "cin",    _lua_process_async_stdin },
         { "cout",   _lua_process_await_stdout },
         { "cerr",   _lua_process_await_stderr },
         { NULL,     NULL },
@@ -622,31 +700,3 @@ int atd_lua_process(lua_State *L)
 
     return 1;
 }
-
-static void _process_write_done(uv_write_t *req, int status)
-{
-    atd_process_write_t* p_req = container_of(req, atd_process_write_t, req);
-    p_req->cb(p_req->impl, p_req->data, p_req->size, status, p_req->arg);
-    free(p_req);
-}
-
-static int _process_send_to_stdin(atd_process_t* self, void* data,
-    size_t size, atd_process_stdio_fn cb, void* arg)
-{
-    atd_process_write_t* p_req = malloc(sizeof(atd_process_write_t));
-    p_req->impl = self;
-    p_req->cb = cb;
-    p_req->arg = arg;
-    p_req->size = size;
-    p_req->data = data;
-
-    uv_buf_t buf = uv_buf_init(p_req->data, p_req->size);
-    return uv_write(&p_req->req, (uv_stream_t*)&self->pip_stdin, &buf, 1,
-                    _process_write_done);
-}
-
-const auto_api_process_t api_process = {
-    _process_create,                 /* .process.create */
-    _process_kill,                   /* .process.kill */
-    _process_send_to_stdin,          /* .process.send_to_stdin */
-};

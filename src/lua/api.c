@@ -45,7 +45,6 @@ void auto_init_libs(lua_State *L)
         { "c_api_misc",         (void*)&api_misc, },
         { "c_api_sem",          (void*)&api_sem, },
         { "c_api_thread",       (void*)&api_thread, },
-        { "c_api_process",      (void*)&api_process, },
         { "c_api_coroutine",    (void*)&api_coroutine, },
         { "c_api_timer",        (void*)&api_timer, },
         { "c_api_async",        (void*)&api_async, },
