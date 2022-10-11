@@ -22,7 +22,7 @@ static void _on_sleep_timer(void* arg)
 
 int atd_lua_sleep(lua_State *L)
 {
-    uint32_t timeout = (uint32_t)lua_tointeger(L, -1);
+    uint64_t timeout = (uint64_t)lua_tointeger(L, -1);
 
     sleep_ctx_t* ctx = malloc(sizeof(sleep_ctx_t));
     ctx->co = api_coroutine.find(L);

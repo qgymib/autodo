@@ -565,6 +565,9 @@ typedef struct auto_api_sem_s
  * ```lua
  * auto.c_api_thread
  * ```
+ *
+ * @note Due do user script is able to stop at any time, you have to care about
+ *   how to exit thread when out of your expect.
  */
 typedef struct auto_api_thread_s
 {
