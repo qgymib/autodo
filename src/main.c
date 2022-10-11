@@ -138,7 +138,7 @@ static int _lua_run(lua_State* L)
 
 int main(int argc, char* argv[])
 {
-    uv_setup_args(argc, argv);
+    argv = uv_setup_args(argc, argv);
     uv_disable_stdio_inheritance();
 
     lua_State* L = luaL_newstate();

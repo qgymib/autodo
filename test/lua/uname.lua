@@ -1,0 +1,5 @@
+local info = auto.uname()
+io.write(info.machine .. "\n")
+io.write(info.release .. "\n")
+io.write(info.sysname .. "\n")
+io.write(info.version .. "\n")

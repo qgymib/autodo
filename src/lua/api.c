@@ -8,6 +8,7 @@
 #include "lua/process.h"
 #include "lua/screenshot.h"
 #include "lua/sleep.h"
+#include "lua/uname.h"
 #include "utils.h"
 
 /******************************************************************************
@@ -21,7 +22,8 @@
     xx("coroutine",         auto_new_coroutine)     \
     xx("process",           atd_lua_process)        \
     xx("screenshot",        atd_lua_screenshot)     \
-    xx("sleep",             atd_lua_sleep)
+    xx("sleep",             atd_lua_sleep)          \
+    xx("uname",             auto_lua_uname)
 
 #define EXPAND_MAP_AS_LUA_FUNCTION(name, func) \
     { name, func },

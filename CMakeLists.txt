@@ -57,6 +57,7 @@ set(auto_src_list
     src/lua/process.c
     src/lua/screenshot.c
     src/lua/sleep.c
+    src/lua/uname.c
     src/utils/list.c
     src/utils/map.c
     src/main.c
