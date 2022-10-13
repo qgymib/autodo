@@ -2,6 +2,7 @@
 #include "from_file.h"
 #include "from_net.h"
 #include "runtime.h"
+#include "utils.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -68,4 +69,38 @@ int auto_inject_loader(lua_State* L)
     lua_settop(L, sp);
 
     return 1;
+}
+
+void auto_require_split(const char* raw, char** path, char** name, cJSON** opt)
+{
+    const char* last_name = get_filename(raw);
+
+    /* Get path */
+    if (last_name != raw)
+    {
+        size_t len = last_name - raw + 1;
+        *path = malloc(len);
+        memcpy(*path, raw, len - 1);
+        (*path)[len] = '\0';
+    }
+    else
+    {
+        *path = NULL;
+    }
+
+    const char* split_pos = strstr(last_name, ":");
+    if (split_pos != NULL)
+    {
+        size_t len = split_pos - last_name + 1;
+        *name = malloc(len);
+        memcpy(*name, last_name, len - 1);
+        (*name)[len] = '\0';
+
+        *opt = cJSON_Parse(split_pos + 1);
+    }
+    else
+    {
+        *name = strdup(last_name);
+        *opt = NULL;
+    }
 }

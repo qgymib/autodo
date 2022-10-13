@@ -1,7 +1,6 @@
 #define _GNU_SOURCE
 #include "from_file.h"
 #include "runtime.h"
-#include "utils.h"
 #include <stdio.h>
 #include <string.h>
 #include <cJSON.h>
@@ -21,47 +20,6 @@ typedef struct file_record
         char        data[];
     } data;
 } file_record_t;
-
-/**
- * @brief Parser module into path / name / option
- * @param[in] raw   Argument for `require()`
- * @param[out] path Module path.
- * @param[out] name Module name.
- * @param[out] opt  Module options.
- */
-static void _parser_argument(const char* raw, char** path, char** name, char** opt)
-{
-    const char* last_name = get_filename(raw);
-
-    /* Get path */
-    if (last_name != raw)
-    {
-        size_t len = last_name - raw + 1;
-        *path = malloc(len);
-        memcpy(*path, raw, len - 1);
-        (*path)[len] = '\0';
-    }
-    else
-    {
-        *path = NULL;
-    }
-
-    const char* option = strstr(last_name, ":");
-    if (option != NULL)
-    {
-        size_t len = option - last_name + 1;
-        *name = malloc(len);
-        memcpy(*name, last_name, len - 1);
-        (*name)[len] = '\0';
-
-        *opt = strdup(option + 1);
-    }
-    else
-    {
-        *name = strdup(last_name);
-        *opt = NULL;
-    }
-}
 
 static char* _try_load_directly(atd_runtime_t* rt, const char* path, const char* name)
 {
@@ -112,14 +70,9 @@ static void _cleanup_file_list(atd_list_t* dst)
 }
 
 static char* _try_load_with_options(atd_runtime_t* rt, const char* path,
-    const char* name, const char* opt)
+    const char* name, cJSON* opt)
 {
-    /* Parse options */
-    cJSON* opt_json = cJSON_Parse(opt);
-    if (opt_json == NULL)
-    {
-        return NULL;
-    }
+    (void)opt;
 
     /* Get search path. */
     char* search_dir;
@@ -135,7 +88,6 @@ static char* _try_load_with_options(atd_runtime_t* rt, const char* path,
     /* Release temporary resource. */
     free(search_dir);
     _cleanup_file_list(&file_list);
-    cJSON_Delete(opt_json);
 
     return NULL;
 }
@@ -148,8 +100,8 @@ int auto_load_local_module(lua_State* L, auto_lua_module_t* module)
     const char* arg = lua_tostring(L, 1);
 
     /* Parse argument as path / name / option */
-    char *path, *name, *opt;
-    _parser_argument(arg, &path, &name, &opt);
+    char *path, *name; cJSON* opt;
+    auto_require_split(arg, &path, &name, &opt);
 
     /* Get load path */
     char* load_path = (opt == NULL) ? _try_load_directly(rt, path, name)
@@ -185,7 +137,7 @@ finish:
     free(load_path);
     free(path);
     free(name);
-    free(opt);
+    cJSON_Delete(opt);
 
     return ret;
 }
