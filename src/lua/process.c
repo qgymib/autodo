@@ -10,25 +10,6 @@
 struct atd_process_s;
 typedef struct atd_process_s atd_process_t;
 
-/**
- * @brief Process stdio callback.
- * @param[in] process   Process object.
- * @param[in] data      The data to send.
- * @param[in] size      The data size.
- * @param[in] status    IO result.
- * @param[in] arg       User defined argument.
- */
-typedef void (*atd_process_stdio_fn)(atd_process_t* process, void* data,
-                                     size_t size, int status, void* arg);
-
-typedef struct atd_process_cfg
-{
-    const char*             path;       /**< File path. */
-    const char*             cwd;        /**< (Optional) Working directory. */
-    char**                  args;       /**< Arguments passed to process. */
-    char**                  envs;       /**< (Optional) Environments passed to process. */
-} atd_process_cfg_t;
-
 typedef struct lua_process_cache
 {
     atd_list_node_t         node;
@@ -39,7 +20,9 @@ typedef struct lua_process_cache
 typedef struct lua_process
 {
     atd_process_t*          process;
-    atd_process_cfg_t       cfg;                /**< Process configuration */
+
+    uv_process_options_t    options;            /**< Process configuration */
+    uv_stdio_container_t    stdios[3];
 
     struct
     {
@@ -179,69 +162,42 @@ wakeup_host_co:
     _process_wakeup_stderr_queue(process);
 }
 
-static int _lua_process_table_to_cfg(lua_State* L, int idx, lua_process_t* process)
+static int _process_convert_options_cwd(lua_State* L, int idx, lua_process_t* process)
 {
-    size_t i;
-    int sp = lua_gettop(L);
-
-    /* SP + 1 */
-    if (lua_getfield(L, idx, "path") != LUA_TSTRING)
-    {
-        return luaL_error(L, "missing field `path`");
-    }
-    process->cfg.path = atd_strdup(lua_tostring(L, sp + 1));
-    lua_pop(L, 1);
-
-    /* sp + 1 */
     if (lua_getfield(L, idx, "cwd") == LUA_TSTRING)
     {
-        process->cfg.cwd = atd_strdup(lua_tostring(L, sp + 1));
+        process->options.cwd = atd_strdup(lua_tostring(L, -1));
     }
     lua_pop(L, 1);
+    return 0;
+}
 
-    /* sp + 1 */
-    if (lua_getfield(L, idx, "args") == LUA_TTABLE)
-    {
-        size_t arg_len = luaL_len(L, sp + 1);
-        process->cfg.args = malloc(sizeof(char*) * (arg_len + 1));
-        process->cfg.args[arg_len] = NULL;
-
-        for (i = 0; i < arg_len; i++)
-        {
-            lua_geti(L, sp + 1, i + 1); // sp + 2
-            process->cfg.args[i] = atd_strdup(lua_tostring(L, sp + 2));
-            lua_pop(L, 1);
-        }
-    }
-    else
-    {
-        process->cfg.args = malloc(sizeof(char*) * 2);
-        process->cfg.args[0] = atd_strdup(process->cfg.path);
-        process->cfg.args[1] = NULL;
-    }
-    lua_pop(L, 1);
-
-    /* sp + 1 */
+static int _process_convert_options_env(lua_State* L, int idx, lua_process_t* process)
+{
     if (lua_getfield(L, idx, "envs") == LUA_TTABLE)
     {
-        size_t env_len = luaL_len(L, sp + 1);
-        process->cfg.envs = malloc(sizeof(char*) * (env_len + 1));
-        process->cfg.envs[env_len] = NULL;
+        size_t env_len = luaL_len(L, -1);
+        process->options.env = malloc(sizeof(char*) * (env_len + 1));
+        process->options.env[env_len] = NULL;
 
+        size_t i;
         for (i = 0; i < env_len; i++)
         {
-            lua_geti(L, sp + 1, i + 1); // sp + 2
-            process->cfg.envs[i] = atd_strdup(lua_tostring(L, sp + 2));
+            lua_geti(L, -1, i + 1); // sp + 2
+            process->options.env[i] = atd_strdup(lua_tostring(L, -1));
             lua_pop(L, 1);
         }
     }
     lua_pop(L, 1);
+    return 0;
+}
 
-    /* sp + 1 */
+static int _process_convert_options_stdio(lua_State* L, int idx, lua_process_t* process)
+{
     if (lua_getfield(L, idx, "stdio") == LUA_TTABLE)
     {
         lua_pushnil(L);
-        while (lua_next(L, sp + 1) != 0)
+        while (lua_next(L, -2) != 0)
         {
             const char* value = luaL_checkstring(L, -1);
             if (strcmp(value, "enable_stdin") == 0)
@@ -260,6 +216,72 @@ static int _lua_process_table_to_cfg(lua_State* L, int idx, lua_process_t* proce
         }
     }
     lua_pop(L, 1);
+    return 0;
+}
+
+static int _process_convert_options_file(lua_State* L, int idx, lua_process_t* process)
+{
+    if (lua_getfield(L, idx, "file") == LUA_TSTRING)
+    {
+        process->options.file = atd_strdup(lua_tostring(L, -1));
+    }
+    lua_pop(L, 1);
+    return 0;
+}
+
+static int _process_convert_options_args(lua_State* L, int idx, lua_process_t* process)
+{
+    if (lua_getfield(L, idx, "args") == LUA_TTABLE)
+    {
+        size_t arg_len = luaL_len(L, -1);
+        process->options.args = malloc(sizeof(char*) * (arg_len + 1));
+        process->options.args[arg_len] = NULL;
+
+        size_t i;
+        for (i = 0; i < arg_len; i++)
+        {
+            lua_geti(L, -1, i + 1); // sp + 2
+            process->options.args[i] = atd_strdup(lua_tostring(L, -1));
+            lua_pop(L, 1);
+        }
+    }
+    lua_pop(L, 1);
+    return 0;
+}
+
+static int _process_fix_options(lua_State* L, lua_process_t* process)
+{
+    if (process->options.file == NULL && process->options.args == NULL)
+    {
+        return luaL_error(L, "missing field `file`");
+    }
+
+    if (process->options.file != NULL && process->options.args == NULL)
+    {
+        process->options.args = malloc(sizeof(char*) * 2);
+        process->options.args[0] = atd_strdup(process->options.file);
+        process->options.args[1] = NULL;
+        return 0;
+    }
+
+    if (process->options.args[0] == NULL)
+    {
+        return luaL_error(L, "missing field `file`");
+    }
+
+    process->options.file = atd_strdup(process->options.args[0]);
+    return 0;
+}
+
+static int _lua_process_table_to_cfg(lua_State* L, int idx, lua_process_t* process)
+{
+    _process_convert_options_file(L, idx, process);
+    _process_convert_options_args(L, idx, process);
+    _process_convert_options_env(L, idx, process);
+    _process_convert_options_stdio(L, idx, process);
+    _process_convert_options_cwd(L, idx, process);
+
+    _process_fix_options(L, process);
 
     return 0;
 }
@@ -339,35 +361,35 @@ static int _lua_process_gc(lua_State *L)
         process->process = NULL;
     }
 
-    if (process->cfg.path != NULL)
+    if (process->options.file != NULL)
     {
-        free((char*)process->cfg.path);
-        process->cfg.path = NULL;
+        free((char*)process->options.file);
+        process->options.file = NULL;
     }
-    if (process->cfg.cwd != NULL)
+    if (process->options.cwd != NULL)
     {
-        free((char*)process->cfg.cwd);
-        process->cfg.cwd = NULL;
+        free((char*)process->options.cwd);
+        process->options.cwd = NULL;
     }
-    if (process->cfg.args != NULL)
+    if (process->options.args != NULL)
     {
-        for (i = 0; process->cfg.args[i] != NULL; i++)
+        for (i = 0; process->options.args[i] != NULL; i++)
         {
-            free(process->cfg.args[i]);
-            process->cfg.args[i] = NULL;
+            free(process->options.args[i]);
+            process->options.args[i] = NULL;
         }
-        free(process->cfg.args);
-        process->cfg.args = NULL;
+        free(process->options.args);
+        process->options.args = NULL;
     }
-    if (process->cfg.envs != NULL)
+    if (process->options.env != NULL)
     {
-        for (i = 0; process->cfg.envs[i] != NULL; i++)
+        for (i = 0; process->options.env[i] != NULL; i++)
         {
-            free(process->cfg.envs[i]);
-            process->cfg.envs[i] = NULL;
+            free(process->options.env[i]);
+            process->options.env[i] = NULL;
         }
-        free(process->cfg.envs);
-        process->cfg.envs = NULL;
+        free(process->options.env);
+        process->options.env = NULL;
     }
 
     return 0;
@@ -600,7 +622,7 @@ static void _process_on_stdout(uv_stream_t* stream, ssize_t nread, const uv_buf_
     }
 }
 
-static atd_process_t* _process_create(lua_State* L, lua_process_t* process, atd_process_cfg_t* cfg)
+static atd_process_t* _process_create(lua_State* L, lua_process_t* process)
 {
     atd_runtime_t* rt = auto_get_runtime(L);
 
@@ -610,18 +632,15 @@ static atd_process_t* _process_create(lua_State* L, lua_process_t* process, atd_
     impl->belong = process;
     impl->rt = rt;
 
-    uv_stdio_container_t stdios[3];
-    memset(stdios, 0, sizeof(stdios));
-
     uv_pipe_init(&rt->loop, &impl->pip_stdin, 0);
-    stdios[0].flags = UV_CREATE_PIPE | UV_READABLE_PIPE;
-    stdios[0].data.stream = (uv_stream_t*)&impl->pip_stdin;
+    process->stdios[0].flags = UV_CREATE_PIPE | UV_READABLE_PIPE;
+    process->stdios[0].data.stream = (uv_stream_t*)&impl->pip_stdin;
 
     if (process->flag.have_stdout)
     {
         uv_pipe_init(&rt->loop, &impl->pip_stdout, 0);
-        stdios[1].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
-        stdios[1].data.stream = (uv_stream_t*)&impl->pip_stdout;
+        process->stdios[1].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
+        process->stdios[1].data.stream = (uv_stream_t*)&impl->pip_stdout;
     }
     else
     {
@@ -631,25 +650,19 @@ static atd_process_t* _process_create(lua_State* L, lua_process_t* process, atd_
     if (process->flag.have_stderr)
     {
         uv_pipe_init(&rt->loop, &impl->pip_stderr, 0);
-        stdios[2].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
-        stdios[2].data.stream = (uv_stream_t*)&impl->pip_stderr;
+        process->stdios[2].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
+        process->stdios[2].data.stream = (uv_stream_t*)&impl->pip_stderr;
     }
     else
     {
         impl->flag.stderr_close = 1;
     }
 
-    uv_process_options_t opt;
-    memset(&opt, 0, sizeof(opt));
-    opt.exit_cb = _process_on_exit;
-    opt.file = cfg->path;
-    opt.args = cfg->args;
-    opt.env = cfg->envs;
-    opt.cwd = cfg->cwd;
-    opt.stdio = stdios;
-    opt.stdio_count = 3;
+    process->options.exit_cb = _process_on_exit;
+    process->options.stdio = process->stdios;
+    process->options.stdio_count = 3;
 
-    if (uv_spawn(&rt->loop, &impl->process, &opt) != 0)
+    if (uv_spawn(&rt->loop, &impl->process, &process->options) != 0)
     {
         _process_release(impl);
         return NULL;
@@ -721,7 +734,7 @@ int atd_lua_process(lua_State* L)
 
     _lua_process_table_to_cfg(L, 1, process);
 
-    if ((process->process = _process_create(L, process, &process->cfg)) == NULL)
+    if ((process->process = _process_create(L, process)) == NULL)
     {
         lua_pop(L, 1);
         return 0;

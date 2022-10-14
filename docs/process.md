@@ -12,7 +12,7 @@ Create a process.
 
 ```
 {
-    "path": "file",
+    "file": "file",
     "cwd": "working directory",
     "args": ["file", "--command", "--list"],
     "envs": ["environment", "list"],
