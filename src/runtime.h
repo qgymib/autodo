@@ -55,6 +55,7 @@ typedef struct atd_runtime
 
     struct
     {
+        atd_list_t          modules;        /**< Loaded shared library handles. */
         char                errbuf[1024];
     } cache;
 } atd_runtime_t;
@@ -86,12 +87,33 @@ struct atd_coroutine_impl
 
 /**
  * @brief Initialize runtime.
+ *
+ * This is done by inject a global userdata, so the lifecycle will be the same
+ * as Lua VM.
+ *
+ * Do remember the gc sequence is the reverse order of global variable
+ * initialize order, so this function should be called as early as possible.
+ *
  * @param[in] argc  Argument list size.
  * @param[in] argv  Argument list.
  * @return          Always 0.
  */
-AUTO_LOCAL int atd_init_runtime(lua_State* L, int argc, char* argv[]);
+AUTO_LOCAL int auto_init_runtime(lua_State* L);
 
+/**
+ * @brief Custom runtime by command line arguments.
+ * @param[in] L     Lua VM.
+ * @param[in] argc  Argument list size.
+ * @param[in] argv  Argument list.
+ * @return          Always 0.
+ */
+AUTO_LOCAL int auto_custom_runtime(lua_State* L, int argc, char* argv[]);
+
+/**
+ * @brief Get runtime from VM.
+ * @param[in] L     Lua VM.
+ * @return          Runtime handle.
+ */
 AUTO_LOCAL atd_runtime_t* auto_get_runtime(lua_State* L);
 
 /**

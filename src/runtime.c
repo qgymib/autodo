@@ -1,5 +1,6 @@
 #include "runtime.h"
 #include "lua/coroutine.h"
+#include "require/loader.h"
 #include "utils.h"
 #include <string.h>
 #include <stdlib.h>
@@ -162,27 +163,16 @@ static int _runtime_schedule_one_pass(atd_runtime_t* rt, lua_State* L)
     return 0;
 }
 
-static void _init_runtime(atd_runtime_t* rt, int argc, char* argv[])
+static void _release_all_modules(atd_runtime_t* rt)
 {
-    uv_loop_init(&rt->loop);
-    uv_async_init(&rt->loop, &rt->notifier, _on_runtime_notify);
+    atd_list_node_t* node;
 
-    ev_list_init(&rt->schedule.busy_queue);
-    ev_list_init(&rt->schedule.wait_queue);
-    ev_map_init(&rt->schedule.all_table, _on_cmp_thread, NULL);
-
-    int ret;
-    if ((ret = atd_read_self_script(&rt->script.data, &rt->script.size)) != 0)
+    while ((node = ev_list_pop_front(&rt->cache.modules)) != NULL)
     {
-        fprintf(stderr, "read self failed: %s(%d)\n",
-                atd_strerror(ret, rt->cache.errbuf, sizeof(rt->cache.errbuf)), ret);
-        exit(EXIT_FAILURE);
-    }
-
-    /* Command line argument is only parsed when script is not embed */
-    if (rt->script.data == NULL)
-    {
-        _init_parse_args(rt, argc, argv);
+        auto_lua_module_t* module = container_of(node, auto_lua_module_t, node);
+        uv_dlclose(&module->data.lib);
+        free(module->data.path);
+        free(module);
     }
 }
 
@@ -204,6 +194,8 @@ static void _runtime_exit(atd_runtime_t* rt)
         uv_print_all_handles(&rt->loop, stderr);
         abort();
     }
+
+    _release_all_modules(rt);
 
     if (rt->script.data != NULL)
     {
@@ -236,12 +228,24 @@ static int _auto_runtime_gc(lua_State* L)
     return 0;
 }
 
-int atd_init_runtime(lua_State* L, int argc, char* argv[])
+static void _init_runtime(atd_runtime_t* rt)
+{
+    uv_loop_init(&rt->loop);
+    uv_async_init(&rt->loop, &rt->notifier, _on_runtime_notify);
+
+    ev_list_init(&rt->schedule.busy_queue);
+    ev_list_init(&rt->schedule.wait_queue);
+    ev_map_init(&rt->schedule.all_table, _on_cmp_thread, NULL);
+    ev_list_init(&rt->cache.modules);
+}
+
+int auto_init_runtime(lua_State* L)
 {
     atd_runtime_t* rt = lua_newuserdata(L, sizeof(atd_runtime_t));
 
     memset(rt, 0, sizeof(atd_runtime_t));
     rt->L = L;
+    _init_runtime(rt);
 
     static const luaL_Reg s_auto_meta[] = {
         { "__gc", _auto_runtime_gc },
@@ -255,7 +259,15 @@ int atd_init_runtime(lua_State* L, int argc, char* argv[])
 
     lua_setglobal(L, AUTO_GLOBAL);
 
-    _init_runtime(rt, argc, argv);
+    return 0;
+}
+
+int auto_custom_runtime(lua_State* L, int argc, char* argv[])
+{
+    atd_runtime_t* rt = auto_get_runtime(L);
+
+    /* Command line argument is only parsed when script is not embed */
+    _init_parse_args(rt, argc, argv);
 
     return 0;
 }

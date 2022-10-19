@@ -1,6 +1,6 @@
 #include "runtime.h"
-#include "package.h"
 #include "utils.h"
+#include "require/loader.h"
 #include "lua/api.h"
 #include "lua/coroutine.h"
 #include <string.h>
@@ -16,10 +16,17 @@
  */
 static void _init_lua_runtime(lua_State* L, int argc, char* argv[])
 {
+    /* Initialize lua standard library */
     luaL_openlibs(L);
 
-    atd_init_runtime(L, argc, argv);
+    /* Initialize runtime */
+    auto_init_runtime(L);
+
+    /* Initialize interface for lua */
     auto_init_libs(L);
+
+    /* Custom runtime by command line arguments */
+    auto_custom_runtime(L, argc, argv);
 }
 
 static int _user_thread_on_resume(lua_State *L, int status, lua_KContext ctx)
@@ -90,36 +97,11 @@ static int _lua_load_script(atd_runtime_t* rt, lua_State* L)
         ret);
 }
 
-static void _inject_require_searcher(lua_State* L)
-{
-    int ret;
-    int sp = lua_gettop(L);
-
-    /* sp + 1 */
-    if ((ret = lua_getglobal(L, "package")) != LUA_TTABLE)
-    {
-        abort();
-    }
-    /* sp + 2 */
-    if ((ret = lua_getfield(L, sp + 1, "searchers")) != LUA_TTABLE)
-    {
-        abort();
-    }
-
-    /* Append custom loader to the end of searchers table */
-    lua_pushcfunction(L, atd_package_loader);
-    size_t len = luaL_len(L, sp + 2);
-    lua_seti(L, sp + 2, len + 1);
-
-    /* Resource stack */
-    lua_settop(L, sp);
-}
-
 static int _lua_run(lua_State* L)
 {
     atd_runtime_t* rt = auto_get_runtime(L);
 
-    _inject_require_searcher(L);
+    auto_inject_loader(L);
 
     /* Load script if necessary */
     if (rt->config.script_file != NULL)
