@@ -52,6 +52,11 @@ AUTO_LOCAL extern const auto_api_timer_t api_timer;
 AUTO_LOCAL extern const auto_api_async_t api_async;
 
 /**
+ * @brief Exposed API.
+ */
+AUTO_LOCAL extern const auto_api_t api;
+
+/**
  * @brief Initialize builtin library.
  * @param[in] L     Lua VM.
  */

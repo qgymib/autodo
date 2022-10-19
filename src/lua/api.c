@@ -45,6 +45,7 @@ void auto_init_libs(lua_State *L)
     luaL_newlib(L, s_funcs);
 
     static struct { const char* name; void* value; } s_api_list[] = {
+        { "c_api",              (void*)&api },
         { "c_api_memory",       (void*)&api_memory, },
         { "c_api_list",         (void*)&api_list, },
         { "c_api_map",          (void*)&api_map, },
@@ -306,4 +307,17 @@ const auto_api_async_t api_async = {
     api_async_create,                   /* .async.create */
     api_async_destroy,                  /* .async.destroy */
     api_async_send,                     /* .async.send */
+};
+
+const auto_api_t api = {
+    &api_memory,
+    &api_list,
+    &api_map,
+    &api_sem,
+    &api_thread,
+    &api_timer,
+    &api_async,
+    &api_coroutine,
+    &api_int64,
+    &api_misc,
 };

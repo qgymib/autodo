@@ -779,6 +779,27 @@ typedef struct auto_api_int64_s
     int (*get_value)(lua_State *L, int idx, int64_t* value);
 } auto_api_int64_t;
 
+/**
+ * @brief API.
+ *
+ * ```lua
+ * auto.c_api
+ * ```
+ */
+typedef struct auto_api_s
+{
+    const auto_api_memory_t*    memory;
+    const auto_api_list_t*      list;
+    const auto_api_map_t*       map;
+    const auto_api_sem_t*       sem;
+    const auto_api_thread_t*    thread;
+    const auto_api_timer_t*     timer;
+    const auto_api_async_t*     async;
+    const auto_api_coroutine_t* coroutine;
+    const auto_api_int64_t*     int64;
+    const auto_api_misc_t*      misc;
+} auto_api_t;
+
 #ifdef __cplusplus
 }
 #endif
