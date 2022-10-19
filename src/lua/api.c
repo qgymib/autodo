@@ -6,6 +6,7 @@
 #include "lua/coroutine.h"
 #include "lua/download.h"
 #include "lua/int64.h"
+#include "lua/json.h"
 #include "lua/process.h"
 #include "lua/screenshot.h"
 #include "lua/sleep.h"
@@ -22,6 +23,7 @@
 #define AUTO_LUA_API_MAP(xx) \
     xx("coroutine",         auto_new_coroutine)     \
     xx("download",          auto_lua_download)      \
+    xx("json",              auto_lua_json)          \
     xx("process",           atd_lua_process)        \
     xx("screenshot",        atd_lua_screenshot)     \
     xx("sleep",             atd_lua_sleep)          \

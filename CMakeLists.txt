@@ -55,6 +55,7 @@ set(auto_src_list
     src/lua/coroutine.c
     src/lua/download.c
     src/lua/int64.c
+    src/lua/json.c
     src/lua/process.c
     src/lua/screenshot.c
     src/lua/sleep.c
@@ -94,9 +95,11 @@ setup_required_package_lua(${PROJECT_NAME})
 
 # libuv
 add_subdirectory(third_party/libuv)
-target_link_libraries(${PROJECT_NAME}
-    PRIVATE
-        uv_a)
+target_link_libraries(${PROJECT_NAME} PRIVATE uv_a)
+
+# cJSON
+include(third_party/cJSON.cmake)
+target_link_libraries(${PROJECT_NAME} PRIVATE cJSON)
 
 if (WIN32)
 else ()
