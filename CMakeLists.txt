@@ -57,6 +57,7 @@ set(auto_src_list
     src/lua/int64.c
     src/lua/json.c
     src/lua/process.c
+    src/lua/regex.c
     src/lua/screenshot.c
     src/lua/sleep.c
     src/lua/uname.c
@@ -100,6 +101,10 @@ target_link_libraries(${PROJECT_NAME} PRIVATE uv_a)
 # cJSON
 include(third_party/cJSON.cmake)
 target_link_libraries(${PROJECT_NAME} PRIVATE cJSON)
+
+# PCRE2
+include(third_party/pcre2.cmake)
+target_link_libraries(${PROJECT_NAME} PRIVATE pcre2)
 
 if (WIN32)
 else ()

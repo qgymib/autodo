@@ -779,6 +779,46 @@ typedef struct auto_api_int64_s
     int (*get_value)(lua_State *L, int idx, int64_t* value);
 } auto_api_int64_t;
 
+struct auto_regex_code_s;
+typedef struct auto_regex_code_s auto_regex_code_t;
+
+typedef struct auto_api_regex_s
+{
+    /**
+     * @brief Compile regex \p pattern into regex bytecode.
+     * @param[in] pattern   Regex pattern.
+     * @param[in] size      Regex pattern size.
+     * @return              Regex bytecode.
+     */
+    auto_regex_code_t* (*compile)(const char* pattern, size_t size);
+
+    /**
+     * @brief Release regex bytecode.
+     * @param[in] code      Regex bytecode.
+     */
+    void(*release)(auto_regex_code_t* code);
+
+    /**
+     * @brief Get group count.
+     * @param[in] code      Regex bytecode.
+     * @return              Group count.
+     */
+    size_t (*get_group_count)(const auto_regex_code_t* code);
+
+    /**
+     * @brief Matches a compiled regular expression \p code against a given
+     *   \p subject string.
+     * @param[in] code          Compiled regular expression.
+     * @param[in] subject       The string to match.
+     * @param[in] subject_len   The string length.
+     * @param[out] groups       The groups to capture.
+     * @param[in] group_len     The group size.
+     * @return                  The number of groups captured.
+     */
+    int (*match)(const auto_regex_code_t* code, const char* subject, size_t subject_len,
+        size_t* groups, size_t group_len);
+} auto_api_regex_t;
+
 /**
  * @brief API.
  *
@@ -798,6 +838,7 @@ typedef struct auto_api_s
     const auto_api_coroutine_t* coroutine;
     const auto_api_int64_t*     int64;
     const auto_api_misc_t*      misc;
+    const auto_api_regex_t*     regex;
 } auto_api_t;
 
 #ifdef __cplusplus

@@ -8,6 +8,7 @@
 #include "lua/int64.h"
 #include "lua/json.h"
 #include "lua/process.h"
+#include "lua/regex.h"
 #include "lua/screenshot.h"
 #include "lua/sleep.h"
 #include "lua/uname.h"
@@ -25,6 +26,7 @@
     xx("download",          auto_lua_download)      \
     xx("json",              auto_lua_json)          \
     xx("process",           atd_lua_process)        \
+    xx("regex",             auto_lua_regex)         \
     xx("screenshot",        atd_lua_screenshot)     \
     xx("sleep",             atd_lua_sleep)          \
     xx("uname",             auto_lua_uname)
@@ -46,16 +48,17 @@ void auto_init_libs(lua_State *L)
 
     static struct { const char* name; void* value; } s_api_list[] = {
         { "c_api",              (void*)&api },
-        { "c_api_memory",       (void*)&api_memory, },
-        { "c_api_list",         (void*)&api_list, },
-        { "c_api_map",          (void*)&api_map, },
-        { "c_api_misc",         (void*)&api_misc, },
-        { "c_api_sem",          (void*)&api_sem, },
-        { "c_api_thread",       (void*)&api_thread, },
-        { "c_api_coroutine",    (void*)&api_coroutine, },
-        { "c_api_timer",        (void*)&api_timer, },
-        { "c_api_async",        (void*)&api_async, },
-        { "c_api_int64",        (void*)&api_int64, },
+        { "c_api_memory",       (void*)&api_memory },
+        { "c_api_list",         (void*)&api_list },
+        { "c_api_map",          (void*)&api_map },
+        { "c_api_misc",         (void*)&api_misc },
+        { "c_api_sem",          (void*)&api_sem },
+        { "c_api_thread",       (void*)&api_thread },
+        { "c_api_coroutine",    (void*)&api_coroutine },
+        { "c_api_timer",        (void*)&api_timer },
+        { "c_api_async",        (void*)&api_async },
+        { "c_api_int64",        (void*)&api_int64 },
+        { "c_api_regex",        (void*)&api_regex },
     };
 
     /* Register C API */
@@ -320,4 +323,5 @@ const auto_api_t api = {
     &api_coroutine,
     &api_int64,
     &api_misc,
+    &api_regex,
 };
