@@ -47,9 +47,9 @@ AUTO_LOCAL extern const auto_api_thread_t api_thread;
 AUTO_LOCAL extern const auto_api_timer_t api_timer;
 
 /**
- * @brief Exposed api for async.
+ * @brief Exposed api for notify.
  */
-AUTO_LOCAL extern const auto_api_async_t api_async;
+AUTO_LOCAL extern const auto_api_notify_t api_notify;
 
 /**
  * @brief Exposed API.

@@ -166,8 +166,8 @@ typedef struct atd_map_s
 struct atd_sem_s;
 typedef struct atd_sem_s atd_sem_t;
 
-struct atd_sync_s;
-typedef struct atd_sync_s atd_sync_t;
+struct auto_notify_s;
+typedef struct auto_notify_s auto_notify_t;
 
 struct atd_timer_s;
 typedef struct atd_timer_s atd_timer_t;
@@ -722,10 +722,10 @@ typedef struct auto_api_timer_s
  * @brief Async API.
  *
  * ```lua
- * auto.c_api_async
+ * auto.c_api_notify
  * ```
  */
-typedef struct auto_api_async_s
+typedef struct auto_api_notify_s
 {
     /**
      * @brief Create a new async object.
@@ -735,22 +735,22 @@ typedef struct auto_api_async_s
      * @param[in] arg   User defined data passed to \p fn.
      * @return          Async object.
      */
-    atd_sync_t* (*create)(lua_State* L, atd_async_fn fn, void *arg);
+    auto_notify_t* (*create)(lua_State* L, atd_async_fn fn, void *arg);
 
     /**
      * @brief Destroy this object.
      * @warning MT-UnSafe
      * @param[in] self  This object.
      */
-    void (*destroy)(atd_sync_t* self);
+    void (*destroy)(auto_notify_t* self);
 
     /**
      * @brief Wakeup callback.
      * @note MT-Safe
      * @param[in] self  This object.
      */
-    void (*send)(atd_sync_t* self);
-} auto_api_async_t;
+    void (*send)(auto_notify_t* self);
+} auto_api_notify_t;
 
 /**
  * @brief Int64 API.
@@ -834,7 +834,7 @@ typedef struct auto_api_s
     const auto_api_sem_t*       sem;
     const auto_api_thread_t*    thread;
     const auto_api_timer_t*     timer;
-    const auto_api_async_t*     async;
+    const auto_api_notify_t*    notify;
     const auto_api_coroutine_t* coroutine;
     const auto_api_int64_t*     int64;
     const auto_api_misc_t*      misc;

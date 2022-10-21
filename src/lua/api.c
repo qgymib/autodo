@@ -56,7 +56,7 @@ void auto_init_libs(lua_State *L)
         { "c_api_thread",       (void*)&api_thread },
         { "c_api_coroutine",    (void*)&api_coroutine },
         { "c_api_timer",        (void*)&api_timer },
-        { "c_api_async",        (void*)&api_async },
+        { "c_api_notify",       (void*)&api_notify },
         { "c_api_int64",        (void*)&api_int64 },
         { "c_api_regex",        (void*)&api_regex },
     };
@@ -133,7 +133,7 @@ static atd_thread_t* api_thread_create(atd_thread_fn fn, void* arg)
 * C API: .async
 ******************************************************************************/
 
-struct atd_sync_s
+struct auto_notify_s
 {
     uv_async_t      async;
     atd_runtime_t*  rt;
@@ -143,31 +143,31 @@ struct atd_sync_s
 
 static void _async_on_close(uv_handle_t* handle)
 {
-    atd_sync_t* impl = container_of((uv_async_t*)handle, atd_sync_t, async);
+    auto_notify_t* impl = container_of((uv_async_t*)handle, auto_notify_t, async);
     free(impl);
 }
 
 static void _async_on_active(uv_async_t* handle)
 {
-    atd_sync_t* impl = container_of(handle, atd_sync_t, async);
+    auto_notify_t* impl = container_of(handle, auto_notify_t, async);
     impl->fn(impl->arg);
 }
 
-static void api_async_destroy(atd_sync_t* self)
+static void api_async_destroy(auto_notify_t* self)
 {
     uv_close((uv_handle_t*)&self->async, _async_on_close);
 }
 
-static void api_async_send(atd_sync_t* self)
+static void api_async_send(auto_notify_t* self)
 {
     uv_async_send(&self->async);
 }
 
-static atd_sync_t* api_async_create(lua_State* L, atd_async_fn fn, void* arg)
+static auto_notify_t* api_async_create(lua_State* L, atd_async_fn fn, void* arg)
 {
     atd_runtime_t* rt = auto_get_runtime(L);
 
-    atd_sync_t* impl = malloc(sizeof(atd_sync_t));
+    auto_notify_t* impl = malloc(sizeof(auto_notify_t));
 
     impl->rt = rt;
     impl->fn = fn;
@@ -306,7 +306,7 @@ const auto_api_timer_t api_timer = {
     api_timer_stop,                     /* .timer.stop */
 };
 
-const auto_api_async_t api_async = {
+const auto_api_notify_t api_notify = {
     api_async_create,                   /* .async.create */
     api_async_destroy,                  /* .async.destroy */
     api_async_send,                     /* .async.send */
@@ -319,7 +319,7 @@ const auto_api_t api = {
     &api_sem,
     &api_thread,
     &api_timer,
-    &api_async,
+    &api_notify,
     &api_coroutine,
     &api_int64,
     &api_misc,
