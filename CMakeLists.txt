@@ -16,16 +16,6 @@ function(setup_target_wall name)
     endif ()
 endfunction()
 
-function(setup_required_package_lua name)
-    find_package(Lua REQUIRED)
-    target_include_directories(${name}
-        PRIVATE
-            ${LUA_INCLUDE_DIR})
-    target_link_libraries(${name}
-        PRIVATE
-            ${LUA_LIBRARY})
-endfunction()
-
 function(setup_required_package_x11 name)
     find_package(X11 REQUIRED)
     target_include_directories(${name}
@@ -104,7 +94,8 @@ endif ()
 ###############################################################################
 
 # Lua
-setup_required_package_lua(${PROJECT_NAME})
+include(third_party/lua54.cmake)
+target_link_libraries(${PROJECT_NAME} PRIVATE lua54)
 
 # libuv
 add_subdirectory(third_party/libuv)
