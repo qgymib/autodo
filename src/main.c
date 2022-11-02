@@ -31,7 +31,7 @@ static int _user_thread_on_resume(lua_State *L, int status, lua_KContext ctx)
 
 static int _user_thread(lua_State* L)
 {
-    atd_runtime_t* rt = auto_get_runtime(L);
+    auto_runtime_t* rt = auto_get_runtime(L);
 
     if (luaL_loadbuffer(L, rt->script.data, rt->script.size,
         rt->config.script_name) != LUA_OK)
@@ -43,7 +43,7 @@ static int _user_thread(lua_State* L)
     return 0;
 }
 
-static int _run_script(lua_State* L, atd_runtime_t* rt)
+static int _run_script(lua_State* L, auto_runtime_t* rt)
 {
     auto_coroutine_t* thr = api_coroutine.host(lua_newthread(L));
     lua_pop(L, 1);
@@ -53,7 +53,7 @@ static int _run_script(lua_State* L, atd_runtime_t* rt)
     return auto_schedule(rt, L);
 }
 
-static int _lua_load_script(atd_runtime_t* rt, lua_State* L)
+static int _lua_load_script(auto_runtime_t* rt, lua_State* L)
 {
     const char* filename = get_filename(rt->config.script_file);
 
@@ -117,7 +117,7 @@ static void _inject_require_searcher(lua_State* L)
 
 static int _lua_run(lua_State* L)
 {
-    atd_runtime_t* rt = auto_get_runtime(L);
+    auto_runtime_t* rt = auto_get_runtime(L);
 
     _inject_require_searcher(L);
 

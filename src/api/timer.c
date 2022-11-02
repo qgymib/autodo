@@ -5,7 +5,7 @@
 struct auto_timer_s
 {
     uv_timer_t      timer;
-    atd_runtime_t*  rt;
+    auto_runtime_t* rt;
     auto_timer_fn   fn;
     void*           arg;
 } ;
@@ -42,7 +42,7 @@ static void api_timer_stop(auto_timer_t* self)
 
 static auto_timer_t* api_timer_create(lua_State* L)
 {
-    atd_runtime_t* rt = auto_get_runtime(L);
+    auto_runtime_t* rt = auto_get_runtime(L);
 
     auto_timer_t* impl = malloc(sizeof(auto_timer_t));
     impl->rt = rt;

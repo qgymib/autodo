@@ -1,6 +1,7 @@
 #include <math.h>
 #include <inttypes.h>
 #include "int64.h"
+#include "lua/api.h"
 
 #define INT64_TYPE  "__auto_int64"
 

@@ -45,6 +45,7 @@ set(auto_src_list
     src/api/coroutine.c
     src/api/int64.c
     src/api/list.c
+    src/api/lua.c
     src/api/map.c
     src/api/memory.c
     src/api/misc.c

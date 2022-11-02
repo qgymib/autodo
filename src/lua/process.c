@@ -48,7 +48,7 @@ typedef struct lua_process
 
 struct atd_process_s
 {
-    atd_runtime_t*          rt;                 /**< Runtime */
+    auto_runtime_t*         rt;                 /**< Runtime */
     lua_process_t*          belong;             /**< Lua object handle */
     uv_process_t            process;            /**< Process handle */
 
@@ -641,7 +641,7 @@ static void _process_on_stdout(uv_stream_t* stream, ssize_t nread, const uv_buf_
 
 static atd_process_t* _process_create(lua_State* L, lua_process_t* process)
 {
-    atd_runtime_t* rt = auto_get_runtime(L);
+    auto_runtime_t* rt = auto_get_runtime(L);
 
     atd_process_t* impl = malloc(sizeof(atd_process_t));
     memset(impl, 0, sizeof(*impl));

@@ -9,7 +9,7 @@
  */
 static auto_coroutine_t* _coroutine_host(lua_State* L)
 {
-    atd_runtime_t* rt = auto_get_runtime(L);
+    auto_runtime_t* rt = auto_get_runtime(L);
     atd_coroutine_impl_t* thr = malloc(sizeof(atd_coroutine_impl_t));
 
     memset(thr, 0, sizeof(*thr));
@@ -43,7 +43,7 @@ static auto_coroutine_t* _coroutine_host(lua_State* L)
  */
 static auto_coroutine_t* _coroutine_find(lua_State* L)
 {
-    atd_runtime_t* rt = auto_get_runtime(L);
+    auto_runtime_t* rt = auto_get_runtime(L);
 
     atd_coroutine_impl_t tmp;
     tmp.base.L = L;

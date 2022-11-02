@@ -27,7 +27,7 @@ struct auto_coroutine_hook
     atd_coroutine_impl_t*   impl;
 };
 
-typedef struct atd_runtime
+typedef struct auto_runtime
 {
     lua_State*              L;              /**< Lua VM */
     uv_loop_t               loop;           /**< Event loop */
@@ -57,14 +57,14 @@ typedef struct atd_runtime
     {
         char                errbuf[1024];
     } cache;
-} atd_runtime_t;
+} auto_runtime_t;
 
 struct atd_coroutine_impl
 {
     auto_list_node_t        q_node;         /**< Schedule queue node */
     auto_map_node_t         t_node;         /**< Schedule table node */
 
-    atd_runtime_t*          rt;
+    auto_runtime_t*         rt;
     auto_coroutine_t        base;           /**< Base object */
 
     struct
@@ -92,7 +92,7 @@ struct atd_coroutine_impl
  */
 AUTO_LOCAL int atd_init_runtime(lua_State* L, int argc, char* argv[]);
 
-AUTO_LOCAL atd_runtime_t* auto_get_runtime(lua_State* L);
+AUTO_LOCAL auto_runtime_t* auto_get_runtime(lua_State* L);
 
 /**
  * @brief Run scheduler.
@@ -107,7 +107,7 @@ AUTO_LOCAL atd_runtime_t* auto_get_runtime(lua_State* L);
  * @param[in] L     The thread that host scheduler.
  * @return          Error code.
  */
-AUTO_LOCAL int auto_schedule(atd_runtime_t* rt, lua_State* L);
+AUTO_LOCAL int auto_schedule(auto_runtime_t* rt, lua_State* L);
 
 #ifdef __cplusplus
 }

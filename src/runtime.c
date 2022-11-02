@@ -13,7 +13,7 @@
 static void _print_usage(const char* name)
 {
     const char* s_usage =
-        "%s - A easy to use lua automation tool.\n"
+        "%s - A easy to use lua automation tool with " LUA_VERSION ".\n"
         "Usage: %s [OPTIONS] [SCRIPT]\n"
         "  -h,--help\n"
         "    Show this help and exit.\n"
@@ -22,7 +22,7 @@ static void _print_usage(const char* name)
     exit(EXIT_SUCCESS);
 }
 
-static int _init_parse_args_finalize(atd_runtime_t* rt, const char* name)
+static int _init_parse_args_finalize(auto_runtime_t* rt, const char* name)
 {
     if (rt->config.script_file == NULL && rt->script.data == NULL)
     {
@@ -32,7 +32,7 @@ static int _init_parse_args_finalize(atd_runtime_t* rt, const char* name)
     return 0;
 }
 
-static void _runtime_destroy_thread(atd_runtime_t* rt, lua_State* L, atd_coroutine_impl_t* thr)
+static void _runtime_destroy_thread(auto_runtime_t* rt, lua_State* L, atd_coroutine_impl_t* thr)
 {
     assert(ev_list_size(&thr->hook.queue) == 0);
 
@@ -52,7 +52,7 @@ static void _runtime_destroy_thread(atd_runtime_t* rt, lua_State* L, atd_corouti
     free(thr);
 }
 
-static void _runtime_gc_release_coroutine(atd_runtime_t* rt)
+static void _runtime_gc_release_coroutine(auto_runtime_t* rt)
 {
     auto_list_node_t * it;
     while ((it = ev_list_begin(&rt->schedule.busy_queue)) != NULL)
@@ -67,7 +67,7 @@ static void _runtime_gc_release_coroutine(atd_runtime_t* rt)
     }
 }
 
-static int _init_parse_args(atd_runtime_t* rt, int argc, char* argv[])
+static int _init_parse_args(auto_runtime_t* rt, int argc, char* argv[])
 {
     int i;
     for (i = 1; i < argc; i++)
@@ -117,7 +117,7 @@ static void _thread_trigger_hook(atd_coroutine_impl_t* thr)
     }
 }
 
-static int _runtime_schedule_one_pass(atd_runtime_t* rt, lua_State* L)
+static int _runtime_schedule_one_pass(auto_runtime_t* rt, lua_State* L)
 {
     auto_list_node_t * it = ev_list_begin(&rt->schedule.busy_queue);
     while (it != NULL)
@@ -168,7 +168,7 @@ static int _runtime_schedule_one_pass(atd_runtime_t* rt, lua_State* L)
     return 0;
 }
 
-static void _init_runtime(atd_runtime_t* rt, int argc, char* argv[])
+static void _init_runtime(auto_runtime_t* rt, int argc, char* argv[])
 {
     uv_loop_init(&rt->loop);
     uv_async_init(&rt->loop, &rt->notifier, _on_runtime_notify);
@@ -192,7 +192,7 @@ static void _init_runtime(atd_runtime_t* rt, int argc, char* argv[])
     }
 }
 
-static void _runtime_exit(atd_runtime_t* rt)
+static void _runtime_exit(auto_runtime_t* rt)
 {
     int ret;
 
@@ -237,16 +237,16 @@ static void _runtime_exit(atd_runtime_t* rt)
 
 static int _auto_runtime_gc(lua_State* L)
 {
-    atd_runtime_t* rt = lua_touserdata(L, 1);
+    auto_runtime_t* rt = lua_touserdata(L, 1);
     _runtime_exit(rt);
     return 0;
 }
 
 int atd_init_runtime(lua_State* L, int argc, char* argv[])
 {
-    atd_runtime_t* rt = lua_newuserdata(L, sizeof(atd_runtime_t));
+    auto_runtime_t* rt = lua_newuserdata(L, sizeof(auto_runtime_t));
 
-    memset(rt, 0, sizeof(atd_runtime_t));
+    memset(rt, 0, sizeof(auto_runtime_t));
     rt->L = L;
 
     static const luaL_Reg s_auto_meta[] = {
@@ -266,15 +266,15 @@ int atd_init_runtime(lua_State* L, int argc, char* argv[])
     return 0;
 }
 
-atd_runtime_t* auto_get_runtime(lua_State* L)
+auto_runtime_t* auto_get_runtime(lua_State* L)
 {
     lua_getglobal(L, AUTO_GLOBAL);
-    atd_runtime_t* rt = lua_touserdata(L, -1);
+    auto_runtime_t* rt = lua_touserdata(L, -1);
     lua_pop(L, 1);
     return rt;
 }
 
-int auto_schedule(atd_runtime_t* rt, lua_State* L)
+int auto_schedule(auto_runtime_t* rt, lua_State* L)
 {
     for (;;)
     {

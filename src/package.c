@@ -19,7 +19,7 @@ int atd_package_loader(lua_State* L)
 {
     int ret;
 
-    atd_runtime_t* rt = auto_get_runtime(L);
+    auto_runtime_t* rt = auto_get_runtime(L);
     int sp = lua_gettop(L);
 
     const char* package_name = lua_tostring(L, 1);

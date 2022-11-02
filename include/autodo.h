@@ -63,9 +63,7 @@
 extern "C" {
 #endif
 
-#include <lua.h>
-#include <lauxlib.h>
-#include <lualib.h>
+struct lua_State;
 
 typedef void (*auto_async_fn)(void* arg);
 typedef void (*auto_thread_fn)(void* arg);
@@ -154,35 +152,22 @@ struct auto_coroutine
     /**
      * @brief The registered coroutine.
      */
-    lua_State*  L;
+    struct lua_State*   L;
 
     /**
      * @brief Thread schedule status.
      * Bit-OR of #auto_coroutine_state_t.
      */
-    int         status;
+    int                 status;
 
     /**
      * @brief The number of returned values.
      */
-    int         nresults;
+    int                 nresults;
 };
 
 /**
  * @brief Memory API.
- *
- * ```lua
- * auto.c_api_memory
- * ```
- *
- * or
- *
- * ```c
- * lua_getglobal(L, "auto");
- * lua_getfield(L, -1, "c_api_memory");
- * auto_api_memory_t* api = lua_touserdata(L, -1);
- * lua_pop(L, 2);
- * ```
  */
 typedef struct auto_api_memory_s
 {
@@ -209,10 +194,6 @@ typedef struct auto_api_memory_s
 
 /**
  * @brief List API.
- *
- * ```lua
- * auto.c_api_list
- * ```
  */
 typedef struct auto_api_list_s
 {
@@ -337,10 +318,6 @@ typedef struct auto_api_list_s
 
 /**
  * @brief Map API.
- *
- * ```lua
- * auto.c_api_map
- * ```
  */
 typedef struct auto_api_map_s
 {
@@ -451,10 +428,6 @@ typedef struct auto_api_map_s
 
 /**
  * @brief Misc API.
- *
- * ```lua
- * auto.c_api_misc
- * ```
  */
 typedef struct auto_api_misc_s
 {
@@ -483,10 +456,6 @@ typedef struct auto_api_misc_s
 
 /**
  * @brief Misc API.
- *
- * ```lua
- * auto.c_api_sem
- * ```
  */
 typedef struct auto_api_sem_s
 {
@@ -522,10 +491,6 @@ typedef struct auto_api_sem_s
 
 /**
  * @brief Misc API.
- *
- * ```lua
- * auto.c_api_thread
- * ```
  *
  * @note Due do user script is able to stop at any time, you have to care about
  *   how to exit thread when out of your expect.
@@ -582,10 +547,6 @@ typedef enum auto_coroutine_state_e
 
 /**
  * @brief Coroutine API.
- *
- * ```lua
- * auto.c_api_coroutine
- * ```
  */
 typedef struct auto_api_coroutine_s
 {
@@ -605,7 +566,7 @@ typedef struct auto_api_coroutine_s
      * @param[in] L     The coroutine created by `lua_newthread()`.
      * @return          A mapping object.
      */
-    auto_coroutine_t* (*host)(lua_State *L);
+    auto_coroutine_t* (*host)(struct lua_State *L);
 
     /**
      * @brief Find mapping coroutine object from lua coroutine \p L.
@@ -613,7 +574,7 @@ typedef struct auto_api_coroutine_s
      * @param[in] L     The coroutine created by `lua_newthread()`.
      * @return          The mapping coroutine object, or `NULL` if not found.
      */
-    auto_coroutine_t* (*find)(lua_State* L);
+    auto_coroutine_t* (*find)(struct lua_State* L);
 
     /**
      * @brief Add schedule hook for this coroutine.
@@ -661,10 +622,6 @@ typedef struct auto_api_coroutine_s
 
 /**
  * @brief Timer API.
- *
- * ```lua
- * auto.c_api_timer
- * ```
  */
 typedef struct auto_api_timer_s
 {
@@ -673,7 +630,7 @@ typedef struct auto_api_timer_s
      * @warning MT-UnSafe
      * @return          Timer object.
      */
-    auto_timer_t* (*create)(lua_State* L);
+    auto_timer_t* (*create)(struct lua_State* L);
 
     /**
      * @brief Destroy timer.
@@ -705,10 +662,6 @@ typedef struct auto_api_timer_s
 
 /**
  * @brief Async API.
- *
- * ```lua
- * auto.c_api_notify
- * ```
  */
 typedef struct auto_api_notify_s
 {
@@ -720,7 +673,7 @@ typedef struct auto_api_notify_s
      * @param[in] arg   User defined data passed to \p fn.
      * @return          Async object.
      */
-    auto_notify_t* (*create)(lua_State* L, auto_async_fn fn, void *arg);
+    auto_notify_t* (*create)(struct lua_State* L, auto_async_fn fn, void *arg);
 
     /**
      * @brief Destroy this object.
@@ -739,10 +692,6 @@ typedef struct auto_api_notify_s
 
 /**
  * @brief Int64 API.
- *
- * ```lua
- * auto.c_api_int64
- * ```
  */
 typedef struct auto_api_int64_s
 {
@@ -752,7 +701,7 @@ typedef struct auto_api_int64_s
      * @param[in] value     Integer value.
      * @return              Always 1.
      */
-    int (*push_value)(lua_State *L, int64_t value);
+    int (*push_value)(struct lua_State *L, int64_t value);
 
     /**
      * @brief Get int64_t integer
@@ -761,7 +710,7 @@ typedef struct auto_api_int64_s
      * @param[out] value    Integer value.
      * @return              bool.
      */
-    int (*get_value)(lua_State *L, int idx, int64_t* value);
+    int (*get_value)(struct lua_State *L, int idx, int64_t* value);
 } auto_api_int64_t;
 
 struct auto_regex_code_s;
@@ -804,15 +753,676 @@ typedef struct auto_api_regex_s
         size_t* groups, size_t group_len);
 } auto_api_regex_t;
 
+#define AUTO_LUA_OPEQ           0
+#define AUTO_LUA_OPLT           1
+#define AUTO_LUA_OPLE           2
+
+#define AUTO_LUA_TNONE          (-1)
+#define AUTO_LUA_TNIL           0
+#define AUTO_LUA_TBOOLEAN       1
+#define AUTO_LUA_TLIGHTUSERDATA 2
+#define AUTO_LUA_TNUMBER        3
+#define AUTO_LUA_TSTRING        4
+#define AUTO_LUA_TTABLE         5
+#define AUTO_LUA_TFUNCTION      6
+#define AUTO_LUA_TUSERDATA      7
+#define AUTO_LUA_TTHREAD        8
+
+#define AUTO_LUA_NOREF          (-2)
+#define AUTO_LUA_REFNIL         (-1)
+
+#define AUTO_LUA_REGISTRYINDEX  (-1001000)
+
+/**
+ * @brief Type for continuation functions.
+ */
+typedef int (*auto_lua_KFunction) (struct lua_State* L, int status, void* ctx);
+
+/**
+ * @brief Type for C functions.
+ */
+typedef int (*auto_lua_CFunction) (struct lua_State* L);
+
+typedef struct auto_luaL_Reg {
+    const char*         name;
+    auto_lua_CFunction  func;
+} auto_luaL_Reg;
+
+typedef struct auto_api_lua_s
+{
+    /**
+     * @brief Calls a function.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_callk
+     * @param[in] L     Lua VM.
+     * @param[in] nargs The number of arguments.
+     * @param[in] nrets The number of results.
+     * @param[in] ctx   Context passed to \p k.
+     * @param[in] k     Continuation function.
+     */
+    void (*callk)(struct lua_State* L, int nargs, int nrets, void* ctx, auto_lua_KFunction k);
+
+    /**
+     * @brief Compares two Lua values.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_compare
+     * @param[in] L     Lua VM.
+     * @param[in] idx1  Value index 1.
+     * @param[in] idx2  Value index 2.
+     * @param[in] op    #AUTO_LUA_OPEQ, #AUTO_LUA_OPLT or #AUTO_LUA_OPLE.
+     * @return
+     */
+    int (*compare)(struct lua_State* L, int idx1, int idx2, int op);
+
+    /**
+     * @brief Concatenates the \p n values at the top of the stack, pops them,
+     *   and leaves the result on the top.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_concat
+     * @param[in] L     Lua VM.
+     * @param[in] n     The number of values.
+     */
+    void (*concat)(struct lua_State* L, int n);
+
+    /**
+     * @brief Pushes onto the stack the value t[k]
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_getfield
+     * @param[in] L     Lua VM.
+     * @param[in] idx   The table at the given index
+     * @param[in] k     The key value.
+     * @return          The type of the pushed value.
+     */
+    int (*getfield)(struct lua_State* L, int idx, const char* k);
+
+    /**
+     * @brief Pushes onto the stack the value of the global \p name.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_getglobal
+     * @param[in] L     Lua VM.
+     * @param[in] name  Global variable name.
+     * @return          Returns the type of that value.
+     */
+    int (*getglobal)(struct lua_State* L, const char* name);
+
+    /**
+     * @brief Pushes onto the stack the value t[i].
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_geti
+     * @param[in] L     Lua VM.
+     * @param[in] idx   The value at the given index.
+     * @param[in] i     The key value.
+     * @return          The type of the pushed value.
+     */
+    int (*geti)(struct lua_State* L, int idx, int64_t i);
+
+    /**
+     * @brief Pushes onto the stack the n-th user value associated with the
+     *   full userdata at the given index and returns the type of the pushed
+     *   value.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_getiuservalue
+     * @param[in] L     Lua VM.
+     * @param[in] idx   Full userdata index.
+     * @param[in] n     n-th user value
+     * @return          The type of the pushed value.
+     */
+    int (*getiuservalue)(struct lua_State* L, int idx, int n);
+
+    /**
+     * @brief Pushes onto the stack the value t[k], where t is the value at the
+     *   given index and k is the value on the top of the stack.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_gettable
+     * @param[in] L     Lua VM.
+     * @param[in] idx   The table index.
+     * @return          The type of the pushed value.
+     */
+    int (*gettable)(struct lua_State* L, int idx);
+
+    /**
+     * @brief Returns the index of the top element in the stack.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_gettop
+     * @param[in] L     Lua VM.
+     * @return          The index of the top element in the stack.
+     */
+    int (*gettop)(struct lua_State* L);
+
+    /**
+     * @brief Moves the top element into the given valid \p index, shifting up
+     *   the elements above this \p index to open space.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_insert
+     * @param[in] L     Lua VM.
+     * @param[in] idx   Stack index.
+     */
+    void (*insert)(struct lua_State* L, int idx);
+
+    /**
+     * @brief Returns 1 if the given coroutine can yield, and 0 otherwise.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_isyieldable
+     * @param[in] L     Lua thread.
+     * @return          Boolean.
+     */
+    int (*isyieldable)(struct lua_State* L);
+
+    /**
+     * @brief Creates a new empty table and pushes it onto the stack.
+     * @see http://www.lua.org/manual/5.4/manual.html#lua_newtable
+     * @param[in] L     Lua VM.
+     */
+    void (*newtable)(struct lua_State* L);
+
+    /**
+     * @brief Creates a new thread, pushes it on the stack.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_newthread
+     * @param[in] L     Lua thread.
+     * @return          New lua thread.
+     */
+    struct lua_State* (*newthread)(struct lua_State* L);
+
+    /**
+     * @brief This function creates and pushes on the stack a new full
+     *   userdata, with \p nuv associated Lua values, called user values,
+     *   plus an associated block of raw memory with \p sz bytes.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_newuserdatauv
+     * @param[in] L     Lua VM.
+     * @param[in] sz    Memory block bytes.
+     * @param[in] nuv   Number of user values.
+     * @return          The address of the block of memory.
+     */
+    void* (*newuserdatauv)(struct lua_State* L, size_t sz, int nuv);
+
+    /**
+     * @brief Pops a key from the stack, and pushes a key–value pair from the
+     *   table at the given index, the "next" pair after the given key.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_next
+     * @param[in] L     Lua VM.
+     * @param[in] idx   The table index.
+     * @return          Boolean.
+     */
+    int (*next)(struct lua_State* L, int idx);
+
+    /**
+     * @brief Pops \p n elements from the stack.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_pop
+     * @param[in] L     Lua VM.
+     * @param[in] n     The number of values.
+     */
+    void (*pop)(struct lua_State* L, int n);
+
+    /**
+     * @brief Pushes a boolean value with value \p b onto the stack.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_pushboolean
+     * @param[in] L     Lua VM.
+     * @param[in] b     Boolean value.
+     */
+    void (*pushboolean)(struct lua_State* L, int b);
+
+    /**
+     * @brief Pushes a new C closure onto the stack.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_pushcclosure
+     * @param[in] L     Lua VM.
+     * @param[in] fn    Function address.
+     * @param[in] n     How many upvalues this function will have.
+     */
+    void (*pushcclosure)(struct lua_State *L, auto_lua_CFunction fn, int n);
+
+    /**
+     * @brief Pushes a C function onto the stack.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_pushcfunction
+     * @param[in] L     Lua VM.
+     * @param[in] f     Function address.
+     */
+    void (*pushcfunction)(struct lua_State* L, auto_lua_CFunction f);
+
+    /**
+     * @brief Pushes onto the stack a formatted string and returns a pointer to
+     *   this string.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_pushfstring
+     * @param[in] L     Lua VM.
+     * @param[in] fmt   Format string.
+     * @param[in] ...   Format arguments.
+     * @return          A pointer of this string.
+     */
+    const char* (*pushfstring)(struct lua_State* L, const char *fmt, ...);
+
+    /**
+     * @brief Pushes an integer with value \p n onto the stack.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_pushinteger
+     * @param[in] L     Lua VM.
+     * @param[in] n     Integer value.
+     */
+    void (*pushinteger)(struct lua_State* L, int64_t n);
+
+    /**
+     * @brief Pushes a light userdata onto the stack.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_pushlightuserdata
+     * @param[in] L     Lua VM.
+     * @param[in] p     Pointer value.
+     */
+    void (*pushlightuserdata)(struct lua_State* L, void* p);
+
+    /**
+     * @brief Pushes the string pointed to by \p s with size \p len onto the
+     *   stack.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_pushlstring
+     * @param[in] L     Lua VM.
+     * @param[in] s     String.
+     * @param[in] len   String length in bytes.
+     * @return          A pointer to the internal copy of the string.
+     */
+    const char* (*pushlstring)(struct lua_State* L, const char* s, size_t len);
+
+    /**
+     * @brief Pushes a nil value onto the stack.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_pushnil
+     * @param[in] L     Lua VM.
+     */
+    void (*pushnil)(struct lua_State* L);
+
+    /**
+     * @brief Pushes a float with value n onto the stack.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_pushnumber
+     * @param[in] L     Lua VM.
+     * @param[in] n     Float value.
+     */
+    void (*pushnumber)(struct lua_State* L, double n);
+
+    /**
+     * @brief Pushes the zero-terminated string pointed to by \p s onto the
+     *   stack.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_pushstring
+     * @param[in] L     Lua VM.
+     * @param[in] s     String.
+     * @return          A pointer to the internal copy of the string.
+     */
+    const char* (*pushstring)(struct lua_State* L, const char* s);
+
+    /**
+     * @brief Pushes a copy of the element at the given index onto the stack.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_pushvalue
+     * @param[in] L     Lua VM.
+     * @param[in] idx   Value index.
+     */
+    void (*pushvalue)(struct lua_State* L, int idx);
+
+    /**
+     * @brief Pushes onto the stack a formatted string and returns a pointer to
+     *   this string.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_pushvfstring
+     * @param[in] L     Lua VM.
+     * @param[in] fmt   String format.
+     * @param[in] argp  String arguments.
+     * @return          A pointer to this string.
+     */
+    const char* (*pushvfstring)(struct lua_State* L, const char *fmt, va_list argp);
+
+    /**
+     * @brief Pushes onto the stack the value t[n].
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_rawgeti
+     * @param[in] L     Lua VM.
+     * @param idx
+     * @param n
+     * @return
+     */
+    int (*rawgeti)(struct lua_State* L, int idx, int64_t n);
+
+    /**
+     * @brief Removes the element at the given valid index, shifting down the
+     *   elements above this index to fill the gap.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_remove
+     * @param[in] L     Lua VM.
+     * @param[in] idx   Value index.
+     */
+    void (*remove)(struct lua_State* L, int idx);
+
+    /**
+     * @brief Moves the top element into the given valid index without shifting
+     *   any element,and then pops the top element.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_replace
+     * @param[in] L     Lua VM.
+     * @param[in] idx   Value index.
+     */
+    void (*replace)(struct lua_State* L, int idx);
+
+    /**
+     * @brief Rotates the stack elements between the valid index \p idx and the
+     *   top of the stack.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_rotate
+     * @param[in] L     Lua VM.
+     * @param[in] idx   Valid stack index.
+     * @param[in] n     Positions in the direction of the top.
+     */
+    void (*rotate)(struct lua_State* L, int idx, int n);
+
+    /**
+     * @brief Does the equivalent to t[k] = v.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_setfield
+     * @param[in] L     Lua VM.
+     * @param[in] idx   Table index.
+     * @param[in] k     Key value.
+     */
+    void (*setfield)(struct lua_State* L, int idx, const char* k);
+
+    /**
+     * @brief Pops a value from the stack and sets it as the new value of
+     *   global \p name.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_setglobal
+     * @param[in] L     Lua VM.
+     * @param[in] name  Global name.
+     */
+    void (*setglobal)(struct lua_State* L, const char* name);
+
+    /**
+     * @brief Does the equivalent to t[n] = v.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_seti
+     * @param[in] L     Lua VM.
+     * @param[in] idx   Table index.
+     * @param[in] n     Key value.
+     */
+    void (*seti)(struct lua_State* L, int idx, int64_t n);
+
+    /**
+     * @brief Pops a value from the stack and sets it as the new n-th user
+     *   value associated to the full userdata at the given index.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_setiuservalue
+     * @param[in] L     Lua VM.
+     * @param[in] idx   User data index.
+     * @param[in] n     n-th user value.
+     * @return          0 if the userdata does not have that value.
+     */
+    int (*setiuservalue)(struct lua_State* L, int idx, int n);
+
+    /**
+     * @brief Pops a table or nil from the stack and sets that value as the new
+     *   metatable for the value at the given index.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_setmetatable
+     * @param[in] L     Lua VM.
+     * @param[in] idx   Stack index.
+     * @return          Always 1
+     */
+    int (*setmetatable)(struct lua_State* L, int idx);
+
+    /**
+     * @brief Does the equivalent to t[k] = v.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_settable
+     * @param[in] L     Lua VM.
+     * @param[in] idx   Table index.
+     */
+    void (*settable)(struct lua_State* L, int idx);
+
+    /**
+     * @brief Accepts any index, or 0, and sets the stack top to this index.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_settop
+     * @param[in] L     Lua VM.
+     * @param[in] idx   Stack index.
+     */
+    void (*settop)(struct lua_State* L, int idx);
+
+    /**
+     * @brief Converts the Lua value at the given index to a C boolean value.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_toboolean
+     * @param[in] L     Lua VM.
+     * @param[in] idx   Value index.
+     * @return          Boolean.
+     */
+    int (*toboolean)(struct lua_State* L, int idx);
+
+    /**
+     * @brief Converts a value at the given index to a C function.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_tocfunction
+     * @param[in] L     Lua VM.
+     * @param[in] idx   Value index.
+     * @return          C function address.
+     */
+    auto_lua_CFunction (*tocfunction)(struct lua_State* L, int idx);
+
+    /**
+     * @brief Converts the Lua value at the given index to the signed integer.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_tointeger
+     * @param[in] L     Lua VM.
+     * @param[in] idx   Value index.
+     * @return          Signed integer.
+     */
+    int64_t (*tointeger)(struct lua_State* L, int idx);
+
+    /**
+     * @brief Converts the Lua value at the given index to a C string.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_tolstring
+     * @param[in] L     Lua VM.
+     * @param[in] idx   Value index.
+     * @param[out] len  String length in bytes.
+     * @return          C string pointer.
+     */
+    const char* (*tolstring)(struct lua_State* L, int idx, size_t *len);
+
+    /**
+     * @brief Converts the Lua value at the given index to the float number.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_tonumber
+     * @param[in] L     Lua VM.
+     * @param[in] idx   Value index.
+     * @return          Float number.
+     */
+    double (*tonumber)(struct lua_State* L, int idx);
+
+    /**
+     * @brief Converts the Lua value at the given index to a C string.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_tostring
+     * @param[in] L     Lua VM.
+     * @param[in] idx   Value index.
+     * @return          C string.
+     */
+    const char* (*tostring)(struct lua_State* L, int idx);
+
+    /**
+     * @brief Converts the Lua value at the given index to a userdata address.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_touserdata
+     * @param[in] L     Lua VM.
+     * @param[in] idx   Value index.
+     * @return          If the value at the given index is a full userdata,
+     *   returns its memory-block address. If the value is a light userdata,
+     *   returns its value (a pointer). Otherwise, returns NULL.
+     */
+    void* (*touserdata)(struct lua_State* L, int idx);
+
+    /**
+     * @brief Returns the type of the value in the given valid index, or
+     *   #AUTO_LUA_TNONE for a non-valid but acceptable index.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_type
+     * @param[in] L     Lua VM.
+     * @param[in] idx   Value index.
+     * @return          One of #AUTO_LUA_TNONE, #AUTO_LUA_TNIL,
+     *   #AUTO_LUA_TBOOLEAN, #AUTO_LUA_TLIGHTUSERDATA, #AUTO_LUA_TNUMBER,
+     *   #AUTO_LUA_TSTRING, #AUTO_LUA_TTABLE, #AUTO_LUA_TFUNCTION,
+     *   #AUTO_LUA_TUSERDATA, #AUTO_LUA_TTHREAD.
+     */
+    int (*type)(struct lua_State* L, int idx);
+
+    /**
+     * @brief Yields a coroutine.
+     * @see https://www.lua.org/manual/5.4/manual.html#lua_yieldk
+     * @param[in] L     Lua VM.
+     * @param[in] nrets The number of results.
+     * @param[in] ctx   Context passed to \p k.
+     * @param[in] k     Continuation function.
+     * @return          This function does not return.
+     */
+    int (*yieldk)(struct lua_State *L, int nrets, void* ctx, auto_lua_KFunction k);
+
+    /**
+     * @brief Calls a function.
+     *
+     * Usage:
+     * ```c
+     * return a_callk(L, nargs, nrets, ctx, k);
+     * ```
+     *
+     * It is equal to:
+     * ```c
+     * lua_callk(L, nargs, nrets, ctx, k);
+     * return k(L, LUA_OK, ctx);
+     * ```
+     *
+     * @param[in] L     Lua VM.
+     * @param[in] nargs The number of arguments.
+     * @param[in] nrets The number of results.
+     * @param[in] ctx   Context passed to \p k.
+     * @param[in] k     Continuation function.
+     * @return          The same as \p k. This function might not return, and
+     *   should be the last call in function.
+     */
+    int (*A_callk)(struct lua_State* L, int nargs, int nrets, void* ctx, auto_lua_KFunction k);
+
+    /**
+     * @brief Checks whether the function argument arg is an integer (or can be
+     *   converted to an integer) and returns this integer.
+     * @see https://www.lua.org/manual/5.4/manual.html#luaL_checkinteger
+     * @param[in] L     Lua VM.
+     * @param[in] arg   Argument index.
+     * @return          Integer.
+     */
+    int64_t (*L_checkinteger)(struct lua_State* L, int arg);
+
+    /**
+     * @brief Checks whether the function argument \p arg is a string and
+     *   returns this string.
+     * @see https://www.lua.org/manual/5.4/manual.html#luaL_checklstring
+     * @param[in] L     Lua VM.
+     * @param[in] arg   Argument index.
+     * @param[out] l    String length in bytes.
+     * @return          String pointer.
+     */
+    const char* (*L_checklstring)(struct lua_State* L, int arg, size_t *l);
+
+    /**
+     * @brief Checks whether the function argument arg is a number and returns
+     *   this number.
+     * @see https://www.lua.org/manual/5.4/manual.html#luaL_checknumber
+     * @param[in] L     Lua VM.
+     * @param[in] arg   Argument index.
+     * @return          Number
+     */
+    double (*L_checknumber)(struct lua_State* L, int arg);
+
+    /**
+     * @brief Checks whether the function argument \p arg is a string and
+     *   returns this string.
+     * @see https://www.lua.org/manual/5.4/manual.html#luaL_checkstring
+     * @param[in] L     Lua VM.
+     * @param[in] arg   Argument index.
+     * @return          String.
+     */
+    const char* (*L_checkstring)(struct lua_State* L, int arg);
+
+    /**
+     * @brief Checks whether the function argument \p arg has type \p t.
+     * @see https://www.lua.org/manual/5.4/manual.html#luaL_checktype
+     * @see #auto_api_lua_t::type()
+     * @param[in] L     Lua VM.
+     * @param[in] arg   Argument index.
+     * @param[in] t     Type.
+     */
+    void (*L_checktype)(struct lua_State* L, int arg, int t);
+
+    /**
+     * @brief Checks whether the function argument \p arg is a userdata of the
+     *   type \p tname.
+     * @see https://www.lua.org/manual/5.4/manual.html#luaL_checkudata
+     * @param[in] L     Lua VM.
+     * @param[in] arg   Argument index.
+     * @param[in] tname Type name.
+     */
+    void (*L_checkudata)(struct lua_State* L, int arg, const char *tname);
+
+    /**
+     * @brief Raises an error.
+     * @see https://www.lua.org/manual/5.4/manual.html#luaL_error
+     * @param[in] L     Lua VM.
+     * @param[in] fmt   String format.
+     * @param[in] ...   Format arguments.
+     * @return          This function never returns.
+     */
+    int (*L_error)(struct lua_State* L, const char *fmt, ...);
+
+    /**
+     * @brief Creates a copy of string \p s, replacing any occurrence of the
+     *   string \p p with the string \p r. Pushes the resulting string on the
+     *   stack.
+     * @see https://www.lua.org/manual/5.4/manual.html#luaL_gsub
+     * @param[in] L     Lua VM.
+     * @param[in] s     Original string.
+     * @param[in] p     String to be replaced.
+     * @param[in] r     The replace string.
+     * @return          A string pointer of result.
+     */
+    const char* (*L_gsub)(struct lua_State* L, const char *s, const char *p, const char *r);
+
+    /**
+     * @brief Returns the "length" of the value at the given index as a number.
+     * @see https://www.lua.org/manual/5.4/manual.html#luaL_len
+     * @param[in] L     Lua VM.
+     * @param[in] idx   Stack index.
+     * @return          Length.
+     */
+    int64_t (*L_len)(struct lua_State* L, int idx);
+
+    /**
+     * @brief Creates a new table and registers there the functions in the
+     *   list \p l.
+     * @see https://www.lua.org/manual/5.4/manual.html#luaL_newlib
+     * @param[in] L     Lua VM.
+     * @param[in] l     Function list.
+     */
+    void (*L_newlib)(struct lua_State* L, const auto_luaL_Reg l[]);
+
+    /**
+     * @brief If the registry already has the key \p tname, returns 0.
+     *   Otherwise, creates a new table to be used as a metatable for userdata,
+     *   adds to this new table the pair __name = \p tname, adds to the
+     *   registry the pair [tname] = new table, and returns 1.
+     * @see https://www.lua.org/manual/5.4/manual.html#luaL_newmetatable
+     * @param[in] L     Lua VM.
+     * @param[in] tname Type name.
+     * @return          Boolean.
+     */
+    int (*L_newmetatable)(struct lua_State* L, const char* tname);
+
+    /**
+     * @brief Creates and returns a reference.
+     * @see https://www.lua.org/manual/5.4/manual.html#luaL_ref
+     * @param[in] L     Lua VM.
+     * @param[in] t     Table index. Use #AUTO_LUA_REGISTRYINDEX for pseudo-index.
+     * @return          Reference.
+     */
+    int (*L_ref)(struct lua_State* L, int t);
+
+    /**
+     * @brief Registers all functions in the array \p l into the table on the
+     *   top of the stack.
+     * @see https://www.lua.org/manual/5.4/manual.html#luaL_setfuncs
+     * @param[in] L     Lua VM.
+     * @param[in] l     Function array.
+     * @param[in] nup   Number of upvalues.
+     */
+    void (*L_setfuncs)(struct lua_State* L, const auto_luaL_Reg* l, int nup);
+
+    /**
+     * @brief Returns the name of the type encoded by the value \p tp.
+     * @see https://www.lua.org/manual/5.4/manual.html#luaL_typename
+     * @param[in] L     Lua VM.
+     * @param[in] tp    Return value from #auto_api_lua_t::type().
+     * @return          Name string.
+     */
+    const char* (*L_typename)(struct lua_State* L, int tp);
+
+    /**
+     * @brief Releases the reference \p ref from the table at index \p t.
+     * @see https://www.lua.org/manual/5.4/manual.html#luaL_unref
+     * @param[in] L     Lua VM.
+     * @param[in] t     Table index.
+     * @param[in] ref   Reference.
+     */
+    void (*L_unref)(struct lua_State* L, int t, int ref);
+} auto_api_lua_t;
+
 /**
  * @brief API.
- *
- * ```lua
- * auto.c_api
- * ```
  */
 typedef struct auto_api_s
 {
+    const auto_api_lua_t*       lua;
     const auto_api_memory_t*    memory;
     const auto_api_list_t*      list;
     const auto_api_map_t*       map;
@@ -825,6 +1435,12 @@ typedef struct auto_api_s
     const auto_api_misc_t*      misc;
     const auto_api_regex_t*     regex;
 } auto_api_t;
+
+/**
+ * @brief Get Exposed API.
+ * @return  Exposed API.
+ */
+AUTO_PUBLIC const auto_api_t* auto_api(void);
 
 #ifdef __cplusplus
 }

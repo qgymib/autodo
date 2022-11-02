@@ -5,8 +5,8 @@
 struct auto_notify_s
 {
     uv_async_t      async;
-    atd_runtime_t*  rt;
-    auto_async_fn    fn;
+    auto_runtime_t* rt;
+    auto_async_fn   fn;
     void*           arg;
 };
 
@@ -34,7 +34,7 @@ static void api_async_send(auto_notify_t* self)
 
 static auto_notify_t* api_async_create(lua_State* L, auto_async_fn fn, void* arg)
 {
-    atd_runtime_t* rt = auto_get_runtime(L);
+    auto_runtime_t* rt = auto_get_runtime(L);
 
     auto_notify_t* impl = malloc(sizeof(auto_notify_t));
 
