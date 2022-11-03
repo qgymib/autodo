@@ -119,11 +119,11 @@ static void _thread_trigger_hook(atd_coroutine_impl_t* thr)
 
 static int _runtime_schedule_one_pass(auto_runtime_t* rt, lua_State* L)
 {
-    auto_list_node_t * it = ev_list_begin(&rt->schedule.busy_queue);
-    while (it != NULL)
+    rt->schedule.busy_iter = ev_list_begin(&rt->schedule.busy_queue);
+    while (rt->schedule.busy_iter != NULL)
     {
-        atd_coroutine_impl_t* thr = container_of(it, atd_coroutine_impl_t, q_node);
-        it = ev_list_next(it);
+        atd_coroutine_impl_t* thr = container_of(rt->schedule.busy_iter, atd_coroutine_impl_t, q_node);
+        rt->schedule.busy_iter = ev_list_next(rt->schedule.busy_iter);
 
         /* Destroy coroutine */
         if (thr->base.status & AUTO_COROUTINE_DEAD)

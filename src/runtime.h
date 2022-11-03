@@ -48,9 +48,10 @@ typedef struct auto_runtime
 
     struct
     {
-        auto_map_t           all_table;      /**< All registered coroutine */
-        auto_list_t          busy_queue;     /**< Coroutine that ready to schedule */
-        auto_list_t          wait_queue;     /**< Coroutine that wait for some events */
+        auto_map_t          all_table;      /**< All registered coroutine */
+        auto_list_t         busy_queue;     /**< Coroutine that ready to schedule */
+        auto_list_t         wait_queue;     /**< Coroutine that wait for some events */
+        auto_list_node_t*   busy_iter;      /**< Iterator for busy_queue */
     } schedule;
 
     struct

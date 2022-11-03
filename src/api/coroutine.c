@@ -113,6 +113,7 @@ static void _coroutine_unhook(struct auto_coroutine* self, auto_coroutine_hook_t
 static void _coroutine_set_state(struct auto_coroutine* self, int state)
 {
     atd_coroutine_impl_t* impl = container_of(self, atd_coroutine_impl_t, base);
+    auto_runtime_t* rt = impl->rt;
 
     /* Backup and update state. */
     int old_state = impl->base.status;
@@ -121,16 +122,25 @@ static void _coroutine_set_state(struct auto_coroutine* self, int state)
     /* move from wait_queue to busy_queue */
     if (!old_state && state)
     {
-        ev_list_erase(&impl->rt->schedule.wait_queue, &impl->q_node);
-        ev_list_push_back(&impl->rt->schedule.busy_queue, &impl->q_node);
+        ev_list_erase(&rt->schedule.wait_queue, &impl->q_node);
+        ev_list_push_back(&rt->schedule.busy_queue, &impl->q_node);
         return;
     }
 
     /* move from busy_queue to wait_queue */
     if (old_state && !state)
     {
-        ev_list_erase(&impl->rt->schedule.busy_queue, &impl->q_node);
-        ev_list_push_back(&impl->rt->schedule.wait_queue, &impl->q_node);
+        /*
+         * We have to pay attention to scheduler.
+         * If iterator point to this coroutine, the iterator must be fixed.
+         */
+        if (rt->schedule.busy_iter == &impl->q_node)
+        {
+            rt->schedule.busy_iter = ev_list_next(rt->schedule.busy_iter);
+        }
+
+        ev_list_erase(&rt->schedule.busy_queue, &impl->q_node);
+        ev_list_push_back(&rt->schedule.wait_queue, &impl->q_node);
         return;
     }
 }
