@@ -1,4 +1,5 @@
 #include "api.h"
+#include "api/async.h"
 #include "api/coroutine.h"
 #include "api/list.h"
 #include "api/lua.h"
@@ -23,6 +24,7 @@ const auto_api_t api = {
     &api_coroutine,
     &api_misc,
     &api_regex,
+    &api_async,
 };
 
 const auto_api_t* auto_api(void)

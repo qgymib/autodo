@@ -42,6 +42,7 @@ endfunction()
 
 set(auto_src_list
     src/api/api.c
+    src/api/async.c
     src/api/coroutine.c
     src/api/list.c
     src/api/lua.c

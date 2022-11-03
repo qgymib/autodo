@@ -65,7 +65,7 @@ extern "C" {
 
 struct lua_State;
 
-typedef void (*auto_async_fn)(void* arg);
+typedef void (*auto_notify_fn)(void* arg);
 typedef void (*auto_thread_fn)(void* arg);
 typedef void (*auto_timer_fn)(void* arg);
 
@@ -673,7 +673,7 @@ typedef struct auto_api_notify_s
      * @param[in] arg   User defined data passed to \p fn.
      * @return          Async object.
      */
-    auto_notify_t* (*create)(struct lua_State* L, auto_async_fn fn, void *arg);
+    auto_notify_t* (*create)(struct lua_State* L, auto_notify_fn fn, void *arg);
 
     /**
      * @brief Destroy this object.
@@ -1394,6 +1394,42 @@ typedef struct auto_api_lua_s
     void (*L_unref)(struct lua_State* L, int t, int ref);
 } auto_api_lua_t;
 
+struct auto_async_s;
+typedef struct auto_async_s auto_async_t;
+
+typedef void (*auto_async_cb)(struct lua_State* L, void* arg);
+
+typedef struct auto_api_async_s
+{
+    /**
+     * @brief Create async handle.
+     * @param[in] L     The lua thread that code running on.
+     * @return          Async handle.
+     */
+    auto_async_t* (*create)(struct lua_State* L);
+
+    /**
+     * @brief Destroy async handle.
+     * @param[in] self  Async handle.
+     */
+    void (*destroy)(auto_async_t* self);
+
+    /**
+     * @brief Call \p cb in lua thread.
+     * @param[in] self  Async handle.
+     * @param[in] cb    Callback.
+     * @param[in] arg   User defined argument pass to \p cb.
+     * @return          Boolean.
+     */
+    int (*call_in_lua)(auto_async_t* self, auto_async_cb cb, void* arg);
+
+    /**
+     * @brief Cancel all pending task.
+     * @param[in] self  Async handle.
+     */
+    void (*cancel_all)(auto_async_t* self);
+} auto_api_async_t;
+
 /**
  * @brief API.
  */
@@ -1410,6 +1446,7 @@ typedef struct auto_api_s
     const auto_api_coroutine_t* coroutine;
     const auto_api_misc_t*      misc;
     const auto_api_regex_t*     regex;
+    const auto_api_async_t*     async;
 } auto_api_t;
 
 /**
