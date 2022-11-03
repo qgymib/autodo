@@ -1,6 +1,5 @@
 #include "api.h"
 #include "api/coroutine.h"
-#include "api/int64.h"
 #include "api/list.h"
 #include "api/lua.h"
 #include "api/map.h"
@@ -22,7 +21,6 @@ const auto_api_t api = {
     &api_timer,
     &api_notify,
     &api_coroutine,
-    &api_int64,
     &api_misc,
     &api_regex,
 };

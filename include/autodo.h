@@ -690,29 +690,6 @@ typedef struct auto_api_notify_s
     void (*send)(auto_notify_t* self);
 } auto_api_notify_t;
 
-/**
- * @brief Int64 API.
- */
-typedef struct auto_api_int64_s
-{
-    /**
-     * @brief Push a signed int64_t integer onto top of stack.
-     * @param[in] L         Lua VM.
-     * @param[in] value     Integer value.
-     * @return              Always 1.
-     */
-    int (*push_value)(struct lua_State *L, int64_t value);
-
-    /**
-     * @brief Get int64_t integer
-     * @param[in] L         Lua VM.
-     * @param[in] idx       Stack index.
-     * @param[out] value    Integer value.
-     * @return              bool.
-     */
-    int (*get_value)(struct lua_State *L, int idx, int64_t* value);
-} auto_api_int64_t;
-
 struct auto_regex_code_s;
 typedef struct auto_regex_code_s auto_regex_code_t;
 
@@ -1431,7 +1408,6 @@ typedef struct auto_api_s
     const auto_api_timer_t*     timer;
     const auto_api_notify_t*    notify;
     const auto_api_coroutine_t* coroutine;
-    const auto_api_int64_t*     int64;
     const auto_api_misc_t*      misc;
     const auto_api_regex_t*     regex;
 } auto_api_t;

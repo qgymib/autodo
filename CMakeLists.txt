@@ -43,7 +43,6 @@ endfunction()
 set(auto_src_list
     src/api/api.c
     src/api/coroutine.c
-    src/api/int64.c
     src/api/list.c
     src/api/lua.c
     src/api/map.c
@@ -57,7 +56,6 @@ set(auto_src_list
     src/lua/api.c
     src/lua/coroutine.c
     src/lua/download.c
-    src/lua/int64.c
     src/lua/json.c
     src/lua/process.c
     src/lua/regex.c
