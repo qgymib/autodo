@@ -12,6 +12,8 @@ typedef struct lua_coroutine
     auto_list_t              wait_queue; /**< Coroutine wait queue */
 
     int                     flag_have_result;
+    int                     flag_closed;
+
     int                     sch_status;
     lua_State*              storage;
     int                     ref_storage;
@@ -49,7 +51,7 @@ static void _on_coroutine_state_change(auto_coroutine_t* coroutine, void* arg)
     lua_coroutine_t* self = arg;
 
     /* If the coroutine is not finished, do nothing. */
-    if (!AUTO_THREAD_IS_DEAD(coroutine))
+    if (!(coroutine->status & AUTO_COROUTINE_DEAD))
     {
         return;
     }
@@ -63,14 +65,14 @@ static void _on_coroutine_state_change(auto_coroutine_t* coroutine, void* arg)
     for (; it != NULL; it = api_list.next(it))
     {
         lua_wait_record_t* record = container_of(it, lua_wait_record_t, node);
-        api_coroutine.set_state(record->data.wait_coroutine, LUA_TNONE);
+        api_coroutine.set_state(record->data.wait_coroutine, AUTO_COROUTINE_BUSY);
     }
 
     self->flag_have_result = 1;
     self->sch_status = coroutine->status;
     self->n_ret = coroutine->nresults;
 
-    if (AUTO_THREAD_IS_ERROR(coroutine))
+    if (coroutine->status & AUTO_COROUTINE_ERROR)
     {/* Push error object on top of stack and raise an error */
         lua_pushvalue(coroutine->L, -1);
         lua_xmove(coroutine->L, self->storage, 1);
@@ -90,37 +92,44 @@ static void _on_coroutine_state_change(auto_coroutine_t* coroutine, void* arg)
 static int _coroutine_on_resume(lua_State* L, int status, lua_KContext ctx)
 {
     (void)status;
+
     lua_wait_record_t* record = (lua_wait_record_t*)ctx;
     lua_coroutine_t* self = record->data.belong;
 
-    if (self->flag_have_result)
-    {/* Finish execution */
-
-        api_list.erase(&self->wait_queue, &record->node);
-        free(record);
-
-        if (self->sch_status != LUA_OK)
-        {/* Error occur */
-            lua_pushvalue(self->storage, 1);
-            lua_xmove(self->storage, L, 1);
-            return lua_error(L);
-        }
-
-        int i;
-        for (i = 1; i <= self->n_ret; i++)
-        {
-            lua_pushvalue(L, i);
-        }
-        lua_xmove(self->storage, L, self->n_ret);
-
-        return self->n_ret;
+    if (self->flag_closed)
+    {
+        lua_pushboolean(L, 0);
+        lua_pushnil(L);
+        return 2;
     }
 
-    /* Add to wait_queue */
-    api_coroutine.set_state(record->data.wait_coroutine, LUA_YIELD);
+    if (!self->flag_have_result)
+    {
+        api_coroutine.set_state(record->data.wait_coroutine, AUTO_COROUTINE_WAIT);
+        return lua_yieldk(L, 0, (lua_KContext)record, _coroutine_on_resume);
+    }
 
-    /* Yield */
-    return lua_yieldk(L, 0, (lua_KContext)record, _coroutine_on_resume);
+    api_list.erase(&self->wait_queue, &record->node);
+    free(record);
+
+    if (self->sch_status != LUA_OK)
+    {/* Error occur */
+        lua_pushboolean(L, 0);
+        lua_pushvalue(self->storage, 1);
+        lua_xmove(self->storage, L, 1);
+        return 2;
+    }
+
+    lua_pushboolean(L, 1);
+
+    int i;
+    for (i = 1; i <= self->n_ret; i++)
+    {
+        lua_pushvalue(L, i);
+    }
+    lua_xmove(self->storage, L, self->n_ret);
+
+    return self->n_ret + 1;
 }
 
 static int _coroutine_await(lua_State* L)
@@ -146,14 +155,24 @@ static int _coroutine_await(lua_State* L)
 static int _coroutine_suspend(lua_State* L)
 {
     lua_coroutine_t* co = lua_touserdata(L, 1);
-    api_coroutine.set_state(co->thr, LUA_YIELD);
+    api_coroutine.set_state(co->thr, AUTO_COROUTINE_WAIT);
     return 0;
 }
 
 static int _coroutine_resume(lua_State* L)
 {
     lua_coroutine_t* co = lua_touserdata(L, 1);
-    api_coroutine.set_state(co->thr, LUA_TNONE);
+    api_coroutine.set_state(co->thr, AUTO_COROUTINE_BUSY);
+    return 0;
+}
+
+static int _coroutine_close(lua_State* L)
+{
+    lua_coroutine_t* self = lua_touserdata(L, 1);
+
+    self->flag_closed = 1;
+    api_coroutine.set_state(self->thr, AUTO_COROUTINE_DEAD);
+
     return 0;
 }
 
@@ -176,6 +195,7 @@ int auto_new_coroutine(lua_State *L)
     };
     static const luaL_Reg s_co_method[] = {
         { "await",      _coroutine_await },
+        { "close",      _coroutine_close },
         { "suspend",    _coroutine_suspend },
         { "resume",     _coroutine_resume },
         { NULL,         NULL },

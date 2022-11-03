@@ -22,7 +22,7 @@ static void _sleep_release_timer(sleep_ctx_t* ctx)
 static void _on_sleep_timer(void* arg)
 {
     sleep_ctx_t* ctx = arg;
-    api_coroutine.set_state(ctx->co, LUA_TNONE);
+    api_coroutine.set_state(ctx->co, AUTO_COROUTINE_BUSY);
 
     _sleep_release_timer(ctx);
 }
@@ -70,7 +70,7 @@ int atd_lua_sleep(lua_State* L)
     ctx->timer = api_timer.create(L);
     api_timer.start(ctx->timer, timeout, 0, _on_sleep_timer, ctx);
 
-    api_coroutine.set_state(ctx->co, LUA_YIELD);
+    api_coroutine.set_state(ctx->co, AUTO_COROUTINE_WAIT);
 
     return lua_yieldk(L, 0, (lua_KContext)ctx, _sleep_on_resume);
 }

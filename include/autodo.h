@@ -10,40 +10,6 @@
 #define AUTO_VERSION_PATCH  1
 
 /**
- * @brief Check if the coroutine \p thr is in busy state.
- * @param[in] thr   The coroutine.
- * @return          bool.
- */
-#define AUTO_THREAD_IS_BUSY(thr)    ((thr)->status == LUA_TNONE)
-
-/**
- * @brief Check if the coroutine \p thr is in yield state.
- * @param[in] thr   The coroutine.
- * @return          bool.
- */
-#define AUTO_THREAD_IS_WAIT(thr)    ((thr)->status == LUA_YIELD)
-
-/**
- * @brief Check if the coroutine \p is dead. That is either finish execution or
- *   error occur.
- * @param[in] thr   The coroutine.
- * @return          bool.
- */
-#define AUTO_THREAD_IS_DEAD(thr)    (!AUTO_THREAD_IS_BUSY(thr) && !AUTO_THREAD_IS_WAIT(thr))
-
-/**
- * @brief Check if the coroutine \p thr have error.
- * @param[in] thr   The coroutine.
- * @return          bool.
- */
-#define AUTO_THREAD_IS_ERROR(thr)   \
-    (\
-        (thr)->status != LUA_TNONE &&\
-        (thr)->status != LUA_YIELD &&\
-        (thr)->status != LUA_OK\
-    )
-
-/**
  * @brief Declare as public interface.
  */
 #if defined(_WIN32)
@@ -192,12 +158,7 @@ struct auto_coroutine
 
     /**
      * @brief Thread schedule status.
-     *
-     * The coroutine status define as:
-     * + LUA_TNONE:     Busy. The coroutine will be scheduled soon.
-     * + LUA_YIELD:     Wait. The coroutine will not be scheduled.
-     * + LUA_OK:        Finish. The coroutine will be destroyed soon.
-     * + Other value:   Error. The coroutine will be destroyed soon.
+     * Bit-OR of #auto_coroutine_state_t.
      */
     int         status;
 
@@ -595,6 +556,30 @@ typedef struct auto_api_thread_s
     void (*sleep)(uint32_t ms);
 } auto_api_thread_t;
 
+typedef enum auto_coroutine_state_e
+{
+    /**
+     * @brief The coroutine is in WAIT state and will not be scheduled.
+     */
+    AUTO_COROUTINE_WAIT     = 0,
+
+    /**
+     * @brief The coroutine is in BUSY state, and scheduler will process this
+     *   coroutine soon.
+     */
+    AUTO_COROUTINE_BUSY     = 1,
+
+    /**
+     * @brief The coroutine is dead, and will be destroy soon.
+     */
+    AUTO_COROUTINE_DEAD     = 2,
+
+    /**
+     * @brief The coroutine contains error.
+     */
+    AUTO_COROUTINE_ERROR    = 4,
+} auto_coroutine_state_t;
+
 /**
  * @brief Coroutine API.
  *
@@ -669,7 +654,7 @@ typedef struct auto_api_coroutine_s
      *
      * @warning MT-UnSafe
      * @param[in] self  This object.
-     * @param[in] busy  New schedule state. It only can be `LUA_TNONE` or `LUA_YIELD`.
+     * @param[in] busy  New schedule state. It only can be bit-or of #auto_coroutine_state_t.
      */
     void (*set_state)(auto_coroutine_t* self, int state);
 } auto_api_coroutine_t;

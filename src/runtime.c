@@ -38,7 +38,7 @@ static void _runtime_destroy_thread(atd_runtime_t* rt, lua_State* L, atd_corouti
 
     ev_map_erase(&rt->schedule.all_table, &thr->t_node);
 
-    if (thr->base.status == LUA_TNONE)
+    if (thr->base.status)
     {
         ev_list_erase(&rt->schedule.busy_queue, &thr->q_node);
     }
@@ -125,6 +125,13 @@ static int _runtime_schedule_one_pass(atd_runtime_t* rt, lua_State* L)
         atd_coroutine_impl_t* thr = container_of(it, atd_coroutine_impl_t, q_node);
         it = ev_list_next(it);
 
+        /* Destroy coroutine */
+        if (thr->base.status & AUTO_COROUTINE_DEAD)
+        {
+            _runtime_destroy_thread(rt, L, thr);
+            continue;
+        }
+
         /* Resume coroutine */
         int ret = lua_resume(thr->base.L, L, thr->base.nresults, &thr->base.nresults);
 
@@ -143,20 +150,19 @@ static int _runtime_schedule_one_pass(atd_runtime_t* rt, lua_State* L)
             continue;
         }
 
-        /* Coroutine either finish execution or error happen.  */
-        api_coroutine.set_state(&thr->base, ret);
-        /* Call hook */
-        _thread_trigger_hook(thr);
-
         /* Error affect main thread */
         if (ret != LUA_OK && !thr->flags.protect)
         {
+            api_coroutine.set_state(&thr->base, AUTO_COROUTINE_DEAD | AUTO_COROUTINE_ERROR);
+            _thread_trigger_hook(thr);
+
             lua_xmove(thr->base.L, L, 1);
             return lua_error(L);
         }
 
-        /* Destroy coroutine */
-        _runtime_destroy_thread(rt, L, thr);
+        /* Coroutine either finish execution or error happen.  */
+        api_coroutine.set_state(&thr->base, AUTO_COROUTINE_DEAD);
+        _thread_trigger_hook(thr);
     }
 
     return 0;

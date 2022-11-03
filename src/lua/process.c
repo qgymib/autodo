@@ -95,7 +95,7 @@ static void _process_wakeup_stderr_queue(lua_process_t* process)
     for (; it != NULL; it = ev_list_next(it))
     {
         process_wait_record_t* record = container_of(it, process_wait_record_t, node);
-        api_coroutine.set_state(record->data.wait_coroutine, LUA_TNONE);
+        api_coroutine.set_state(record->data.wait_coroutine, AUTO_COROUTINE_BUSY);
     }
 }
 
@@ -105,7 +105,7 @@ static void _process_wakeup_stdout_queue(lua_process_t* process)
     for (; it != NULL; it = ev_list_next(it))
     {
         process_wait_record_t* record = container_of(it, process_wait_record_t, node);
-        api_coroutine.set_state(record->data.wait_coroutine, LUA_TNONE);
+        api_coroutine.set_state(record->data.wait_coroutine, AUTO_COROUTINE_BUSY);
     }
 }
 
@@ -115,7 +115,7 @@ static void _process_wakeup_join_queue(lua_process_t* process)
     for (; it != NULL; it = ev_list_next(it))
     {
         process_wait_record_t* record = container_of(it, process_wait_record_t, node);
-        api_coroutine.set_state(record->data.wait_coroutine, LUA_TNONE);
+        api_coroutine.set_state(record->data.wait_coroutine, AUTO_COROUTINE_BUSY);
     }
 }
 
@@ -433,7 +433,7 @@ static int _lua_process_on_stdout_resume(lua_State *L, int status, lua_KContext 
             return 0;
         }
 
-        api_coroutine.set_state(record->data.wait_coroutine, LUA_YIELD);
+        api_coroutine.set_state(record->data.wait_coroutine, AUTO_COROUTINE_WAIT);
         return lua_yieldk(L, 0, (lua_KContext)record,
             _lua_process_on_stdout_resume);
     }
@@ -469,7 +469,7 @@ static int _lua_process_on_stderr_resume(lua_State *L, int status, lua_KContext 
             return 0;
         }
 
-        api_coroutine.set_state(record->data.wait_coroutine, LUA_YIELD);
+        api_coroutine.set_state(record->data.wait_coroutine, AUTO_COROUTINE_WAIT);
         return lua_yieldk(L, 0, (lua_KContext)record,
             _lua_process_on_stderr_resume);
     }
@@ -510,7 +510,7 @@ static void _process_on_write_done(uv_write_t* req, int status)
 {
     (void)status;
     process_write_record_t* record = container_of(req, process_write_record_t, data.req);
-    api_coroutine.set_state(record->data.wait_coroutine, LUA_TNONE);
+    api_coroutine.set_state(record->data.wait_coroutine, AUTO_COROUTINE_BUSY);
 }
 
 static int _lua_process_async_stdin(lua_State* L)

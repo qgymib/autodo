@@ -61,11 +61,11 @@ typedef struct atd_runtime
 
 struct atd_coroutine_impl
 {
-    auto_list_node_t         q_node;         /**< Schedule queue node */
-    auto_map_node_t          t_node;         /**< Schedule table node */
+    auto_list_node_t        q_node;         /**< Schedule queue node */
+    auto_map_node_t         t_node;         /**< Schedule table node */
 
     atd_runtime_t*          rt;
-    auto_coroutine_t         base;           /**< Base object */
+    auto_coroutine_t        base;           /**< Base object */
 
     struct
     {
@@ -74,8 +74,8 @@ struct atd_coroutine_impl
 
     struct
     {
-        auto_list_t          queue;          /**< Schedule hook queue */
-        auto_list_node_t*    it;             /**< Global iterator */
+        auto_list_t         queue;          /**< Schedule hook queue */
+        auto_list_node_t*   it;             /**< Global iterator */
     } hook;
 
     struct

@@ -15,7 +15,7 @@ static auto_coroutine_t* _coroutine_host(lua_State* L)
     memset(thr, 0, sizeof(*thr));
     thr->rt = rt;
     thr->base.L = L;
-    thr->base.status = LUA_TNONE;
+    thr->base.status = AUTO_COROUTINE_BUSY;
     ev_list_init(&thr->hook.queue);
 
     /* Save to schedule table to check duplicate */
@@ -114,35 +114,25 @@ static void _coroutine_set_state(struct auto_coroutine* self, int state)
 {
     atd_coroutine_impl_t* impl = container_of(self, atd_coroutine_impl_t, base);
 
-    /* In busy_queue */
-    if (impl->base.status == LUA_TNONE)
-    {
-        if (state == LUA_TNONE)
-        {/* Do nothing if new state is also BUSY */
-            return;
-        }
+    /* Backup and update state. */
+    int old_state = impl->base.status;
+    impl->base.status = state;
 
-        ev_list_erase(&impl->rt->schedule.busy_queue, &impl->q_node);
-        impl->base.status = state;
-        ev_list_push_back(&impl->rt->schedule.wait_queue, &impl->q_node);
+    /* move from wait_queue to busy_queue */
+    if (!old_state && state)
+    {
+        ev_list_erase(&impl->rt->schedule.wait_queue, &impl->q_node);
+        ev_list_push_back(&impl->rt->schedule.busy_queue, &impl->q_node);
         return;
     }
 
-    /* We are in wait_queue, cannot operate on dead coroutine */
-    if (impl->base.status != LUA_YIELD)
+    /* move from busy_queue to wait_queue */
+    if (old_state && !state)
     {
-        abort();
+        ev_list_erase(&impl->rt->schedule.busy_queue, &impl->q_node);
+        ev_list_push_back(&impl->rt->schedule.wait_queue, &impl->q_node);
+        return;
     }
-
-    /* move to busy_queue */
-    if (state == LUA_TNONE)
-    {
-        ev_list_erase(&impl->rt->schedule.wait_queue, &impl->q_node);
-        impl->base.status = state;
-        ev_list_push_back(&impl->rt->schedule.busy_queue, &impl->q_node);
-    }
-
-    /* thr is dead, keep in wait_queue */
 }
 
 const auto_api_coroutine_t api_coroutine = {
