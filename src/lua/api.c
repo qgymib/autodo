@@ -4,6 +4,7 @@
 #include "api.h"
 #include "lua/coroutine.h"
 #include "lua/download.h"
+#include "lua/fs.h"
 #include "lua/json.h"
 #include "lua/process.h"
 #include "lua/regex.h"
@@ -22,6 +23,8 @@
 #define AUTO_LUA_API_MAP(xx) \
     xx("coroutine",         auto_new_coroutine)     \
     xx("download",          auto_lua_download)      \
+    xx("fs_abspath",        auto_lua_fs_abspath)    \
+    xx("fs_expand",         auto_lua_fs_expand)     \
     xx("json",              auto_lua_json)          \
     xx("process",           atd_lua_process)        \
     xx("regex",             auto_lua_regex)         \

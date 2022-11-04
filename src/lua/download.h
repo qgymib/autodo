@@ -12,7 +12,7 @@ extern "C" {
  * @param[in] L     Lua VM.
  * @return          1 if success, 0 if failure.
  */
-AUTO_LOCAL int auto_lua_download(lua_State *L);
+AUTO_LOCAL int auto_lua_download(lua_State* L);
 
 #ifdef __cplusplus
 }

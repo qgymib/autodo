@@ -57,6 +57,7 @@ set(auto_src_list
     src/lua/api.c
     src/lua/coroutine.c
     src/lua/download.c
+    src/lua/fs.c
     src/lua/json.c
     src/lua/process.c
     src/lua/regex.c
