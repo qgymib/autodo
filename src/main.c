@@ -2,7 +2,7 @@
 #include "package.h"
 #include "utils.h"
 #include "lua/api.h"
-#include "lua/coroutine.h"
+#include "api/coroutine.h"
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -45,12 +45,12 @@ static int _user_thread(lua_State* L)
 
 static int _run_script(lua_State* L, atd_runtime_t* rt)
 {
-    atd_coroutine_t* thr = api_coroutine.host(lua_newthread(L));
+    auto_coroutine_t* thr = api_coroutine.host(lua_newthread(L));
     lua_pop(L, 1);
 
     lua_pushcfunction(thr->L, _user_thread);
 
-    return atd_schedule(rt, L);
+    return auto_schedule(rt, L);
 }
 
 static int _lua_load_script(atd_runtime_t* rt, lua_State* L)

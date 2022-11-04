@@ -51,6 +51,18 @@ endfunction()
 ###############################################################################
 
 set(auto_src_list
+    src/api/api.c
+    src/api/coroutine.c
+    src/api/int64.c
+    src/api/list.c
+    src/api/map.c
+    src/api/memory.c
+    src/api/misc.c
+    src/api/notify.c
+    src/api/regex.c
+    src/api/sem.c
+    src/api/thread.c
+    src/api/timer.c
     src/lua/api.c
     src/lua/coroutine.c
     src/lua/download.c

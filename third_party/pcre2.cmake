@@ -16,7 +16,9 @@ endif ()
 ExternalProject_Add(3rd_pcre2
     SOURCE_DIR          ${PCRE2_SOURCE_PATH}
     CMAKE_ARGS          -DCMAKE_INSTALL_PREFIX:PATH=${PCRE2_INSTALL_PATH}
+                        -DPCRE2_SUPPORT_JIT=ON
                         -DPCRE2_BUILD_TESTS=OFF
+                        -DPCRE2_BUILD_PCRE2GREP=OFF
                         -DBUILD_SHARED_LIBS=OFF
     BUILD_BYPRODUCTS    ${PCRE2_LIB_PATH})
 

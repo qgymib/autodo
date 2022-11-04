@@ -101,40 +101,40 @@ extern "C" {
 #include <lauxlib.h>
 #include <lualib.h>
 
-typedef void (*atd_async_fn)(void* arg);
-typedef void (*atd_thread_fn)(void* arg);
-typedef void (*atd_timer_fn)(void* arg);
+typedef void (*auto_async_fn)(void* arg);
+typedef void (*auto_thread_fn)(void* arg);
+typedef void (*auto_timer_fn)(void* arg);
 
 /**
  * @brief The list node.
  * This node must put in your struct.
  */
-typedef struct atd_list_node_s
+typedef struct auto_list_node_s
 {
-    struct atd_list_node_s*    p_after;    /**< Pointer to next node */
-    struct atd_list_node_s*    p_before;   /**< Pointer to previous node */
-} atd_list_node_t;
+    struct auto_list_node_s*   p_after;    /**< Pointer to next node */
+    struct auto_list_node_s*   p_before;   /**< Pointer to previous node */
+} auto_list_node_t;
 
 /**
  * @brief Double Linked List
  */
-typedef struct atd_list_s
+typedef struct auto_list_s
 {
-    atd_list_node_t*        head;       /**< Pointer to HEAD node */
-    atd_list_node_t*        tail;       /**< Pointer to TAIL node */
+    auto_list_node_t*       head;       /**< Pointer to HEAD node */
+    auto_list_node_t*       tail;       /**< Pointer to TAIL node */
     size_t                  size;       /**< The number of total nodes */
-} atd_list_t;
+} auto_list_t;
 
 /**
  * @brief ev_map_low node
  * @see EV_MAP_LOW_NODE_INIT
  */
-typedef struct atd_map_node
+typedef struct auto_map_node
 {
-    struct atd_map_node* __rb_parent_color;  /**< parent node | color */
-    struct atd_map_node* rb_right;           /**< right node */
-    struct atd_map_node* rb_left;            /**< left node */
-} atd_map_node_t;
+    struct auto_map_node* __rb_parent_color;  /**< parent node | color */
+    struct auto_map_node* rb_right;           /**< right node */
+    struct auto_map_node* rb_left;            /**< left node */
+} auto_map_node_t;
 
 /**
  * @brief Compare function.
@@ -143,47 +143,47 @@ typedef struct atd_map_node
  * @param[in] arg   User defined argument
  * @return          -1 if key1 < key2. 1 if key1 > key2. 0 if key1 == key2.
  */
-typedef int(*atd_map_cmp_fn)(const atd_map_node_t* key1,
-    const atd_map_node_t* key2, void* arg);
+typedef int (*auto_map_cmp_fn)(const auto_map_node_t* key1,
+    const auto_map_node_t* key2, void* arg);
 
 /**
  * @brief Map implemented as red-black tree
  * @see EV_MAP_INIT
  */
-typedef struct atd_map_s
+typedef struct auto_map_s
 {
-    atd_map_node_t*     rb_root;    /**< root node */
+    auto_map_node_t*     rb_root;    /**< root node */
 
     struct
     {
-        atd_map_cmp_fn  cmp;        /**< Pointer to compare function */
+        auto_map_cmp_fn  cmp;        /**< Pointer to compare function */
         void*           arg;        /**< User defined argument, which will passed to compare function */
     } cmp;                          /**< Compare function data */
 
     size_t              size;       /**< The number of nodes */
-} atd_map_t;
+} auto_map_t;
 
-struct atd_sem_s;
-typedef struct atd_sem_s atd_sem_t;
+struct auto_sem_s;
+typedef struct auto_sem_s auto_sem_t;
 
 struct auto_notify_s;
 typedef struct auto_notify_s auto_notify_t;
 
-struct atd_timer_s;
-typedef struct atd_timer_s atd_timer_t;
+struct auto_timer_s;
+typedef struct auto_timer_s auto_timer_t;
 
-struct atd_thread_s;
-typedef struct atd_thread_s atd_thread_t;
+struct auto_thread_s;
+typedef struct auto_thread_s auto_thread_t;
 
-struct atd_coroutine_hook;
-typedef struct atd_coroutine_hook atd_coroutine_hook_t;
+struct auto_coroutine_hook;
+typedef struct auto_coroutine_hook auto_coroutine_hook_t;
 
-struct atd_coroutine;
-typedef struct atd_coroutine atd_coroutine_t;
+struct auto_coroutine;
+typedef struct auto_coroutine auto_coroutine_t;
 
-typedef void(*atd_coroutine_hook_fn)(atd_coroutine_t* coroutine, void* arg);
+typedef void(*auto_coroutine_hook_fn)(auto_coroutine_t* coroutine, void* arg);
 
-struct atd_coroutine
+struct auto_coroutine
 {
     /**
      * @brief The registered coroutine.
@@ -260,7 +260,7 @@ typedef struct auto_api_list_s
      * @warning MT-UnSafe
      * @return  List object.
      */
-    void (*init)(atd_list_t* handler);
+    void (*init)(auto_list_t* handler);
 
     /**
      * @brief Insert a node to the head of the list.
@@ -269,7 +269,7 @@ typedef struct auto_api_list_s
      * @param[in] self      This object.
      * @param[in,out] n     Pointer to a new node
      */
-    void (*push_front)(atd_list_t* self, atd_list_node_t* n);
+    void (*push_front)(auto_list_t* self, auto_list_node_t* n);
 
     /**
       * @brief Insert a node to the tail of the list.
@@ -278,7 +278,7 @@ typedef struct auto_api_list_s
       * @param[in] self      This object.
       * @param[in,out] n     Pointer to a new node
       */
-    void (*push_back)(atd_list_t* self, atd_list_node_t* n);
+    void (*push_back)(auto_list_t* self, auto_list_node_t* n);
 
     /**
      * @brief Insert a node in front of a given node.
@@ -288,7 +288,7 @@ typedef struct auto_api_list_s
      * @param[in,out] p     Pointer to a exist node
      * @param[in,out] n     Pointer to a new node
      */
-    void (*insert_before)(atd_list_t* self, atd_list_node_t* p, atd_list_node_t* n);
+    void (*insert_before)(auto_list_t* self, auto_list_node_t* p, auto_list_node_t* n);
 
     /**
      * @brief Insert a node right after a given node.
@@ -298,7 +298,7 @@ typedef struct auto_api_list_s
      * @param[in,out] p     Pointer to a exist node
      * @param[in,out] n     Pointer to a new node
      */
-    void (*insert_after)(atd_list_t* self, atd_list_node_t* p, atd_list_node_t* n);
+    void (*insert_after)(auto_list_t* self, auto_list_node_t* p, auto_list_node_t* n);
 
     /**
      * @brief Delete a exist node
@@ -307,7 +307,7 @@ typedef struct auto_api_list_s
      * @param[in] self      This object.
      * @param[in,out] n     The node you want to delete
      */
-    void (*erase)(atd_list_t* self, atd_list_node_t* n);
+    void (*erase)(auto_list_t* self, auto_list_node_t* n);
 
     /**
      * @brief Get the number of nodes in the list.
@@ -315,7 +315,7 @@ typedef struct auto_api_list_s
      * @param[in] self      This object.
      * @return          The number of nodes
      */
-    size_t (*size)(const atd_list_t* handler);
+    size_t (*size)(const auto_list_t* handler);
 
     /**
      * @brief Get the first node and remove it from the list.
@@ -323,7 +323,7 @@ typedef struct auto_api_list_s
      * @param[in] self      This object.
      * @return              The first node
      */
-    atd_list_node_t* (*pop_front)(atd_list_t* self);
+    auto_list_node_t* (*pop_front)(auto_list_t* self);
 
     /**
      * @brief Get the last node and remove it from the list.
@@ -331,7 +331,7 @@ typedef struct auto_api_list_s
      * @param[in] self      This object.
      * @return              The last node
      */
-    atd_list_node_t* (*pop_back)(atd_list_t* self);
+    auto_list_node_t* (*pop_back)(auto_list_t* self);
 
     /**
      * @brief Get the first node.
@@ -339,7 +339,7 @@ typedef struct auto_api_list_s
      * @param[in] self      This object.
      * @return              The first node
      */
-    atd_list_node_t* (*begin)(const atd_list_t* self);
+    auto_list_node_t* (*begin)(const auto_list_t* self);
 
     /**
      * @brief Get the last node.
@@ -347,7 +347,7 @@ typedef struct auto_api_list_s
      * @param[in] self      This object.
      * @return              The last node
      */
-    atd_list_node_t* (*end)(const atd_list_t* self);
+    auto_list_node_t* (*end)(const auto_list_t* self);
 
     /**
      * @brief Get next node.
@@ -355,7 +355,7 @@ typedef struct auto_api_list_s
      * @param[in] node      Current node.
      * @return              The next node
      */
-    atd_list_node_t* (*next)(const atd_list_node_t* node);
+    auto_list_node_t* (*next)(const auto_list_node_t* node);
 
     /**
      * @brief Get previous node.
@@ -363,7 +363,7 @@ typedef struct auto_api_list_s
      * @param[in] node      current node
      * @return              previous node
      */
-    atd_list_node_t* (*prev)(const atd_list_node_t* node);
+    auto_list_node_t* (*prev)(const auto_list_node_t* node);
 
     /**
      * @brief Move all elements from \p src into the end of \p dst.
@@ -371,7 +371,7 @@ typedef struct auto_api_list_s
      * @param[in] dst   Destination list.
      * @param[in] src   Source list.
      */
-    void (*migrate)(atd_list_t* dst, atd_list_t* src);
+    void (*migrate)(auto_list_t* dst, auto_list_t* src);
 } auto_api_list_t;
 
 /**
@@ -390,7 +390,7 @@ typedef struct auto_api_map_s
      * @param[in] cmp       The compare function. Must not NULL
      * @param[in] arg       User defined argument. Can be anything
      */
-    void (*init)(atd_map_t* self, atd_map_cmp_fn cmp, void *arg);
+    void (*init)(auto_map_t* self, auto_map_cmp_fn cmp, void *arg);
 
     /**
      * @brief Insert the node into map.
@@ -400,7 +400,7 @@ typedef struct auto_api_map_s
      * @param[in] node      The node
      * @return              NULL if success, otherwise return the original node.
      */
-    atd_map_node_t* (*insert)(atd_map_t* self, atd_map_node_t* node);
+    auto_map_node_t* (*insert)(auto_map_t* self, auto_map_node_t* node);
 
     /**
      * @brief Replace a existing data with \p node.
@@ -409,7 +409,7 @@ typedef struct auto_api_map_s
      * @param[in] node  The node to insert.
      * @return          NULL if no existing data, otherwise return the replaced node.
      */
-    atd_map_node_t* (*replace)(atd_map_t* self, atd_map_node_t* node);
+    auto_map_node_t* (*replace)(auto_map_t* self, auto_map_node_t* node);
 
     /**
      * @brief Delete the node from the map.
@@ -418,7 +418,7 @@ typedef struct auto_api_map_s
      * @param[in] self  The pointer to the map.
      * @param[in] node  The node
      */
-    void (*erase)(atd_map_t* self, atd_map_node_t* node);
+    void (*erase)(auto_map_t* self, auto_map_node_t* node);
 
     /**
      * @brief Get the number of nodes in the map.
@@ -426,7 +426,7 @@ typedef struct auto_api_map_s
      * @param[in] self  The pointer to the map.
      * @return          The number of nodes
      */
-    size_t (*size)(const atd_map_t* self);
+    size_t (*size)(const auto_map_t* self);
 
     /**
      * @brief Finds element with specific key.
@@ -435,7 +435,7 @@ typedef struct auto_api_map_s
      * @param[in] key   The key
      * @return          An iterator point to the found node
      */
-    atd_map_node_t* (*find)(const atd_map_t* self, const atd_map_node_t* key);
+    auto_map_node_t* (*find)(const auto_map_t* self, const auto_map_node_t* key);
 
     /**
      * @brief Returns an iterator to the first element not less than the given key.
@@ -444,7 +444,7 @@ typedef struct auto_api_map_s
      * @param[in] key   The key
      * @return          An iterator point to the found node
      */
-    atd_map_node_t* (*find_lower)(const atd_map_t* self, const atd_map_node_t* key);
+    auto_map_node_t* (*find_lower)(const auto_map_t* self, const auto_map_node_t* key);
 
     /**
      * @brief Returns an iterator to the first element greater than the given key.
@@ -453,7 +453,7 @@ typedef struct auto_api_map_s
      * @param[in] key   The key
      * @return          An iterator point to the found node
      */
-    atd_map_node_t* (*find_upper)(const atd_map_t* self, const atd_map_node_t* key);
+    auto_map_node_t* (*find_upper)(const auto_map_t* self, const auto_map_node_t* key);
 
     /**
      * @brief Returns an iterator to the beginning.
@@ -461,7 +461,7 @@ typedef struct auto_api_map_s
      * @param[in] self  The pointer to the map.
      * @return          An iterator
      */
-    atd_map_node_t* (*begin)(const atd_map_t* self);
+    auto_map_node_t* (*begin)(const auto_map_t* self);
 
     /**
      * @brief Returns an iterator to the end.
@@ -469,7 +469,7 @@ typedef struct auto_api_map_s
      * @param[in] self  The pointer to the map.
      * @return          An iterator
      */
-    atd_map_node_t* (*end)(const atd_map_t* self);
+    auto_map_node_t* (*end)(const auto_map_t* self);
 
     /**
      * @brief Get an iterator next to the given one.
@@ -477,7 +477,7 @@ typedef struct auto_api_map_s
      * @param[in] node  Current iterator
      * @return          Next iterator
      */
-    atd_map_node_t* (*next)(const atd_map_node_t* node);
+    auto_map_node_t* (*next)(const auto_map_node_t* node);
 
     /**
      * @brief Get an iterator before the given one.
@@ -485,7 +485,7 @@ typedef struct auto_api_map_s
      * @param[in] node  Current iterator
      * @return          Previous iterator
      */
-    atd_map_node_t* (*prev)(const atd_map_node_t* node);
+    auto_map_node_t* (*prev)(const auto_map_node_t* node);
 } auto_api_map_t;
 
 /**
@@ -535,28 +535,28 @@ typedef struct auto_api_sem_s
      * @param[in] value     Initial semaphore value.
      * @return              Semaphore object.
      */
-    atd_sem_t* (*create)(unsigned int value);
+    auto_sem_t* (*create)(unsigned int value);
 
     /**
      * @brief Destroy semaphore.
      * @warning MT-UnSafe
      * @param[in] self  This object.
      */
-    void (*destroy)(atd_sem_t* self);
+    void (*destroy)(auto_sem_t* self);
 
     /**
      * @brief Wait for signal.
      * @note MT-Safe
      * @param[in] self  This object.
      */
-    void (*wait)(atd_sem_t* self);
+    void (*wait)(auto_sem_t* self);
 
     /**
      * @brief Post signal.
      * @note MT-Safe
      * @param[in] self  This object.
      */
-    void (*post)(atd_sem_t* self);
+    void (*post)(auto_sem_t* self);
 } auto_api_sem_t;
 
 /**
@@ -578,14 +578,14 @@ typedef struct auto_api_thread_s
      * @param[in] arg   User defined data passed to \p fn.
      * @return          Thread object.
      */
-    atd_thread_t* (*create)(atd_thread_fn fn, void *arg);
+    auto_thread_t* (*create)(auto_thread_fn fn, void *arg);
 
     /**
      * @brief Wait for thread finish and release this object.
      * @warning MT-UnSafe
      * @param[in] self  This object.
      */
-    void (*join)(atd_thread_t* self);
+    void (*join)(auto_thread_t* self);
 
     /**
      * @brief Causes the calling thread to sleep for \p ms milliseconds.
@@ -607,12 +607,12 @@ typedef struct auto_api_coroutine_s
     /**
      * @brief Register lua coroutine \p L and let scheduler manage it's life cycle.
      *
-     * A new object #atd_coroutine_t mapping to this lua coroutine is created,
+     * A new object #auto_coroutine_t mapping to this lua coroutine is created,
      * you can use this object to do some manage operations.
      *
      * You must use this object carefully, as the life cycle is managed by
      * scheduler. To known when the object is destroyed, register schedule
-     * callback by #atd_coroutine_t::hook().
+     * callback by #auto_coroutine_t::hook().
      *
      * @note A lua coroutine can only register once.
      * @note This function does not affect lua stack.
@@ -620,7 +620,7 @@ typedef struct auto_api_coroutine_s
      * @param[in] L     The coroutine created by `lua_newthread()`.
      * @return          A mapping object.
      */
-    atd_coroutine_t* (*host)(lua_State *L);
+    auto_coroutine_t* (*host)(lua_State *L);
 
     /**
      * @brief Find mapping coroutine object from lua coroutine \p L.
@@ -628,7 +628,7 @@ typedef struct auto_api_coroutine_s
      * @param[in] L     The coroutine created by `lua_newthread()`.
      * @return          The mapping coroutine object, or `NULL` if not found.
      */
-    atd_coroutine_t* (*find)(lua_State* L);
+    auto_coroutine_t* (*find)(lua_State* L);
 
     /**
      * @brief Add schedule hook for this coroutine.
@@ -636,7 +636,7 @@ typedef struct auto_api_coroutine_s
      * A hook will be active every time the coroutine is scheduled.
      *
      * The hook must unregistered when coroutine finish execution or error
-     * happen (That is, the #atd_coroutine_t::status is not `LUA_TNONE` or
+     * happen (That is, the #auto_coroutine_t::status is not `LUA_TNONE` or
      * `LUA_YIELD`).
      *
      * @warning MT-UnSafe
@@ -645,15 +645,15 @@ typedef struct auto_api_coroutine_s
      * @param[in] fn    Schedule callback.
      * @param[in] arg   User defined data passed to \p fn.
      */
-    atd_coroutine_hook_t* (*hook)(atd_coroutine_t* self, atd_coroutine_hook_fn fn, void* arg);
+    auto_coroutine_hook_t* (*hook)(auto_coroutine_t* self, auto_coroutine_hook_fn fn, void* arg);
 
     /**
      * @brief Unregister schedule hook.
      * @warning MT-UnSafe
      * @param[in] self  This object.
-     * @param[in] token Schedule hook return by #atd_coroutine_t::hook().
+     * @param[in] token Schedule hook return by #auto_coroutine_t::hook().
      */
-    void (*unhook)(atd_coroutine_t* self, atd_coroutine_hook_t* token);
+    void (*unhook)(auto_coroutine_t* self, auto_coroutine_hook_t* token);
 
     /**
      * @brief Set coroutine schedule state.
@@ -671,7 +671,7 @@ typedef struct auto_api_coroutine_s
      * @param[in] self  This object.
      * @param[in] busy  New schedule state. It only can be `LUA_TNONE` or `LUA_YIELD`.
      */
-    void (*set_state)(atd_coroutine_t* self, int state);
+    void (*set_state)(auto_coroutine_t* self, int state);
 } auto_api_coroutine_t;
 
 /**
@@ -688,14 +688,14 @@ typedef struct auto_api_timer_s
      * @warning MT-UnSafe
      * @return          Timer object.
      */
-    atd_timer_t* (*create)(lua_State* L);
+    auto_timer_t* (*create)(lua_State* L);
 
     /**
      * @brief Destroy timer.
      * @warning MT-UnSafe
      * @param[in] self  This object.
      */
-    void (*destroy)(atd_timer_t* self);
+    void (*destroy)(auto_timer_t* self);
 
     /**
      * @brief Start timer.
@@ -707,15 +707,15 @@ typedef struct auto_api_timer_s
      * @param[in] fn        Timeout callback.
      * @param[in] arg       User defined argument passed to \p fn.
      */
-    void (*start)(atd_timer_t* self, uint64_t timeout, uint64_t repeat,
-                  atd_timer_fn fn, void* arg);
+    void (*start)(auto_timer_t* self, uint64_t timeout, uint64_t repeat,
+                  auto_timer_fn fn, void* arg);
 
     /**
      * @brief Stop the timer.
      * @warning MT-UnSafe
      * @param[in] self  This object.
      */
-    void (*stop)(atd_timer_t* self);
+    void (*stop)(auto_timer_t* self);
 } auto_api_timer_t;
 
 /**
@@ -735,7 +735,7 @@ typedef struct auto_api_notify_s
      * @param[in] arg   User defined data passed to \p fn.
      * @return          Async object.
      */
-    auto_notify_t* (*create)(lua_State* L, atd_async_fn fn, void *arg);
+    auto_notify_t* (*create)(lua_State* L, auto_async_fn fn, void *arg);
 
     /**
      * @brief Destroy this object.
@@ -790,13 +790,13 @@ typedef struct auto_api_regex_s
      * @param[in] size      Regex pattern size.
      * @return              Regex bytecode.
      */
-    auto_regex_code_t* (*compile)(const char* pattern, size_t size);
+    auto_regex_code_t* (*create)(const char* pattern, size_t size);
 
     /**
      * @brief Release regex bytecode.
-     * @param[in] code      Regex bytecode.
+     * @param[in] self      Regex bytecode.
      */
-    void(*release)(auto_regex_code_t* code);
+    void(*destroy)(auto_regex_code_t* self);
 
     /**
      * @brief Get group count.
@@ -808,14 +808,14 @@ typedef struct auto_api_regex_s
     /**
      * @brief Matches a compiled regular expression \p code against a given
      *   \p subject string.
-     * @param[in] code          Compiled regular expression.
+     * @param[in] self          Compiled regular expression.
      * @param[in] subject       The string to match.
      * @param[in] subject_len   The string length.
      * @param[out] groups       The groups to capture.
      * @param[in] group_len     The group size.
      * @return                  The number of groups captured.
      */
-    int (*match)(const auto_regex_code_t* code, const char* subject, size_t subject_len,
+    int (*match)(const auto_regex_code_t* self, const char* subject, size_t subject_len,
         size_t* groups, size_t group_len);
 } auto_api_regex_t;
 

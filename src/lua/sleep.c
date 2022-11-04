@@ -1,12 +1,13 @@
 #include <autodo.h>
 #include <string.h>
-#include "coroutine.h"
+#include "api/timer.h"
+#include "api/coroutine.h"
 #include "sleep.h"
 
 typedef struct sleep_ctx
 {
-    atd_timer_t*        timer;  /**< Timer handle. */
-    atd_coroutine_t*    co;     /**< Coroutine handle. */
+    auto_timer_t*       timer;  /**< Timer handle. */
+    auto_coroutine_t*   co;     /**< Coroutine handle. */
 } sleep_ctx_t;
 
 static void _sleep_release_timer(sleep_ctx_t* ctx)

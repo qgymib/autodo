@@ -19,10 +19,10 @@ extern "C" {
 struct atd_coroutine_impl;
 typedef struct atd_coroutine_impl atd_coroutine_impl_t;
 
-struct atd_coroutine_hook
+struct auto_coroutine_hook
 {
-    atd_list_node_t         node;
-    atd_coroutine_hook_fn   fn;
+    auto_list_node_t         node;
+    auto_coroutine_hook_fn   fn;
     void*                   arg;
     atd_coroutine_impl_t*   impl;
 };
@@ -48,9 +48,9 @@ typedef struct atd_runtime
 
     struct
     {
-        atd_map_t           all_table;      /**< All registered coroutine */
-        atd_list_t          busy_queue;     /**< Coroutine that ready to schedule */
-        atd_list_t          wait_queue;     /**< Coroutine that wait for some events */
+        auto_map_t           all_table;      /**< All registered coroutine */
+        auto_list_t          busy_queue;     /**< Coroutine that ready to schedule */
+        auto_list_t          wait_queue;     /**< Coroutine that wait for some events */
     } schedule;
 
     struct
@@ -61,11 +61,11 @@ typedef struct atd_runtime
 
 struct atd_coroutine_impl
 {
-    atd_list_node_t         q_node;         /**< Schedule queue node */
-    atd_map_node_t          t_node;         /**< Schedule table node */
+    auto_list_node_t         q_node;         /**< Schedule queue node */
+    auto_map_node_t          t_node;         /**< Schedule table node */
 
     atd_runtime_t*          rt;
-    atd_coroutine_t         base;           /**< Base object */
+    auto_coroutine_t         base;           /**< Base object */
 
     struct
     {
@@ -74,8 +74,8 @@ struct atd_coroutine_impl
 
     struct
     {
-        atd_list_t          queue;          /**< Schedule hook queue */
-        atd_list_node_t*    it;             /**< Global iterator */
+        auto_list_t          queue;          /**< Schedule hook queue */
+        auto_list_node_t*    it;             /**< Global iterator */
     } hook;
 
     struct
@@ -107,7 +107,7 @@ AUTO_LOCAL atd_runtime_t* auto_get_runtime(lua_State* L);
  * @param[in] L     The thread that host scheduler.
  * @return          Error code.
  */
-AUTO_LOCAL int atd_schedule(atd_runtime_t* rt, lua_State* L);
+AUTO_LOCAL int auto_schedule(atd_runtime_t* rt, lua_State* L);
 
 #ifdef __cplusplus
 }

@@ -12,46 +12,6 @@ extern "C" {
 #endif
 
 /**
- * @brief Exposed api for memory.
- */
-AUTO_LOCAL extern const auto_api_memory_t api_memory;
-
-/**
- * @brief Exposed api for list.
- */
-AUTO_LOCAL extern const auto_api_list_t api_list;
-
-/**
- * @brief Exposed api for map.
- */
-AUTO_LOCAL extern const auto_api_map_t api_map;
-
-/**
- * @brief Exposed api for misc.
- */
-AUTO_LOCAL extern const auto_api_misc_t api_misc;
-
-/**
- * @brief Exposed api for sem.
- */
-AUTO_LOCAL extern const auto_api_sem_t api_sem;
-
-/**
- * @brief Exposed api for thread.
- */
-AUTO_LOCAL extern const auto_api_thread_t api_thread;
-
-/**
- * @brief Exposed api for timer.
- */
-AUTO_LOCAL extern const auto_api_timer_t api_timer;
-
-/**
- * @brief Exposed api for notify.
- */
-AUTO_LOCAL extern const auto_api_notify_t api_notify;
-
-/**
  * @brief Exposed API.
  */
 AUTO_LOCAL extern const auto_api_t api;

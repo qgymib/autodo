@@ -8,11 +8,6 @@ extern "C" {
 #endif
 
 /**
- * @brief Exposed API for regex.
- */
-AUTO_LOCAL extern const auto_api_regex_t api_regex;
-
-/**
  * @brief Regex
  * @param[in] L     Lua VM.
  * @return          Always 1.

@@ -8,11 +8,6 @@ extern "C" {
 #endif
 
 /**
-* @brief Exposed api for coroutine.
-*/
-AUTO_LOCAL extern const auto_api_coroutine_t api_coroutine;
-
-/**
  * @brief Create a new coroutine and push coroutine on top of stack.
  *
  * The first argument must be the coroutine function.

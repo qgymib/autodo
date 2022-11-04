@@ -1,5 +1,5 @@
 #include "runtime.h"
-#include "lua/coroutine.h"
+#include "api/coroutine.h"
 #include "utils.h"
 #include <string.h>
 #include <stdlib.h>
@@ -54,7 +54,7 @@ static void _runtime_destroy_thread(atd_runtime_t* rt, lua_State* L, atd_corouti
 
 static void _runtime_gc_release_coroutine(atd_runtime_t* rt)
 {
-    atd_list_node_t * it;
+    auto_list_node_t * it;
     while ((it = ev_list_begin(&rt->schedule.busy_queue)) != NULL)
     {
         atd_coroutine_impl_t* thr = container_of(it, atd_coroutine_impl_t, q_node);
@@ -87,7 +87,7 @@ static int _init_parse_args(atd_runtime_t* rt, int argc, char* argv[])
     return _init_parse_args_finalize(rt, argv[0]);
 }
 
-static int _on_cmp_thread(const atd_map_node_t* key1, const atd_map_node_t* key2, void* arg)
+static int _on_cmp_thread(const auto_map_node_t* key1, const auto_map_node_t* key2, void* arg)
 {
     (void)arg;
     atd_coroutine_impl_t* t1 = container_of(key1, atd_coroutine_impl_t, t_node);
@@ -110,7 +110,7 @@ static void _thread_trigger_hook(atd_coroutine_impl_t* thr)
     thr->hook.it = ev_list_begin(&thr->hook.queue);
     while (thr->hook.it != NULL)
     {
-        atd_coroutine_hook_t* token = container_of(thr->hook.it, atd_coroutine_hook_t, node);
+        auto_coroutine_hook_t* token = container_of(thr->hook.it, auto_coroutine_hook_t, node);
         thr->hook.it = ev_list_next(thr->hook.it);
 
         token->fn(&token->impl->base, token->arg);
@@ -119,7 +119,7 @@ static void _thread_trigger_hook(atd_coroutine_impl_t* thr)
 
 static int _runtime_schedule_one_pass(atd_runtime_t* rt, lua_State* L)
 {
-    atd_list_node_t * it = ev_list_begin(&rt->schedule.busy_queue);
+    auto_list_node_t * it = ev_list_begin(&rt->schedule.busy_queue);
     while (it != NULL)
     {
         atd_coroutine_impl_t* thr = container_of(it, atd_coroutine_impl_t, q_node);
@@ -268,7 +268,7 @@ atd_runtime_t* auto_get_runtime(lua_State* L)
     return rt;
 }
 
-int atd_schedule(atd_runtime_t* rt, lua_State* L)
+int auto_schedule(atd_runtime_t* rt, lua_State* L)
 {
     for (;;)
     {

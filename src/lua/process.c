@@ -2,7 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "runtime.h"
-#include "coroutine.h"
+#include "api/coroutine.h"
 #include "process.h"
 #include "utils.h"
 #include "utils/list.h"
@@ -12,7 +12,7 @@ typedef struct atd_process_s atd_process_t;
 
 typedef struct lua_process_cache
 {
-    atd_list_node_t         node;
+    auto_list_node_t         node;
     size_t                  size;
     char                    data[];
 } lua_process_cache_t;
@@ -29,12 +29,12 @@ typedef struct lua_process
 
     struct
     {
-        atd_list_t          join_wait_queue;    /**< #process_wait_record_t */
-        atd_list_t          stdin_wait_queue;   /**< #process_write_record_t */
-        atd_list_t          stdout_wait_queue;  /**< #process_wait_record_t */
-        atd_list_t          stderr_wait_queue;  /**< #process_wait_record_t */
-        atd_list_t          stdout_cache;       /**< #lua_process_cache_t. Stdout data from child process */
-        atd_list_t          stderr_cache;       /**< #lua_process_cache_t. Stderr data from child process */
+        auto_list_t         join_wait_queue;    /**< #process_wait_record_t */
+        auto_list_t         stdin_wait_queue;   /**< #process_write_record_t */
+        auto_list_t         stdout_wait_queue;  /**< #process_wait_record_t */
+        auto_list_t         stderr_wait_queue;  /**< #process_wait_record_t */
+        auto_list_t         stdout_cache;       /**< #lua_process_cache_t. Stdout data from child process */
+        auto_list_t         stderr_cache;       /**< #lua_process_cache_t. Stderr data from child process */
     } await;
 
     struct
@@ -68,12 +68,12 @@ struct atd_process_s
 
 typedef struct process_write_record
 {
-    atd_list_node_t         node;
+    auto_list_node_t         node;
     struct
     {
         uv_write_t          req;            /**< Write request */
         lua_process_t*      process;        /**< Process handle */
-        atd_coroutine_t*    wait_coroutine; /**< The waiting coroutine */
+        auto_coroutine_t*   wait_coroutine; /**< The waiting coroutine */
         size_t              size;           /**< Send data size */
         char                data[];         /**< Send data */
     } data;
@@ -81,17 +81,17 @@ typedef struct process_write_record
 
 typedef struct process_wait_record
 {
-    atd_list_node_t         node;
+    auto_list_node_t         node;
     struct
     {
-        atd_coroutine_t*    wait_coroutine; /**< The waiting coroutine */
+        auto_coroutine_t*   wait_coroutine; /**< The waiting coroutine */
         lua_process_t*      process;        /**< The process handle */
     } data;
 } process_wait_record_t;
 
 static void _process_wakeup_stderr_queue(lua_process_t* process)
 {
-    atd_list_node_t* it = ev_list_begin(&process->await.stderr_wait_queue);
+    auto_list_node_t* it = ev_list_begin(&process->await.stderr_wait_queue);
     for (; it != NULL; it = ev_list_next(it))
     {
         process_wait_record_t* record = container_of(it, process_wait_record_t, node);
@@ -101,7 +101,7 @@ static void _process_wakeup_stderr_queue(lua_process_t* process)
 
 static void _process_wakeup_stdout_queue(lua_process_t* process)
 {
-    atd_list_node_t* it = ev_list_begin(&process->await.stdout_wait_queue);
+    auto_list_node_t* it = ev_list_begin(&process->await.stdout_wait_queue);
     for (; it != NULL; it = ev_list_next(it))
     {
         process_wait_record_t* record = container_of(it, process_wait_record_t, node);
@@ -111,7 +111,7 @@ static void _process_wakeup_stdout_queue(lua_process_t* process)
 
 static void _process_wakeup_join_queue(lua_process_t* process)
 {
-    atd_list_node_t* it = ev_list_begin(&process->await.join_wait_queue);
+    auto_list_node_t* it = ev_list_begin(&process->await.join_wait_queue);
     for (; it != NULL; it = ev_list_next(it))
     {
         process_wait_record_t* record = container_of(it, process_wait_record_t, node);
@@ -422,7 +422,7 @@ static int _lua_process_kill(lua_State *L)
 static int _lua_process_on_stdout_resume(lua_State *L, int status, lua_KContext ctx)
 {
     (void)status;
-    atd_list_node_t * it;
+    auto_list_node_t * it;
     process_wait_record_t* record = (process_wait_record_t*)ctx;
     lua_process_t* process = record->data.process;
 
@@ -458,7 +458,7 @@ static int _lua_process_on_stdout_resume(lua_State *L, int status, lua_KContext 
 static int _lua_process_on_stderr_resume(lua_State *L, int status, lua_KContext ctx)
 {
     (void)status;
-    atd_list_node_t * it;
+    auto_list_node_t * it;
     process_wait_record_t* record = (process_wait_record_t*)ctx;
     lua_process_t* process = record->data.process;
 
