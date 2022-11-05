@@ -48,37 +48,24 @@ static size_t _regex_api_get_group_count(const auto_regex_code_t* code)
     return count;
 }
 
-static int _regex_api_match(const auto_regex_code_t* code, const char* subject,
-    size_t subject_len, size_t* groups, size_t group_len)
+static int _regex_api_match(const auto_regex_code_t* self, const char* subject,
+    size_t subject_len, auto_regex_cb cb, void* arg)
 {
-    pcre2_match_data* match_data = NULL;
-    if (groups != NULL && group_len > 0)
-    {
-        match_data = pcre2_match_data_create_from_pattern((pcre2_code*)code, NULL);
-    }
-
-    if (subject_len == (size_t)-1)
-    {
-        subject_len = PCRE2_ZERO_TERMINATED;
-    }
-
-    int ret = pcre2_match((pcre2_code*)code, (PCRE2_SPTR)subject, subject_len,
-        0, 0, match_data, NULL);
+    pcre2_code* code = (pcre2_code*)self;
+    pcre2_match_data* match_data = (cb != NULL) ?
+        pcre2_match_data_create_from_pattern(code, NULL) : NULL;
+    int ret = pcre2_match(code, (PCRE2_SPTR)subject, subject_len, 0, 0, match_data, NULL);
     if (ret <= 0)
     {
         ret = -1;
         goto finish;
     }
 
-    PCRE2_SIZE* ovector = pcre2_get_ovector_pointer(match_data);
-    size_t ovector_len = pcre2_get_ovector_count(match_data);
-    size_t copy_size = ovector_len < group_len ? ovector_len : group_len;
-
-    size_t i;
-    for (i = 0; i < copy_size; i++)
+    if (cb != NULL)
     {
-        groups[2 * i] = ovector[2 * i];
-        groups[2 * i + 1] = ovector[2 * i + 1];
+        PCRE2_SIZE* o_vector = pcre2_get_ovector_pointer(match_data);
+        static_assert(sizeof(*o_vector) == sizeof(size_t), ERR_HINT_DEFINITION_MISMATCH);
+        cb(subject, o_vector, ret, arg);
     }
 
 finish:
@@ -86,7 +73,6 @@ finish:
     {
         pcre2_match_data_free(match_data);
     }
-
     return ret;
 }
 

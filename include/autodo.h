@@ -693,6 +693,15 @@ typedef struct auto_api_notify_s
 struct auto_regex_code_s;
 typedef struct auto_regex_code_s auto_regex_code_t;
 
+/**
+ * @brief Regex match callback.
+ * @param[in] data      Original data to match.
+ * @param[in] groups    Capture groups.
+ * @param[in] group_sz  Group size.
+ * @param[in] arg       User defined arguments.
+ */
+typedef void (*auto_regex_cb)(const char* data, size_t* groups, size_t group_sz, void* arg);
+
 typedef struct auto_api_regex_s
 {
     /**
@@ -717,17 +726,16 @@ typedef struct auto_api_regex_s
     size_t (*get_group_count)(const auto_regex_code_t* code);
 
     /**
-     * @brief Matches a compiled regular expression \p code against a given
-     *   \p subject string.
-     * @param[in] self          Compiled regular expression.
-     * @param[in] subject       The string to match.
-     * @param[in] subject_len   The string length.
-     * @param[out] groups       The groups to capture.
-     * @param[in] group_len     The group size.
-     * @return                  The number of groups captured.
+     * @brief
+     * @param[in] self      Compiled regular expression.
+     * @param[in] data      The string to match.
+     * @param[in] size      The string length in bytes.
+     * @param[in] cb        Match callback. It is only called if match success.
+     * @param[in] arg       User defined arguments.
+     * @return              The number of groups captured.
      */
-    int (*match)(const auto_regex_code_t* self, const char* subject, size_t subject_len,
-        size_t* groups, size_t group_len);
+    int (*match)(const auto_regex_code_t* self, const char* data, size_t size,
+        auto_regex_cb cb, void* arg);
 } auto_api_regex_t;
 
 #define AUTO_LUA_OPEQ           0
