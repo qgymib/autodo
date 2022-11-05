@@ -18,6 +18,8 @@
 #   else
 #       define AUTO_PUBLIC  __declspec(dllimport)
 #   endif
+#elif __GNUC__ >= 4
+#   define AUTO_PUBLIC  __attribute__ ((visibility ("default")))
 #else
 #   define AUTO_PUBLIC
 #endif
@@ -27,6 +29,8 @@
  */
 #if defined(_WIN32)
 #   define AUTO_EXPORT  __declspec(dllexport)
+#elif __GNUC__ >= 4
+#   define AUTO_EXPORT  __attribute__ ((visibility ("default")))
 #else
 #   define AUTO_EXPORT
 #endif
@@ -39,8 +43,10 @@
  */
 #if defined(_WIN32)
 #   define AUTO_LOCAL
-#else
+#elif __GNUC__ >= 4
 #   define AUTO_LOCAL   __attribute__ ((visibility ("hidden")))
+#else
+#   define AUTO_LOCAL
 #endif
 
 /**

@@ -16,6 +16,13 @@ function(setup_target_wall name)
     endif ()
 endfunction()
 
+# Set default visibility as hidden
+function(setup_target_hidden name)
+    if (CMAKE_C_COMPILER_ID STREQUAL "GNU" OR CMAKE_C_COMPILER_ID STREQUAL "Clang")
+        target_compile_options(${name} PRIVATE -fvisibility=hidden)
+    endif ()
+endfunction()
+
 function(setup_required_package_x11 name)
     find_package(X11 REQUIRED)
     target_include_directories(${name}
@@ -83,12 +90,11 @@ target_include_directories(${PROJECT_NAME}
         ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 setup_target_wall(${PROJECT_NAME})
+setup_target_hidden(${PROJECT_NAME})
 
 if (NOT WIN32)
     target_link_libraries(${PROJECT_NAME} PRIVATE m)
 endif ()
-
-
 
 ###############################################################################
 # Dependency
