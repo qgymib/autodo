@@ -8,7 +8,7 @@ set(PCRE2_SOURCE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/third_party/pcre2)
 set(PCRE2_INSTALL_PATH ${CMAKE_CURRENT_BINARY_DIR}/third_party/pcre2)
 
 if (WIN32)
-    set(PCRE2_LIB_PATH  ${PCRE2_INSTALL_PATH}/lib/pcre2-8-staticd.lib)
+    set(PCRE2_LIB_PATH  ${PCRE2_INSTALL_PATH}/lib/pcre2-8-static.lib)
 else ()
     set(PCRE2_LIB_PATH  ${PCRE2_INSTALL_PATH}/${CMAKE_INSTALL_LIBDIR}/libpcre2-8.a)
 endif ()

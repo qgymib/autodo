@@ -5,7 +5,9 @@
 #include <stdlib.h>
 #include "utils.h"
 
-#if !defined(_WIN32)
+#if defined(_WIN32)
+#include <shlwapi.h>
+#else
 #include <sys/stat.h>
 #endif
 

@@ -23,31 +23,11 @@ function(setup_target_hidden name)
     endif ()
 endfunction()
 
-function(setup_required_package_x11 name)
-    find_package(X11 REQUIRED)
-    target_include_directories(${name}
-        PRIVATE
-            ${X11_INCLUDE_DIR})
-    target_link_libraries(${name}
-        PRIVATE
-            ${X11_LIBRARIES})
-endfunction()
-
-function(setup_required_package_cairo name)
-    find_package(Cairo REQUIRED)
-    target_include_directories(${name}
-        PRIVATE
-            ${CAIRO_INCLUDE_DIRS})
-    target_link_libraries(${name}
-        PRIVATE
-            ${CAIRO_LIBRARIES})
-endfunction()
-
 ###############################################################################
 # Setup executable
 ###############################################################################
 
-set(auto_src_list
+add_executable(${PROJECT_NAME}
     src/api/api.c
     src/api/async.c
     src/api/coroutine.c
@@ -68,7 +48,6 @@ set(auto_src_list
     src/lua/json.c
     src/lua/process.c
     src/lua/regex.c
-    src/lua/screenshot.c
     src/lua/sleep.c
     src/lua/uname.c
     src/utils/list.c
@@ -76,10 +55,7 @@ set(auto_src_list
     src/main.c
     src/package.c
     src/runtime.c
-    src/utils.c)
-
-add_executable(${PROJECT_NAME}
-    ${auto_src_list}
+    src/utils.c
     ${CMAKE_CURRENT_SOURCE_DIR}/share/appicon.rc)
 
 target_include_directories(${PROJECT_NAME}
@@ -89,12 +65,14 @@ target_include_directories(${PROJECT_NAME}
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
-setup_target_wall(${PROJECT_NAME})
-setup_target_hidden(${PROJECT_NAME})
-
-if (NOT WIN32)
+if (WIN32)
+    target_link_libraries(${PROJECT_NAME} PRIVATE Shlwapi)
+else()
     target_link_libraries(${PROJECT_NAME} PRIVATE m)
 endif ()
+
+setup_target_wall(${PROJECT_NAME})
+setup_target_hidden(${PROJECT_NAME})
 
 ###############################################################################
 # Dependency
@@ -115,12 +93,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE cJSON)
 # PCRE2
 include(third_party/pcre2.cmake)
 target_link_libraries(${PROJECT_NAME} PRIVATE pcre2)
-
-if (WIN32)
-else ()
-    setup_required_package_x11(${PROJECT_NAME})
-    setup_required_package_cairo(${PROJECT_NAME})
-endif ()
 
 ###############################################################################
 # Test

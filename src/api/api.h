@@ -3,11 +3,17 @@
 
 #include <autodo.h>
 
-#if 1
-#define static_assert(e, m) _Static_assert(e, m)
+/**
+ * @def static_assert
+ * @brief Tests a software assertion at compile time.
+ */
+#if defined(__GNUC__)
+#   define static_assert(e, m) _Static_assert(e, m)
+#elif defined(_MSC_VER)
+// do nothing
 #else
-#define static_assert(e, m) \
-    do { enum { assert_static__ = 1/(e) }; } while (0)
+#   define static_assert(e, m) \
+        do { enum { assert_static__ = 1/(e) }; } while (0)
 #endif
 
 #define ERR_HINT_NOT_IN_MANAGED_COROUTINE   "you are not in managed coroutine"

@@ -1,3 +1,4 @@
+#define AUTO_API_EXPORT
 #include "api.h"
 #include "api/async.h"
 #include "api/coroutine.h"

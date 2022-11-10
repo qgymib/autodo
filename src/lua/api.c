@@ -1,4 +1,3 @@
-#define AUTO_API_EXPORT
 #include <string.h>
 #include "runtime.h"
 #include "api.h"
@@ -8,7 +7,6 @@
 #include "lua/json.h"
 #include "lua/process.h"
 #include "lua/regex.h"
-#include "lua/screenshot.h"
 #include "lua/sleep.h"
 #include "lua/uname.h"
 #include "utils.h"
@@ -28,7 +26,6 @@
     xx("json",              auto_lua_json)          \
     xx("process",           atd_lua_process)        \
     xx("regex",             auto_lua_regex)         \
-    xx("screenshot",        atd_lua_screenshot)     \
     xx("sleep",             atd_lua_sleep)          \
     xx("uname",             auto_lua_uname)
 

@@ -114,7 +114,7 @@ static int _download_on_wait_resume(lua_State* L, int status, lua_KContext ctx)
 {
     (void)status; (void)ctx;
 
-    int exit_code = lua_tointeger(L, -1);
+    lua_Integer exit_code = lua_tointeger(L, -1);
     lua_pushinteger(L, exit_code);
     return 1;
 }

@@ -5,6 +5,18 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+/*
+ * ssize_t is not standard type in windows, so by default we defined here.
+ * To not define it, define `_SSIZE_T_DEFINED` before include this header.
+ */
+#if defined(_MSC_VER) && !defined(_SSIZE_T_) && !defined(_SSIZE_T_DEFINED)
+#include <BaseTsd.h>
+typedef SSIZE_T ssize_t;
+#   define SSIZE_MAX INTPTR_MAX
+#   define _SSIZE_T_
+#   define _SSIZE_T_DEFINED
+#endif
+
 #define AUTO_VERSION_MAJOR  0
 #define AUTO_VERSION_MINOR  0
 #define AUTO_VERSION_PATCH  1

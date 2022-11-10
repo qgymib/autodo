@@ -14,7 +14,15 @@ typedef struct lua_process_cache
 {
     auto_list_node_t         node;
     size_t                  size;
+
+#if defined(_MSC_VER)
+#    pragma warning(push)
+#    pragma warning(disable : 4200)
+#endif
     char                    data[];
+#if defined(_MSC_VER)
+#    pragma warning(pop)
+#endif
 } lua_process_cache_t;
 
 typedef struct lua_process
@@ -75,7 +83,15 @@ typedef struct process_write_record
         lua_process_t*      process;        /**< Process handle */
         auto_coroutine_t*   wait_coroutine; /**< The waiting coroutine */
         size_t              size;           /**< Send data size */
+
+#if defined(_MSC_VER)
+#    pragma warning(push)
+#    pragma warning(disable : 4200)
+#endif
         char                data[];         /**< Send data */
+#if defined(_MSC_VER)
+#    pragma warning(pop)
+#endif
     } data;
 } process_write_record_t;
 
@@ -119,7 +135,7 @@ static void _process_wakeup_join_queue(lua_process_t* process)
     }
 }
 
-static void _lua_process_stdout(atd_process_t* proc, void* data, size_t size, int status)
+static void _lua_process_stdout(atd_process_t* proc, void* data, ssize_t nread)
 {
     lua_process_t* process = proc->belong;
 
@@ -129,16 +145,16 @@ static void _lua_process_stdout(atd_process_t* proc, void* data, size_t size, in
     }
 
     /* Wakeup when error */
-    if (status < 0)
+    if (nread < 0)
     {
         process->flag.have_error = 1;
         goto wakeup_host_co;
     }
 
-    size_t malloc_size = sizeof(lua_process_cache_t) + size;
+    size_t malloc_size = sizeof(lua_process_cache_t) + nread;
     lua_process_cache_t* cache = malloc(malloc_size);
-    cache->size = size;
-    memcpy(cache->data, data, size);
+    cache->size = nread;
+    memcpy(cache->data, data, nread);
 
     ev_list_push_back(&process->await.stdout_cache, &cache->node);
 
@@ -147,7 +163,7 @@ wakeup_host_co:
 }
 
 static void _lua_process_stderr(atd_process_t* proc, void* data,
-    size_t size, int status)
+    ssize_t nread)
 {
     lua_process_t* process = proc->belong;
 
@@ -156,16 +172,16 @@ static void _lua_process_stderr(atd_process_t* proc, void* data,
         return;
     }
 
-    if (status < 0)
+    if (nread < 0)
     {
         process->flag.have_error = 1;
         goto wakeup_host_co;
     }
 
-    size_t malloc_size = sizeof(lua_process_cache_t) + size;
+    size_t malloc_size = sizeof(lua_process_cache_t) + nread;
     lua_process_cache_t* cache = malloc(malloc_size);
-    cache->size = size;
-    memcpy(cache->data, data, size);
+    cache->size = nread;
+    memcpy(cache->data, data, nread);
 
     ev_list_push_back(&process->await.stderr_cache, &cache->node);
 
@@ -409,7 +425,7 @@ static int _lua_process_gc(lua_State *L)
 static int _lua_process_kill(lua_State *L)
 {
     lua_process_t* process = lua_touserdata(L, 1);
-    int signum = lua_tointeger(L, 2);
+    int signum = (int)lua_tointeger(L, 2);
 
     if (process->process != NULL)
     {
@@ -530,7 +546,7 @@ static int _lua_process_async_stdin(lua_State* L)
     memcpy(record->data.data, data, data_size);
     ev_list_push_back(&process->await.stdin_wait_queue, &record->node);
 
-    uv_buf_t buf = uv_buf_init(record->data.data, record->data.size);
+    uv_buf_t buf = uv_buf_init(record->data.data, (unsigned int)record->data.size);
     ret = uv_write(&record->data.req, (uv_stream_t*)&process->process->pip_stdin,
         &buf, 1, _process_on_write_done);
     if (ret != 0)
@@ -583,8 +599,7 @@ static int _lua_process_await_stderr(lua_State *L)
 static void _process_alloc_cb(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf)
 {
     (void)handle;
-    buf->len = suggested_size;
-    buf->base = malloc(suggested_size);
+    *buf = uv_buf_init(malloc(suggested_size), (unsigned int)suggested_size);
 }
 
 static void _process_on_exit(uv_process_t* process, int64_t exit_status, int term_signal)
@@ -617,7 +632,7 @@ static void _process_on_stderr(uv_stream_t* stream, ssize_t nread, const uv_buf_
 
     if (buf->base != NULL)
     {
-        _lua_process_stderr(impl, buf->base, nread, nread);
+        _lua_process_stderr(impl, buf->base, nread);
         free(buf->base);
     }
 }
@@ -634,7 +649,7 @@ static void _process_on_stdout(uv_stream_t* stream, ssize_t nread, const uv_buf_
 
     if (buf->base != NULL)
     {
-        _lua_process_stdout(impl, buf->base, nread, nread);
+        _lua_process_stdout(impl, buf->base, nread);
         free(buf->base);
     }
 }
