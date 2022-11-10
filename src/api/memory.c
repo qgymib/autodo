@@ -1,4 +1,5 @@
 #include "memory.h"
+#include <stdlib.h>
 
 static void* _mem_malloc(size_t size)
 {

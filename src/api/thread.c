@@ -9,15 +9,15 @@ struct auto_thread_s
 static void api_thread_join(auto_thread_t* self)
 {
     uv_thread_join(&self->thread);
-    free(self);
+    api.memory->free(self);
 }
 
 static auto_thread_t* api_thread_create(auto_thread_fn fn, void* arg)
 {
-    auto_thread_t* impl = malloc(sizeof(auto_thread_t));
+    auto_thread_t* impl = api.memory->malloc(sizeof(auto_thread_t));
     if (uv_thread_create(&impl->thread, fn, arg) != 0)
     {
-        free(impl);
+        api.memory->free(impl);
         return NULL;
     }
     return impl;

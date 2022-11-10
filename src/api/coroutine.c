@@ -10,7 +10,7 @@
 static auto_coroutine_t* _coroutine_host(lua_State* L)
 {
     auto_runtime_t* rt = auto_get_runtime(L);
-    atd_coroutine_impl_t* thr = malloc(sizeof(atd_coroutine_impl_t));
+    atd_coroutine_impl_t* thr = api.memory->malloc(sizeof(atd_coroutine_impl_t));
 
     memset(thr, 0, sizeof(*thr));
     thr->rt = rt;
@@ -21,7 +21,7 @@ static auto_coroutine_t* _coroutine_host(lua_State* L)
     /* Save to schedule table to check duplicate */
     if (ev_map_insert(&rt->schedule.all_table, &thr->t_node) != NULL)
     {
-        free(thr);
+        api.memory->free(thr);
         return NULL;
     }
 
@@ -70,7 +70,7 @@ static auto_coroutine_hook_t* _coroutine_hook(struct auto_coroutine* self,
 {
     atd_coroutine_impl_t* impl = container_of(self, atd_coroutine_impl_t, base);
 
-    auto_coroutine_hook_t* token = malloc(sizeof(auto_coroutine_hook_t));
+    auto_coroutine_hook_t* token = api.memory->malloc(sizeof(auto_coroutine_hook_t));
     token->fn = fn;
     token->arg = arg;
     token->impl = impl;
@@ -102,7 +102,7 @@ static void _coroutine_unhook(struct auto_coroutine* self, auto_coroutine_hook_t
     ev_list_erase(&impl->hook.queue, &token->node);
     token->impl = NULL;
 
-    free(token);
+    api.memory->free(token);
 }
 
 /**

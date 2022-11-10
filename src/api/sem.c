@@ -9,7 +9,7 @@ struct auto_sem_s
 static void api_sem_destroy(auto_sem_t* self)
 {
     uv_sem_destroy(&self->sem);
-    free(self);
+    api.memory->free(self);
 }
 
 static void api_sem_wait(auto_sem_t* self)
@@ -24,7 +24,7 @@ static void api_sem_post(auto_sem_t* self)
 
 static auto_sem_t* api_sem_create(unsigned int value)
 {
-    auto_sem_t* impl = malloc(sizeof(auto_sem_t));
+    auto_sem_t* impl = api.memory->malloc(sizeof(auto_sem_t));
     uv_sem_init(&impl->sem, value);
     return impl;
 }

@@ -4,9 +4,9 @@
 
 static ssize_t api_search(const void* data, size_t size, const void* key, size_t len)
 {
-    int32_t* fsm = malloc(sizeof(int) * len);
+    int32_t* fsm = api.memory->malloc(sizeof(int) * len);
     ssize_t ret = aeda_find(data, size, key, len, fsm, len);
-    free(fsm);
+    api.memory->free(fsm);
     return ret;
 }
 

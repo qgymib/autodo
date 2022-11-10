@@ -122,7 +122,7 @@ static void _async_destroy(auto_async_t* self)
 
 static auto_async_t* _async_create(lua_State* L)
 {
-    auto_async_t* self = malloc(sizeof(auto_async_t));
+    auto_async_t* self = api.memory->malloc(sizeof(auto_async_t));
     memset(self, 0, sizeof(*self));
 
     api.list->init(&self->call_queue);

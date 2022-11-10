@@ -2,8 +2,8 @@
 #define __AUTO_DO_H__
 
 #include <stdint.h>
-#include <stdlib.h>
-#include <stdio.h>
+#include <stddef.h>
+#include <stdarg.h>
 
 /*
  * ssize_t is not standard type in windows, so by default we defined here.
@@ -15,6 +15,8 @@ typedef SSIZE_T ssize_t;
 #   define SSIZE_MAX INTPTR_MAX
 #   define _SSIZE_T_
 #   define _SSIZE_T_DEFINED
+#elif defined(__linux__)
+#include <sys/types.h>
 #endif
 
 #define AUTO_VERSION_MAJOR  0

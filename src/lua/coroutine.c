@@ -110,7 +110,7 @@ static int _coroutine_on_resume(lua_State* L, int status, lua_KContext ctx)
     }
 
     api_list.erase(&self->wait_queue, &record->node);
-    free(record);
+    api.memory->free(record);
 
     if (self->sch_status & AUTO_COROUTINE_ERROR)
     {/* Error occur */
@@ -136,14 +136,14 @@ static int _coroutine_await(lua_State* L)
 {
     lua_coroutine_t* co = lua_touserdata(L, 1);
 
-    lua_wait_record_t* record = malloc(sizeof(lua_wait_record_t));
+    lua_wait_record_t* record = api.memory->malloc(sizeof(lua_wait_record_t));
 
     record->data.belong = co;
     record->data.wait_coroutine = api_coroutine.find(L);
 
     if (record->data.wait_coroutine == NULL)
     {
-        free(record);
+        api.memory->free(record);
         return luaL_error(L, ERR_HINT_NOT_IN_MANAGED_COROUTINE);
     }
 

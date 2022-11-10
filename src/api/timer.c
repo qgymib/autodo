@@ -13,7 +13,7 @@ struct auto_timer_s
 static void _on_timer_close(uv_handle_t* handle)
 {
     auto_timer_t* impl = container_of((uv_timer_t*)handle, auto_timer_t, timer);
-    free(impl);
+    api.memory->free(impl);
 }
 
 static void _timer_on_active(uv_timer_t* handle)
@@ -44,7 +44,7 @@ static auto_timer_t* api_timer_create(lua_State* L)
 {
     auto_runtime_t* rt = auto_get_runtime(L);
 
-    auto_timer_t* impl = malloc(sizeof(auto_timer_t));
+    auto_timer_t* impl = api.memory->malloc(sizeof(auto_timer_t));
     impl->rt = rt;
     uv_timer_init(&rt->loop, &impl->timer);
 
