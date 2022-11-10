@@ -112,7 +112,7 @@ static int _coroutine_on_resume(lua_State* L, int status, lua_KContext ctx)
     api_list.erase(&self->wait_queue, &record->node);
     free(record);
 
-    if (self->sch_status != LUA_OK)
+    if (self->sch_status & AUTO_COROUTINE_ERROR)
     {/* Error occur */
         lua_pushboolean(L, 0);
         lua_pushvalue(self->storage, 1);
@@ -125,7 +125,7 @@ static int _coroutine_on_resume(lua_State* L, int status, lua_KContext ctx)
     int i;
     for (i = 1; i <= self->n_ret; i++)
     {
-        lua_pushvalue(L, i);
+        lua_pushvalue(self->storage, i);
     }
     lua_xmove(self->storage, L, self->n_ret);
 

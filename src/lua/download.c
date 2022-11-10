@@ -1,4 +1,3 @@
-#define _GNU_SOURCE
 #include "download.h"
 #include "utils.h"
 #include <string.h>
@@ -49,18 +48,14 @@ static void _download_with_wget(lua_State* L, const char* url, const char* file)
 
 static void _download_with_powershell(lua_State* L, const char* url, const char* file)
 {
-    char* cmd;
-    asprintf(&cmd, "Invoke-WebRequest -Uri \"%s\" -OutFile \"%s\"", url, file);
+    lua_pushstring(L, "PowerShell");
+    lua_seti(L, -2, 1);
 
-    size_t i;
-    const char* cmd_list[] = { "PowerShell", "-Command", cmd };
-    for (i = 0; i < ARRAY_SIZE(cmd_list); i++)
-    {
-        lua_pushstring(L, cmd_list[i]);
-        lua_seti(L, -2, i + 1);
-    }
+    lua_pushstring(L, "-Command");
+    lua_seti(L, -2, 2);
 
-    free(cmd);
+    lua_pushfstring(L, "Invoke-WebRequest -Uri \"%s\" -OutFile \"%s\"", url, file);
+    lua_seti(L, -2, 3);
 }
 
 static int _download_with_command(lua_State* L, lua_download_token_t* token,

@@ -41,4 +41,5 @@ target_include_directories(lua54
 
 if (UNIX)
     target_compile_options(lua54 PRIVATE -DLUA_USE_LINUX)
+    target_link_libraries(lua54 PRIVATE m)
 endif ()

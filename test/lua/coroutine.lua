@@ -1,5 +1,3 @@
-io.write("hello world\n")
-
 c1 = auto.coroutine(function(sum)
     for i=1,10 do
         sum = sum + 1
@@ -16,6 +14,11 @@ c2 = auto.coroutine(function(sum)
     return sum
 end, 20)
 
-assert(c1:await() == 20)
-assert(c2:await() == 40)
-io.write("finish\n")
+local b1, ret1 = c1:await()
+local b2, ret2 = c2:await()
+
+assert(b1 == true)
+assert(b2 == true)
+
+assert(ret1 == 20)
+assert(ret2 == 40)

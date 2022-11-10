@@ -185,8 +185,16 @@ int atd_readfile(const char* path, void** data, size_t* size)
     fseek(exe, 0L, SEEK_SET);
 
     *data = malloc(file_size);
-    fread(*data, file_size, 1, exe);
+    size_t ret = fread(*data, file_size, 1, exe);
     fclose(exe);
+
+    if (ret != 1)
+    {
+        free(*data);
+        *data = NULL;
+        *size = 0;
+        return -1;
+    }
 
     *size = file_size;
     return 0;
