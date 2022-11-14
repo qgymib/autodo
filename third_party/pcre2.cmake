@@ -20,6 +20,7 @@ ExternalProject_Add(3rd_pcre2
                         -DPCRE2_BUILD_TESTS=OFF
                         -DPCRE2_BUILD_PCRE2GREP=OFF
                         -DBUILD_SHARED_LIBS=OFF
+                        -DPCRE2_SHOW_REPORT=OFF
     BUILD_BYPRODUCTS    ${PCRE2_LIB_PATH})
 
 # INTERFACE_INCLUDE_DIRECTORIES requires include path exists.
