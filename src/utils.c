@@ -144,7 +144,7 @@ const char* get_filename(const char *filename)
     return pos;
 }
 
-const char* atd_strerror(int errcode, char* buffer, size_t size)
+const char* auto_strerror(int errcode, char* buffer, size_t size)
 {
 #if defined(_WIN32)
     strerror_s(buffer, size, errcode);
@@ -154,7 +154,7 @@ const char* atd_strerror(int errcode, char* buffer, size_t size)
     return buffer;
 }
 
-char* atd_strdup(const char* s)
+char* auto_strdup(const char* s)
 {
 #if defined(_WIN32)
     return _strdup(s);
@@ -305,7 +305,7 @@ static int _write_executable(lua_State* L, const char* dst)
     if (dst_file == NULL)
     {
         return luaL_error(L, "open `%s` failed: %s(%d).", dst,
-                          atd_strerror(errno, errbuf, sizeof(errbuf)), errno);
+            auto_strerror(errno, errbuf, sizeof(errbuf)), errno);
     }
 
     {

@@ -1,5 +1,4 @@
 #include <string.h>
-#include "runtime.h"
 #include "api.h"
 #include "lua/coroutine.h"
 #include "lua/download.h"
@@ -8,8 +7,8 @@
 #include "lua/process.h"
 #include "lua/regex.h"
 #include "lua/sleep.h"
+#include "lua/sqlite.h"
 #include "lua/uname.h"
-#include "utils.h"
 
 /******************************************************************************
 * Expose lua api and c api to lua vm
@@ -27,6 +26,7 @@
     xx("process",           atd_lua_process)        \
     xx("regex",             auto_lua_regex)         \
     xx("sleep",             atd_lua_sleep)          \
+    xx("sqlite",            auto_lua_sqlite)        \
     xx("uname",             auto_lua_uname)
 
 #define EXPAND_MAP_AS_LUA_FUNCTION(name, func) \

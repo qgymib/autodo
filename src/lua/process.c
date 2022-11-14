@@ -193,7 +193,7 @@ static int _process_convert_options_cwd(lua_State* L, int idx, lua_process_t* pr
 {
     if (lua_getfield(L, idx, "cwd") == LUA_TSTRING)
     {
-        process->options.cwd = atd_strdup(lua_tostring(L, -1));
+        process->options.cwd = auto_strdup(lua_tostring(L, -1));
     }
     lua_pop(L, 1);
     return 0;
@@ -211,7 +211,7 @@ static int _process_convert_options_env(lua_State* L, int idx, lua_process_t* pr
         for (i = 0; i < env_len; i++)
         {
             lua_geti(L, -1, i + 1); // sp + 2
-            process->options.env[i] = atd_strdup(lua_tostring(L, -1));
+            process->options.env[i] = auto_strdup(lua_tostring(L, -1));
             lua_pop(L, 1);
         }
     }
@@ -250,7 +250,7 @@ static int _process_convert_options_file(lua_State* L, int idx, lua_process_t* p
 {
     if (lua_getfield(L, idx, "file") == LUA_TSTRING)
     {
-        process->options.file = atd_strdup(lua_tostring(L, -1));
+        process->options.file = auto_strdup(lua_tostring(L, -1));
     }
     lua_pop(L, 1);
     return 0;
@@ -268,7 +268,7 @@ static int _process_convert_options_args(lua_State* L, int idx, lua_process_t* p
         for (i = 0; i < arg_len; i++)
         {
             lua_geti(L, -1, i + 1); // sp + 2
-            process->options.args[i] = atd_strdup(lua_tostring(L, -1));
+            process->options.args[i] = auto_strdup(lua_tostring(L, -1));
             lua_pop(L, 1);
         }
     }
@@ -286,7 +286,7 @@ static int _process_fix_options(lua_State* L, lua_process_t* process)
     if (process->options.file != NULL && process->options.args == NULL)
     {
         process->options.args = malloc(sizeof(char*) * 2);
-        process->options.args[0] = atd_strdup(process->options.file);
+        process->options.args[0] = auto_strdup(process->options.file);
         process->options.args[1] = NULL;
         return 0;
     }
@@ -296,7 +296,7 @@ static int _process_fix_options(lua_State* L, lua_process_t* process)
         return luaL_error(L, "missing field `file`");
     }
 
-    process->options.file = atd_strdup(process->options.args[0]);
+    process->options.file = auto_strdup(process->options.args[0]);
     return 0;
 }
 

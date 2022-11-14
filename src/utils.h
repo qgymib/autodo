@@ -68,12 +68,12 @@ AUTO_LOCAL const char* get_filename(const char *filename);
 /**
  * @see [strerror_r(3)](https://man7.org/linux/man-pages/man3/strerror.3.html)
  */
-AUTO_LOCAL const char* atd_strerror(int errcode, char* buffer, size_t size);
+AUTO_LOCAL const char* auto_strerror(int errcode, char* buffer, size_t size);
 
 /**
  * @see [strdup(3)](https://man7.org/linux/man-pages/man3/strdup.3.html)
  */
-AUTO_LOCAL char* atd_strdup(const char* s);
+AUTO_LOCAL char* auto_strdup(const char* s);
 
 /**
  * @brief Read file content

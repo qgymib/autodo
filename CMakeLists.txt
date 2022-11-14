@@ -49,6 +49,7 @@ add_executable(${PROJECT_NAME}
     src/lua/process.c
     src/lua/regex.c
     src/lua/sleep.c
+    src/lua/sqlite.c
     src/lua/uname.c
     src/utils/list.c
     src/utils/map.c
@@ -93,6 +94,14 @@ target_link_libraries(${PROJECT_NAME} PRIVATE cJSON)
 # PCRE2
 include(third_party/pcre2.cmake)
 target_link_libraries(${PROJECT_NAME} PRIVATE pcre2)
+
+# SQLite
+include(third_party/sqlite.cmake)
+target_link_libraries(${PROJECT_NAME} PRIVATE sqlite)
+
+# CSV Parser
+include(third_party/csvparser.cmake)
+target_link_libraries(${PROJECT_NAME} PRIVATE csvparser)
 
 ###############################################################################
 # Test

@@ -61,7 +61,7 @@ static int _lua_load_script(auto_runtime_t* rt, lua_State* L)
     {
         free(rt->config.script_name);
     }
-    rt->config.script_name = atd_strdup(filename);
+    rt->config.script_name = auto_strdup(filename);
 
     if (rt->config.script_path != NULL)
     {
@@ -86,7 +86,7 @@ static int _lua_load_script(auto_runtime_t* rt, lua_State* L)
 
     return luaL_error(L, "open `%s` failed: %s(%d)",
         rt->config.script_file,
-        atd_strerror(ret, rt->cache.errbuf, sizeof(rt->cache.errbuf)),
+        auto_strerror(ret, rt->cache.errbuf, sizeof(rt->cache.errbuf)),
         ret);
 }
 

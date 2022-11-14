@@ -81,7 +81,7 @@ static int _init_parse_args(auto_runtime_t* rt, int argc, char* argv[])
         {
             free(rt->config.script_file);
         }
-        rt->config.script_file = atd_strdup(argv[i]);
+        rt->config.script_file = auto_strdup(argv[i]);
     }
 
     return _init_parse_args_finalize(rt, argv[0]);
@@ -181,7 +181,7 @@ static void _init_runtime(auto_runtime_t* rt, int argc, char* argv[])
     if ((ret = atd_read_self_script(&rt->script.data, &rt->script.size)) != 0)
     {
         fprintf(stderr, "read self failed: %s(%d)\n",
-                atd_strerror(ret, rt->cache.errbuf, sizeof(rt->cache.errbuf)), ret);
+                auto_strerror(ret, rt->cache.errbuf, sizeof(rt->cache.errbuf)), ret);
         exit(EXIT_FAILURE);
     }
 
