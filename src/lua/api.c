@@ -21,6 +21,7 @@
     xx("coroutine",         auto_new_coroutine)     \
     xx("download",          auto_lua_download)      \
     xx("fs_abspath",        auto_lua_fs_abspath)    \
+    xx("fs_delete",         auto_lua_fs_delete)     \
     xx("fs_expand",         auto_lua_fs_expand)     \
     xx("fs_listdir",        auto_lua_fs_listdir)    \
     xx("fs_isfile",         auto_lua_fs_isfile)     \

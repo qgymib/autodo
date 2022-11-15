@@ -17,8 +17,10 @@ typedef struct auto_fts_s auto_fts_t;
 
 typedef struct auto_fts_ent
 {
-    char*   name;
-    size_t  name_len;
+    char*   path;       /**< Full path to this file. */
+    size_t  path_len;   /**< Path length. */
+    char*   name;       /**< File name. */
+    size_t  name_len;   /**< File name length. */
 } auto_fts_ent_t;
 
 /**

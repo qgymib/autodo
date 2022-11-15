@@ -111,7 +111,7 @@ static int _lua_fs_listdir_iter(lua_State* L)
     }
 
     lua_pushlightuserdata(L, NULL);
-    lua_pushlstring(L, ent->name, ent->name_len);
+    lua_pushlstring(L, ent->path, ent->path_len);
     return 2;
 }
 
@@ -175,6 +175,42 @@ int auto_lua_fs_isfile(lua_State* L)
 #else
     int ret = S_ISREG(stat_buf.st_mode);
 #endif
+    lua_pushboolean(L, ret);
+    return 1;
+}
+
+int auto_lua_fs_delete(lua_State* L)
+{
+    int ret = 1;
+    const char* path = luaL_checkstring(L, 1);
+    int recursion = 0;
+    if (lua_type(L, 2) == LUA_TBOOLEAN)
+    {
+        recursion = lua_toboolean(L, 2);
+    }
+
+    lua_pushcfunction(L, auto_lua_fs_isfile);
+    lua_pushvalue(L, 1);
+    lua_call(L, 1, 1);
+
+    if (lua_toboolean(L, -1) || !recursion)
+    {
+        ret = remove(path);
+        lua_pushboolean(L, ret == 0);
+        return 1;
+    }
+
+    auto_fts_ent_t* ent;
+    auto_fts_t* fts = auto_fts_open(path, AUTO_FTS_POST_ORDER);
+    while ((ent = auto_fts_read(fts)) != NULL)
+    {
+        if (remove(ent->path) != 0)
+        {
+            ret = 0;
+        }
+    }
+    auto_fts_close(fts);
+
     lua_pushboolean(L, ret);
     return 1;
 }

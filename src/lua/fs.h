@@ -35,6 +35,13 @@ AUTO_LOCAL int auto_lua_fs_listdir(lua_State* L);
  */
 AUTO_LOCAL int auto_lua_fs_isfile(lua_State* L);
 
+/**
+ * @brief Delete file or directory.
+ * @param[in] L     Lua VM.
+ * @return          Always 1.
+ */
+AUTO_LOCAL int auto_lua_fs_delete(lua_State* L);
+
 #ifdef __cplusplus
 }
 #endif

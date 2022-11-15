@@ -1,5 +1,6 @@
 set(test_list
     coroutine
+    fs_isfile
     sqlite)
 
 foreach(arg IN LISTS test_list)

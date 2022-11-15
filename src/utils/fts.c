@@ -184,7 +184,7 @@ auto_fts_t* auto_fts_open(const char* path, int flags)
     self->flags = flags;
 
     auto_fts_record_t* rec = malloc(sizeof(auto_fts_record_t) + root_path_size + 1);
-    rec->path_len = root_path_size + 1;
+    rec->path_len = root_path_size;
     memcpy(rec->path, path, root_path_size + 1);
     ev_map_init(&rec->child_unk_table, _fts_cmp_child, NULL);
     ev_map_init(&rec->child_reg_table, _fts_cmp_child, NULL);
@@ -231,6 +231,16 @@ static void _fts_destroy_record(auto_fts_t* self, auto_fts_record_t* rec)
     free(rec);
 }
 
+static void _fts_cleanup_cache(auto_fts_t* self)
+{
+    if (self->cache.path != NULL)
+    {
+        free(self->cache.path);
+        self->cache.path = NULL;
+    }
+    self->cache.path_len = 0;
+}
+
 void auto_fts_close(auto_fts_t* self)
 {
     auto_list_node_t* it;
@@ -240,25 +250,19 @@ void auto_fts_close(auto_fts_t* self)
         _fts_destroy_record(self, rec);
     }
 
+    _fts_cleanup_cache(self);
     free(self);
-}
-
-static void _fts_cleanup_cache(auto_fts_t* self)
-{
-    if (self->cache.name != NULL)
-    {
-        free(self->cache.name);
-        self->cache.name = NULL;
-    }
-    self->cache.name_len = 0;
 }
 
 static auto_fts_ent_t* _fts_update_cache(auto_fts_t* self,
     auto_fts_record_t* rec, auto_fts_child_t* child, int free_child)
 {
-    self->cache.name_len = rec->path_len + 1 + child->name_len;
-    self->cache.name = malloc(self->cache.name_len + 1);
-    snprintf(self->cache.name, self->cache.name_len + 1, "%s/%s", rec->path, child->name);
+    self->cache.path_len = rec->path_len + 1 + child->name_len;
+    self->cache.path = malloc(self->cache.path_len + 1);
+    snprintf(self->cache.path, self->cache.path_len + 1, "%s/%s", rec->path, child->name);
+
+    self->cache.name = self->cache.path + rec->path_len + 1;
+    self->cache.name_len = child->name_len;
 
     if (free_child)
     {
