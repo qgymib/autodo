@@ -53,6 +53,7 @@ add_executable(${PROJECT_NAME}
     src/lua/uname.c
     src/utils/list.c
     src/utils/map.c
+    src/utils/fts.c
     src/main.c
     src/package.c
     src/runtime.c
