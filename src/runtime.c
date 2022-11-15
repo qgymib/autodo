@@ -13,7 +13,8 @@
 static void _print_usage(const char* name)
 {
     const char* s_usage =
-        "%s - A easy to use lua automation tool with " LUA_VERSION ".\n"
+        "%s - Automation platform with " LUA_VERSION " (Compiled " __DATE__ " " __TIME__ ")\n"
+        "Homepage: https://github.com/qgymib/autodo\n"
         "Usage: %s [OPTIONS] [SCRIPT]\n"
         "  -h,--help\n"
         "    Show this help and exit.\n"
