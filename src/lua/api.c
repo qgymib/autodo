@@ -22,6 +22,8 @@
     xx("download",          auto_lua_download)      \
     xx("fs_abspath",        auto_lua_fs_abspath)    \
     xx("fs_expand",         auto_lua_fs_expand)     \
+    xx("fs_listdir",        auto_lua_fs_listdir)    \
+    xx("fs_isfile",         auto_lua_fs_isfile)     \
     xx("json",              auto_lua_json)          \
     xx("process",           atd_lua_process)        \
     xx("regex",             auto_lua_regex)         \

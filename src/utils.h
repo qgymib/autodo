@@ -18,7 +18,7 @@
  * @param[in] ...   Log arguments
  */
 #define AUTO_DEBUG(fmt, ...)    \
-    printf("[%s:%d %s] " fmt "\n", get_filename(__FILE__), __LINE__, __FUNCTION__, ##__VA_ARGS__)
+    printf("[%s:%d %s]" fmt "\n", get_filename(__FILE__), __LINE__, __FUNCTION__, ##__VA_ARGS__)
 
 /**
  * @brief Align \p size to \p align, who's value is larger or equal to \p size
