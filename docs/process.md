@@ -67,3 +67,11 @@ bool process:running()
 ```
 
 Return whether the process is running.
+
+### process:join
+
+```lua
+process:join()
+```
+
+Wait for process exit.
