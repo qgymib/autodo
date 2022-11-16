@@ -17,7 +17,17 @@ A regex pattern for futher processing.
 ### regex:match
 
 ```lua
-bool,list regex:match(string str)
+list regex:match(string str)
 ```
 
-Match `str` with pattern. The first return value is whether match success. If match success, the second value is a list of captured groups. If match failed, the second value is nil.
+Match `str` with pattern. If match success, the return value is a list of captured groups. If match failed, the return value is nil.
+
+The list have following layout:
+
+```
+{
+    { pos, length, content },
+    { pos, length, content },
+    ...
+}
+```

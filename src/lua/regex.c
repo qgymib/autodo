@@ -23,7 +23,6 @@ static void _regex_match_cb(const char* subject, size_t* groups, size_t group_sz
 {
     lua_State* L = arg;
 
-    lua_pushboolean(L, 1);
     lua_newtable(L);
 
     size_t i;
@@ -31,8 +30,20 @@ static void _regex_match_cb(const char* subject, size_t* groups, size_t group_sz
     {
         size_t pos_end = groups[2 * i + 1];
         size_t pos_beg = groups[2 * i];
+
+        lua_newtable(L);
+
+        /* Position */
+        lua_pushnumber(L, (lua_Number)pos_beg);
+        lua_rawseti(L, -2, 1);
+        /* Length */
+        lua_pushnumber(L, (lua_Number)(pos_end - pos_beg));
+        lua_rawseti(L, -2, 2);
+        /* Content */
         lua_pushlstring(L, subject + pos_beg, pos_end - pos_beg);
-        lua_seti(L, -2, i + 1);
+        lua_rawseti(L, -2, 3);
+
+        lua_rawseti(L, -2, i + 1);
     }
 }
 
@@ -45,11 +56,10 @@ static int _regex_lua_match(lua_State* L)
 
     if (api.regex->match(self->code, str, str_size, _regex_match_cb, L) < 0)
     {
-        lua_pushboolean(L, 0);
         lua_pushnil(L);
     }
 
-    return 2;
+    return 1;
 }
 
 static void _regex_set_metatable(lua_State* L)
