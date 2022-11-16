@@ -52,12 +52,12 @@ static int _json_to_table_array(lua_State* L, int idx, cJSON* src)
 
         case cJSON_Array:
             lua_newtable(L);
-            _json_to_table_array(L, idx + 1, item->child);
+            _json_to_table_array(L, idx + 1, item);
             break;
 
         case cJSON_Object:
             lua_newtable(L);
-            _json_to_table_object(L, idx + 1, item->child);
+            _json_to_table_object(L, idx + 1, item);
             break;
         }
 
@@ -96,12 +96,12 @@ static int _json_to_table_object(lua_State* L, int idx, cJSON* src)
 
         case cJSON_Array:
             lua_newtable(L);
-            _json_to_table_array(L, idx + 1, item->child);
+            _json_to_table_array(L, idx + 1, item);
             break;
 
         case cJSON_Object:
             lua_newtable(L);
-            _json_to_table_object(L, idx + 1, item->child);
+            _json_to_table_object(L, idx + 1, item);
             break;
         }
 
@@ -126,7 +126,15 @@ static int _json_decode(lua_State* L)
     }
 
     lua_newtable(L);
-    _json_to_table_object(L, sp + 1, json_obj);
+    if (cJSON_IsArray(json_obj))
+    {
+        _json_to_table_array(L, sp + 1, json_obj);
+    }
+    else
+    {
+        _json_to_table_object(L, sp + 1, json_obj);
+    }
+
     cJSON_Delete(json_obj);
 
     return 1;

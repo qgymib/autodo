@@ -1,11 +1,6 @@
 local json = auto.json()
 
-local a = { "a", "s", "d", "f", { a = "hello", b = "world" } }
+local a = { "a", "b", { a = "hello", b = "world" }, { "test", "string" } }
 
-io.write(json:encode(a))
-
-local str = "{ \"key\": null }"
-
-assert(json:decode(str).key == json.null)
-
-io.write("success\n")
+local a2 = json:decode(json:encode(a))
+assert(json:compare(json:encode(a), json:encode(a2)))
