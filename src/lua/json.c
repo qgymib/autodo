@@ -271,6 +271,45 @@ static int _json_encode(lua_State* L)
     return 1;
 }
 
+static int _json_compare(lua_State* L)
+{
+    int ret = 0;
+
+    size_t s1_sz;
+    const char* s1 = luaL_checklstring(L, 2, &s1_sz);
+
+    size_t s2_sz;
+    const char* s2 = luaL_checklstring(L, 3, &s2_sz);
+
+    int case_sensitive = 1;
+    if (lua_type(L, 4) == LUA_TBOOLEAN)
+    {
+        case_sensitive = lua_toboolean(L, 4);
+    }
+
+    cJSON* j_s1 = cJSON_ParseWithLength(s1, s1_sz);
+    cJSON* j_s2 = cJSON_ParseWithLength(s2, s2_sz);
+
+    if (j_s1 == NULL || j_s2 == NULL)
+    {
+        goto finish;
+    }
+
+    ret = cJSON_Compare(j_s1, j_s2, case_sensitive);
+
+finish:
+    if (j_s1 != NULL)
+    {
+        cJSON_Delete(j_s1);
+    }
+    if (j_s2 != NULL)
+    {
+        cJSON_Delete(j_s2);
+    }
+    lua_pushboolean(L, ret);
+    return 1;
+}
+
 static void _json_set_metatable(lua_State* L)
 {
     static const luaL_Reg s_json_meta[] = {
@@ -278,6 +317,7 @@ static void _json_set_metatable(lua_State* L)
         { NULL,         NULL },
     };
     static const luaL_Reg s_json_method[] = {
+        { "compare",    _json_compare },
         { "decode",     _json_decode },
         { "encode",     _json_encode },
         { NULL,         NULL },
