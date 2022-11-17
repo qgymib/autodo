@@ -21,10 +21,13 @@
     xx("coroutine",         auto_new_coroutine)     \
     xx("download",          auto_lua_download)      \
     xx("fs_abspath",        auto_lua_fs_abspath)    \
+    xx("fs_basename",       auto_lua_fs_basename)   \
     xx("fs_delete",         auto_lua_fs_delete)     \
+    xx("fs_dirname",        auto_lua_fs_dirname)    \
     xx("fs_expand",         auto_lua_fs_expand)     \
     xx("fs_listdir",        auto_lua_fs_listdir)    \
     xx("fs_isfile",         auto_lua_fs_isfile)     \
+    xx("fs_splitpath",      auto_lua_fs_splitpath)  \
     xx("json",              auto_lua_json)          \
     xx("process",           atd_lua_process)        \
     xx("regex",             auto_lua_regex)         \

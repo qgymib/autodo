@@ -8,6 +8,7 @@
 
 #if defined(_WIN32)
 #else
+#include <libgen.h>
 #include <sys/stat.h>
 #endif
 
@@ -213,4 +214,49 @@ int auto_lua_fs_delete(lua_State* L)
 
     lua_pushboolean(L, ret);
     return 1;
+}
+
+int auto_lua_fs_basename(lua_State* L)
+{
+    lua_settop(L, 1);
+
+    lua_pushcfunction(L, auto_lua_fs_splitpath);
+    lua_pushvalue(L, 1);
+    lua_call(L, 1, 2);
+
+    return 1;
+}
+
+int auto_lua_fs_dirname(lua_State* L)
+{
+    lua_settop(L, 1);
+
+    lua_pushcfunction(L, auto_lua_fs_splitpath);
+    lua_pushvalue(L, 1);
+    lua_call(L, 1, 2);
+
+    lua_pop(L, 1);
+    return 1;
+}
+
+int auto_lua_fs_splitpath(lua_State* L)
+{
+    size_t path_sz;
+    const char* path = luaL_checklstring(L, 1, &path_sz);
+
+    const char* p = path + path_sz;
+    while (*p != '/' && *p != '\\')
+    {
+        if (p == path)
+        {
+            lua_pushstring(L, "");
+            lua_pushvalue(L, -1);
+            return 2;
+        }
+        p--;
+    }
+
+    lua_pushlstring(L, path, p - path);
+    lua_pushstring(L, p + 1);
+    return 2;
 }

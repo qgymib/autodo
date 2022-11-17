@@ -42,6 +42,27 @@ AUTO_LOCAL int auto_lua_fs_isfile(lua_State* L);
  */
 AUTO_LOCAL int auto_lua_fs_delete(lua_State* L);
 
+/**
+ * @brief Get filename.
+ * @param[in] L     Lua VM.
+ * @return          Always 1.
+ */
+AUTO_LOCAL int auto_lua_fs_basename(lua_State* L);
+
+/**
+ * @brief Get directory.
+ * @param[in] L     Lua VM.
+ * @return          Always 1.
+ */
+AUTO_LOCAL int auto_lua_fs_dirname(lua_State* L);
+
+/**
+ * @brief Split path into directory and filename components.
+ * @param[in] L     Lua VM.
+ * @return          Always 2.
+ */
+AUTO_LOCAL int auto_lua_fs_splitpath(lua_State* L);
+
 #ifdef __cplusplus
 }
 #endif

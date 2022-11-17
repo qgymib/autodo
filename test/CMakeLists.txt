@@ -1,6 +1,7 @@
 set(test_list
     coroutine
     fs_isfile
+    fs_splitpath
     json
     regex
     sqlite)
