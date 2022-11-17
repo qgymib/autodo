@@ -5,6 +5,7 @@
 #include "fs.h"
 #include "utils.h"
 #include "utils/fts.h"
+#include "utils/mkdir.h"
 
 #if defined(_WIN32)
 #else
@@ -74,33 +75,6 @@ int auto_lua_fs_expand(lua_State* L)
 #undef QUICK_GSUB
 }
 
-#if 0
-static void _lua_fs_listdir_dump(lua_State* L, fs_listdir_helper_t* helper)
-{
-    size_t cnt;
-    luaL_Buffer buf;
-
-    auto_list_node_t* it = ev_list_begin(&helper->dir_queue);
-    for (cnt = 0; it != NULL; it = ev_list_next(it), cnt++)
-    {
-        luaL_buffinit(L, &buf);
-
-        fs_listdir_record_t* rec = container_of(it, fs_listdir_record_t, node);
-
-        size_t i;
-        for (i = 0; i < cnt; i++)
-        {
-            luaL_addchar(&buf, ' ');
-        }
-        luaL_addstring(&buf, rec->path);
-
-        luaL_pushresult(&buf);
-        AUTO_DEBUG("%s", lua_tostring(L, -1));
-        lua_pop(L, 1);
-    }
-}
-#endif
-
 static int _lua_fs_listdir_iter(lua_State* L)
 {
     fs_listdir_helper_t* helper = lua_touserdata(L, 1);
@@ -163,20 +137,9 @@ int auto_lua_fs_listdir(lua_State* L)
 int auto_lua_fs_isfile(lua_State* L)
 {
     const char* path = luaL_checkstring(L, 1);
+    int ret = auto_isfile(path);
 
-    struct stat stat_buf;
-    if (stat(path, &stat_buf) != 0)
-    {
-        lua_pushboolean(L, 0);
-        return 1;
-    }
-
-#if defined(_WIN32)
-    int ret = stat_buf.st_mode & _S_IFREG;
-#else
-    int ret = S_ISREG(stat_buf.st_mode);
-#endif
-    lua_pushboolean(L, ret);
+    lua_pushboolean(L, ret == 0);
     return 1;
 }
 
@@ -259,4 +222,23 @@ int auto_lua_fs_splitpath(lua_State* L)
     lua_pushlstring(L, path, p - path);
     lua_pushstring(L, p + 1);
     return 2;
+}
+
+int auto_lua_fs_mkdir(lua_State* L)
+{
+    const char* path = luaL_checkstring(L, 1);
+    int parents = 0;
+    if (lua_type(L, 2) == LUA_TBOOLEAN)
+    {
+        parents = lua_toboolean(L, 2);
+    }
+
+    int errcode = auto_mkdir(path, parents);
+    if (errcode != 0)
+    {
+        char buf[128];
+        return luaL_error(L, "%s", auto_strerror(errcode, buf, sizeof(buf)));
+    }
+
+    return 0;
 }

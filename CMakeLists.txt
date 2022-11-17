@@ -51,9 +51,10 @@ add_executable(${PROJECT_NAME}
     src/lua/sleep.c
     src/lua/sqlite.c
     src/lua/uname.c
+    src/utils/fts.c
     src/utils/list.c
     src/utils/map.c
-    src/utils/fts.c
+    src/utils/mkdir.c
     src/main.c
     src/package.c
     src/runtime.c
