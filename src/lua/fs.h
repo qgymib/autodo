@@ -29,11 +29,18 @@ AUTO_LOCAL int auto_lua_fs_expand(lua_State* L);
 AUTO_LOCAL int auto_lua_fs_listdir(lua_State* L);
 
 /**
- * @brief Check if path is a file.
+ * @brief Check if \p path is a file.
  * @param[in] L     Lua VM.
  * @return          Always 1.
  */
 AUTO_LOCAL int auto_lua_fs_isfile(lua_State* L);
+
+/**
+ * @brief Check if \p path is a directory.
+ * @param[in] L     Lua VM.
+ * @return          Always 1.
+ */
+AUTO_LOCAL int auto_lua_fs_isdir(lua_State* L);
 
 /**
  * @brief Delete file or directory.
@@ -62,6 +69,13 @@ AUTO_LOCAL int auto_lua_fs_dirname(lua_State* L);
  * @return          Always 2.
  */
 AUTO_LOCAL int auto_lua_fs_splitpath(lua_State* L);
+
+/**
+ * @brief Create directory.
+ * @param[in] L     Lua VM.
+ * @return          Always 0.
+ */
+AUTO_LOCAL int auto_lua_fs_mkdir(lua_State* L);
 
 #ifdef __cplusplus
 }
