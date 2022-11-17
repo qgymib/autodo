@@ -1,6 +1,7 @@
-#include "download.h"
-#include "utils.h"
 #include <string.h>
+#include "download.h"
+#include "fs.h"
+#include "utils.h"
 
 typedef void (*command_merger_fn)(lua_State* L, const char* url, const char* file);
 
@@ -97,6 +98,13 @@ static int _download_with_installed_tool(lua_State* L, lua_download_token_t* tok
         _download_with_curl,
         _download_with_powershell,
     };
+
+    lua_pushcfunction(L, auto_lua_fs_mkdir);
+    lua_pushcfunction(L, auto_lua_fs_dirname);
+    lua_pushstring(L, file);
+    lua_call(L, 1, 1);
+    lua_pushboolean(L, 1);
+    lua_call(L, 2, 0);
 
     size_t i;
     for (i = 0; i < ARRAY_SIZE(s_merger_list); i++)
