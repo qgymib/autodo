@@ -90,10 +90,10 @@ int auto_lua_regex(lua_State* L)
     memset(self, 0, sizeof(*self));
     _regex_set_metatable(L);
 
-    if ((self->code = api.regex->create(pattern, pattern_size)) == NULL)
+    size_t err_pos;
+    if ((self->code = api.regex->create(pattern, pattern_size, &err_pos)) == NULL)
     {
-        lua_pop(L, 1);
-        return 0;
+        return api.lua->A_error(L, "compile regex failed at position %d", (int)err_pos);
     }
 
     return 1;

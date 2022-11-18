@@ -8,6 +8,7 @@
 #include "lua/regex.h"
 #include "lua/sleep.h"
 #include "lua/sqlite.h"
+#include "lua/string.h"
 #include "lua/uname.h"
 
 /******************************************************************************
@@ -35,6 +36,7 @@
     xx("regex",             auto_lua_regex)         \
     xx("sleep",             atd_lua_sleep)          \
     xx("sqlite",            auto_lua_sqlite)        \
+    xx("string_split",      auto_lua_string_split)  \
     xx("uname",             auto_lua_uname)
 
 #define EXPAND_MAP_AS_LUA_FUNCTION(name, func) \

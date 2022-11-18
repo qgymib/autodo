@@ -728,9 +728,10 @@ typedef struct auto_api_regex_s
      * @brief Compile regex \p pattern into regex bytecode.
      * @param[in] pattern   Regex pattern.
      * @param[in] size      Regex pattern size.
+     * @param[out] errpos   The error position if create failed.
      * @return              Regex bytecode.
      */
-    auto_regex_code_t* (*create)(const char* pattern, size_t size);
+    auto_regex_code_t* (*create)(const char* pattern, size_t size, size_t* errpos);
 
     /**
      * @brief Release regex bytecode.

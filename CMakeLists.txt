@@ -50,6 +50,7 @@ add_executable(${PROJECT_NAME}
     src/lua/regex.c
     src/lua/sleep.c
     src/lua/sqlite.c
+    src/lua/string.c
     src/lua/uname.c
     src/utils/fts.c
     src/utils/list.c

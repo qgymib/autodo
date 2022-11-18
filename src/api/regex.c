@@ -11,14 +11,19 @@
 #include <pcre2.h>
 #include "regex.h"
 
-static auto_regex_code_t* _regex_api_create(const char* pattern, size_t size)
+static auto_regex_code_t* _regex_api_create(const char* pattern, size_t size, size_t* errpos)
 {
     int errcode;
+    size_t tmp_errpos;
     PCRE2_SIZE error_offset;
 
     if (size == (size_t)-1)
     {
         size = PCRE2_ZERO_TERMINATED;
+    }
+    if (errpos == NULL)
+    {
+        errpos = &tmp_errpos;
     }
 
     /* Compile pattern */
@@ -26,12 +31,14 @@ static auto_regex_code_t* _regex_api_create(const char* pattern, size_t size)
         &errcode, &error_offset, NULL);
     if (code == NULL)
     {
+        *errpos = error_offset;
         return NULL;
     }
 
     /* Try to enable jit support */
     pcre2_jit_compile(code, PCRE2_JIT_COMPLETE);
 
+    *errpos = (size_t)-1;
     return (auto_regex_code_t*)code;
 }
 
