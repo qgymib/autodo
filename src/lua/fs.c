@@ -116,7 +116,7 @@ static void _fs_listdir_setmetatable(lua_State* L)
     lua_setmetatable(L, -2);
 }
 
-int auto_lua_fs_listdir(lua_State* L)
+int auto_lua_fs_iterdir(lua_State* L)
 {
     const char* path = luaL_checkstring(L, 1);
 

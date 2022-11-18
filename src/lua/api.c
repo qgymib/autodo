@@ -27,7 +27,7 @@
     xx("fs_expand",         auto_lua_fs_expand)     \
     xx("fs_isfile",         auto_lua_fs_isfile)     \
     xx("fs_isdir",          auto_lua_fs_isdir)      \
-    xx("fs_listdir",        auto_lua_fs_listdir)    \
+    xx("fs_iterdir",        auto_lua_fs_iterdir)    \
     xx("fs_mkdir",          auto_lua_fs_mkdir)      \
     xx("fs_splitpath",      auto_lua_fs_splitpath)  \
     xx("json",              auto_lua_json)          \

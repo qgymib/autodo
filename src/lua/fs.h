@@ -26,7 +26,7 @@ AUTO_LOCAL int auto_lua_fs_expand(lua_State* L);
  * @param[in] L     Lua VM.
  * @return          Always 3.
  */
-AUTO_LOCAL int auto_lua_fs_listdir(lua_State* L);
+AUTO_LOCAL int auto_lua_fs_iterdir(lua_State* L);
 
 /**
  * @brief Check if \p path is a file.

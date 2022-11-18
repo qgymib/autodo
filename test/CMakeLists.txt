@@ -1,6 +1,6 @@
 set(test_list
     coroutine
-    fs_isfile
+    fs_iterdir
     fs_splitpath
     json
     regex

@@ -1,9 +1,9 @@
-# fs_listdir
+# fs_iterdir
 
 ## SYNOPSIS
 
 ```lua
-next,table,nil auto.fs_listdir(path)
+next,table,nil auto.fs_iterdir(path)
 ```
 
 ## DESCRIPTION
@@ -11,7 +11,7 @@ next,table,nil auto.fs_listdir(path)
 List all entry in `path`. It is typical used in `for` syntax like:
 
 ```lua
-for _, p in auto.fs_listdir(path) do
+for _, p in auto.fs_iterdir(path) do
     io.write(p)
 end
 ```
