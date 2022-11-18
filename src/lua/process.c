@@ -280,7 +280,7 @@ static int _process_fix_options(lua_State* L, lua_process_t* process)
 {
     if (process->options.file == NULL && process->options.args == NULL)
     {
-        return luaL_error(L, "missing field `file`");
+        return api.lua->A_error(L, "missing field `file`");
     }
 
     if (process->options.file != NULL && process->options.args == NULL)
@@ -293,7 +293,7 @@ static int _process_fix_options(lua_State* L, lua_process_t* process)
 
     if (process->options.args[0] == NULL)
     {
-        return luaL_error(L, "missing field `file`");
+        return api.lua->A_error(L, "missing field `file`");
     }
 
     process->options.file = auto_strdup(process->options.args[0]);
@@ -566,7 +566,7 @@ static int _lua_process_await_stdout(lua_State *L)
     lua_process_t* process = lua_touserdata(L, 1);
     if (!process->flag.have_stdout)
     {
-        return luaL_error(L, ERR_HINT_STDOUT_DISABLED);
+        return api.lua->A_error(L, ERR_HINT_STDOUT_DISABLED);
     }
 
     process_wait_record_t* record = malloc(sizeof(process_wait_record_t));
@@ -584,7 +584,7 @@ static int _lua_process_await_stderr(lua_State *L)
 
     if (!process->flag.have_stderr)
     {
-        return luaL_error(L, ERR_HINT_STDIN_DISABLED);
+        return api.lua->A_error(L, ERR_HINT_STDIN_DISABLED);
     }
 
     process_wait_record_t* record = malloc(sizeof(process_wait_record_t));

@@ -266,7 +266,7 @@ static int _sqlite_lua_from_csv_parser(lua_State* L, lua_sqlite_t* self,
 
     if (csv_parser == NULL)
     {
-        return luaL_error(L, "create CSV parser failed");
+        return api.lua->A_error(L, "create CSV parser failed");
     }
 
     /* Create table */
@@ -391,7 +391,7 @@ static int _sqlite_lua_to_csv_file(lua_State* L)
         mode = lua_tostring(L, 4);
         if (strcmp(mode, "a") != 0 && strcmp(mode, "w") != 0)
         {
-            return luaL_error(L, "invalid mode: %s", mode);
+            return api.lua->A_error(L, "invalid mode: %s", mode);
         }
     }
 
@@ -407,7 +407,7 @@ static int _sqlite_lua_to_csv_file(lua_State* L)
     if (csv_file == NULL)
     {
         char buf[1024];
-        return luaL_error(L, "%s", auto_strerror(errcode, buf, sizeof(buf)));
+        return api.lua->A_error(L, "%s", auto_strerror(errcode, buf, sizeof(buf)));
     }
 
     /* Call sqlite:to_csv(). */
@@ -428,7 +428,7 @@ static int _sqlite_lua_to_csv_file(lua_State* L)
 
     if (write_size != 1)
     {
-        return luaL_error(L, "write to %s failed", file_path);
+        return api.lua->A_error(L, "write to %s failed", file_path);
     }
 
     return 0;
@@ -470,7 +470,7 @@ int auto_lua_sqlite(lua_State* L)
 
     if (sqlite3_open(self->config.filename, &self->db) != SQLITE_OK)
     {
-        return luaL_error(L, "%s", sqlite3_errmsg(self->db));
+        return api.lua->A_error(L, "%s", sqlite3_errmsg(self->db));
     }
 
     return 1;

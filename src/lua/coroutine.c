@@ -144,7 +144,7 @@ static int _coroutine_await(lua_State* L)
     if (record->data.wait_coroutine == NULL)
     {
         api.memory->free(record);
-        return luaL_error(L, ERR_HINT_NOT_IN_MANAGED_COROUTINE);
+        return api.lua->A_error(L, ERR_HINT_NOT_IN_MANAGED_COROUTINE);
     }
 
     api_list.push_back(&co->wait_queue, &record->node);

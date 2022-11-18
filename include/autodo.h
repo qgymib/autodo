@@ -1271,6 +1271,44 @@ typedef struct auto_api_lua_s
     int (*A_callk)(struct lua_State* L, int nargs, int nrets, void* ctx, auto_lua_KFunction k);
 
     /**
+     * @brief Raises an error. The error message format is given by fmt plus any extra arguments.
+     *
+     * @see #auto_api_lua_t::A_pusherror.
+     * @param[in] L     Lua VM.
+     * @param[in] fmt   Message format.
+     * @param[in] ...   Message format arguments.
+     * @return          This function never returns.
+     */
+    int (*A_error)(struct lua_State* L, const char *fmt, ...);
+
+    /**
+     * @brief Push error object (json string) on top of stack.
+     *
+     * The error object is a json string with following protocol:
+     * ```
+     * {
+     *     "traceback": "",
+     *     "message": ""
+     * }
+     * ```
+     *
+     * @param[in] L     Lua VM.
+     * @param[in] fmt   Message format.
+     * @param[in] ...   Message format arguments.
+     * @return          Always 1.
+     */
+    int (*A_pusherror)(struct lua_State* L, const char *fmt, ...);
+
+    /**
+     * @brief Like #auto_api_lua_t::A_pusherror(), but use va_list as arguments.
+     * @param[in] L     Lua VM.
+     * @param[in] fmt   Message format.
+     * @param[in] ap    Message format arguments.
+     * @return          Always 1.
+     */
+    int (*A_pushverror)(struct lua_State* L, const char *fmt, va_list ap);
+
+    /**
      * @brief Checks whether the function argument arg is an integer (or can be
      *   converted to an integer) and returns this integer.
      * @see https://www.lua.org/manual/5.4/manual.html#luaL_checkinteger
@@ -1330,16 +1368,6 @@ typedef struct auto_api_lua_s
      * @param[in] tname Type name.
      */
     void (*L_checkudata)(struct lua_State* L, int arg, const char *tname);
-
-    /**
-     * @brief Raises an error.
-     * @see https://www.lua.org/manual/5.4/manual.html#luaL_error
-     * @param[in] L     Lua VM.
-     * @param[in] fmt   String format.
-     * @param[in] ...   Format arguments.
-     * @return          This function never returns.
-     */
-    int (*L_error)(struct lua_State* L, const char *fmt, ...);
 
     /**
      * @brief Creates a copy of string \p s, replacing any occurrence of the

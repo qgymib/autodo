@@ -1,3 +1,4 @@
+#include <cJSON.h>
 #include "lua.h"
 
 static int _lua_A_callk(lua_State* L, int nargs, int nrets, void* ctx, auto_lua_KFunction k)
@@ -281,17 +282,6 @@ static int64_t _lua_L_len(lua_State* L, int idx)
     return luaL_len(L, idx);
 }
 
-static int _lua_L_error(lua_State* L, const char* fmt, ...)
-{
-    va_list ap;
-    va_start(ap, fmt);
-    luaL_where(L, 1);
-    lua_pushvfstring(L, fmt, ap);
-    va_end(ap);
-    lua_concat(L, 2);
-    return lua_error(L);
-}
-
 static void _lua_L_newlib(lua_State* L, const auto_luaL_Reg l[])
 {
     static_assert(sizeof(auto_luaL_Reg) == sizeof(luaL_Reg), ERR_HINT_DEFINITION_MISMATCH);
@@ -351,6 +341,53 @@ static const char* _lua_L_gsub(lua_State* L, const char* s, const char* p, const
     return luaL_gsub(L, s, p, r);
 }
 
+static int _lua_A_pushverror(struct lua_State* L, const char *fmt, va_list ap)
+{
+    cJSON* err_obj = cJSON_CreateObject();
+
+    /* Message */
+    {
+        lua_pushvfstring(L, fmt, ap);
+        cJSON_AddStringToObject(err_obj, "message", lua_tostring(L, -1));
+        lua_pop(L, 1);
+    }
+
+    /* Traceback */
+    {
+        luaL_traceback(L, L, NULL, 1);
+        cJSON_AddStringToObject(err_obj, "traceback", lua_tostring(L, -1));
+        lua_pop(L, 1);
+    }
+
+    char* err_obj_str = cJSON_PrintUnformatted(err_obj);
+    lua_pushstring(L, err_obj_str);
+    cJSON_free(err_obj_str);
+
+    return 1;
+}
+
+static int _lua_A_error(struct lua_State* L, const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    _lua_A_pushverror(L, fmt, ap);
+    va_end(ap);
+
+    return lua_error(L);
+}
+
+static int _lua_A_pusherror(struct lua_State* L, const char *fmt, ...)
+{
+    int ret;
+
+    va_list ap;
+    va_start(ap, fmt);
+    ret = _lua_A_pushverror(L, fmt, ap);
+    va_end(ap);
+
+    return ret;
+}
+
 const auto_api_lua_t api_lua = {
     _lua_callk,
     _lua_compare,
@@ -401,13 +438,15 @@ const auto_api_lua_t api_lua = {
     _lua_type,
     _lua_yieldk,
     _lua_A_callk,
+    _lua_A_error,
+    _lua_A_pusherror,
+    _lua_A_pushverror,
     _lua_L_checkinteger,
     _lua_L_checklstring,
     _lua_L_checknumber,
     _lua_L_checkstring,
     _lua_L_checktype,
     _lua_L_checkudata,
-    _lua_L_error,
     _lua_L_gsub,
     _lua_L_len,
     _lua_L_newlib,

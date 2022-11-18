@@ -246,7 +246,7 @@ int auto_lua_fs_mkdir(lua_State* L)
     if (errcode != 0)
     {
         char buf[128];
-        return luaL_error(L, "%s", auto_strerror(errcode, buf, sizeof(buf)));
+        return api.lua->A_error(L, "%s", auto_strerror(errcode, buf, sizeof(buf)));
     }
 
     return 0;

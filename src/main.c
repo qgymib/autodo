@@ -84,7 +84,7 @@ static int _lua_load_script(auto_runtime_t* rt, lua_State* L)
         return 0;
     }
 
-    return luaL_error(L, "open `%s` failed: %s(%d)",
+    return api.lua->A_error(L, "open `%s` failed: %s(%d)",
         rt->config.script_file,
         auto_strerror(ret, rt->cache.errbuf, sizeof(rt->cache.errbuf)),
         ret);
@@ -133,7 +133,7 @@ static int _lua_run(lua_State* L)
         return _run_script(L, rt);
     }
 
-    return luaL_error(L, "no operation");
+    return api.lua->A_error(L, "no operation");
 }
 
 int main(int argc, char* argv[])

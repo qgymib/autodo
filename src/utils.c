@@ -304,7 +304,7 @@ static int _write_executable(lua_State* L, const char* dst)
     (void)errcode;
     if (dst_file == NULL)
     {
-        return luaL_error(L, "open `%s` failed: %s(%d).", dst,
+        return api.lua->A_error(L, "open `%s` failed: %s(%d).", dst,
             auto_strerror(errno, errbuf, sizeof(errbuf)), errno);
     }
 
@@ -354,7 +354,7 @@ int atd_compile_script(lua_State* L, const char* src, const char* dst)
     int ret = luaL_loadfile(L, src);
     if (ret == LUA_ERRFILE)
     {
-        return luaL_error(L, "open `%s` failed.", src);
+        return api.lua->A_error(L, "open `%s` failed.", src);
     }
     if (ret != LUA_OK)
     {
