@@ -271,10 +271,12 @@ static int _table_to_json_add_item_to_object(lua_State* L, cJSON* obj, int kidx,
 static int _json_encode(lua_State* L)
 {
     cJSON* obj = auto_lua_json_from_table(L, 2);
-
     char* str = cJSON_PrintUnformatted(obj);
+
     lua_pushstring(L, str);
+
     cJSON_free(str);
+    cJSON_Delete(obj);
 
     return 1;
 }
