@@ -56,12 +56,12 @@ static size_t _regex_api_get_group_count(const auto_regex_code_t* code)
 }
 
 static int _regex_api_match(const auto_regex_code_t* self, const char* subject,
-    size_t subject_len, auto_regex_cb cb, void* arg)
+    size_t subject_len, size_t offset, auto_regex_cb cb, void* arg)
 {
     pcre2_code* code = (pcre2_code*)self;
     pcre2_match_data* match_data = (cb != NULL) ?
         pcre2_match_data_create_from_pattern(code, NULL) : NULL;
-    int ret = pcre2_match(code, (PCRE2_SPTR)subject, subject_len, 0, 0, match_data, NULL);
+    int ret = pcre2_match(code, (PCRE2_SPTR)subject, subject_len, offset, 0, match_data, NULL);
     if (ret <= 0)
     {
         ret = -1;

@@ -54,7 +54,17 @@ static int _regex_lua_match(lua_State* L)
     size_t str_size;
     const char* str = luaL_checklstring(L, 2, &str_size);
 
-    if (api.regex->match(self->code, str, str_size, _regex_match_cb, L) < 0)
+    size_t offset = 0;
+    if (lua_type(L, 3) == LUA_TNUMBER)
+    {
+        lua_Integer tmp_offset = lua_tointeger(L, 3);
+        if (tmp_offset > 0)
+        {
+            offset = (size_t)tmp_offset;
+        }
+    }
+
+    if (api.regex->match(self->code, str, str_size, offset, _regex_match_cb, L) < 0)
     {
         lua_pushnil(L);
     }

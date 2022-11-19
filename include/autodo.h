@@ -751,12 +751,13 @@ typedef struct auto_api_regex_s
      * @param[in] self      Compiled regular expression.
      * @param[in] data      The string to match.
      * @param[in] size      The string length in bytes.
+     * @param[in] offset    The offset of start position.
      * @param[in] cb        Match callback. It is only called if match success.
      * @param[in] arg       User defined arguments.
      * @return              The number of groups captured.
      */
     int (*match)(const auto_regex_code_t* self, const char* data, size_t size,
-        auto_regex_cb cb, void* arg);
+        size_t offset, auto_regex_cb cb, void* arg);
 } auto_api_regex_t;
 
 #define AUTO_LUA_OPEQ           0

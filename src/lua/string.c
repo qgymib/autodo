@@ -5,10 +5,10 @@ typedef struct string_split_helper
 {
     lua_State*  L;
     const char* str;
-    size_t      str_sz;
+    size_t      offset;
 } string_split_helper_t;
 
-static void _string_split_match_cb(const char* data, size_t* groups, size_t group_sz, void* arg)
+static void _string_split_cb(const char* data, size_t* groups, size_t group_sz, void* arg)
 {
     string_split_helper_t* helper = arg;
     lua_State* L = helper->L;
@@ -18,15 +18,17 @@ static void _string_split_match_cb(const char* data, size_t* groups, size_t grou
     size_t pos_beg = groups[0];
     size_t pos_end = groups[1];
 
+    const char* str_beg = data + helper->offset;
+    size_t str_sz = pos_beg - helper->offset;
+
     /* Skip empty string */
-    if (pos_beg > 0)
+    if (str_sz > 0)
     {
-        lua_pushlstring(L, data, pos_beg);
+        lua_pushlstring(L, str_beg, str_sz);
         lua_rawseti(L, -2, luaL_len(L, -2) + 1);
     }
 
-    helper->str += pos_end;
-    helper->str_sz -= pos_end;
+    helper->offset = pos_end;
 }
 
 int auto_lua_string_split(lua_State* L)
@@ -47,17 +49,25 @@ int auto_lua_string_split(lua_State* L)
     string_split_helper_t helper;
     helper.L = L;
     helper.str = str;
-    helper.str_sz = str_sz;
+    helper.offset = 0;
 
     lua_newtable(L);
-    while (api.regex->match(code, helper.str, helper.str_sz, _string_split_match_cb, &helper) > 0)
+    while (helper.offset < str_sz)
     {
-        // do nothing
+        if (api.regex->match(code, str, str_sz, helper.offset, _string_split_cb, &helper) <= 0)
+        {
+            break;
+        }
     }
 
     /* The last string. */
-    lua_pushstring(L, helper.str);
-    lua_rawseti(L, -2, luaL_len(L, -2) + 1);
+    if (helper.offset < str_sz)
+    {
+        const char* left_str_beg = str + helper.offset;
+        size_t left_str_sz = str_sz - helper.offset;
+        lua_pushlstring(L, left_str_beg, left_str_sz);
+        lua_rawseti(L, -2, luaL_len(L, -2) + 1);
+    }
 
     api.regex->destroy(code);
 
