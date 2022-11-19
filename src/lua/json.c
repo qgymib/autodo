@@ -360,6 +360,7 @@ cJSON* auto_lua_json_from_table(lua_State* L, int idx)
 {
     cJSON* obj = NULL;
     int sp = lua_gettop(L);
+    idx = lua_absindex(L, idx);
 
     if (_is_table_array_fast(L, idx))
     {
