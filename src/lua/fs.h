@@ -77,6 +77,13 @@ AUTO_LOCAL int auto_lua_fs_splitpath(lua_State* L);
  */
 AUTO_LOCAL int auto_lua_fs_mkdir(lua_State* L);
 
+/**
+ * @brief Format path.
+ * @param[in] L     Lua VM.
+ * @return          Always 1.
+ */
+AUTO_LOCAL int auto_lua_fs_format(lua_State* L);
+
 #ifdef __cplusplus
 }
 #endif

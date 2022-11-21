@@ -341,7 +341,7 @@ static const char* _lua_L_gsub(lua_State* L, const char* s, const char* p, const
     return luaL_gsub(L, s, p, r);
 }
 
-static int _lua_A_pushverror(struct lua_State* L, const char *fmt, va_list ap)
+static int _lua_A_pushverror(lua_State* L, const char *fmt, va_list ap)
 {
     cJSON* err_obj = cJSON_CreateObject();
 
@@ -366,7 +366,7 @@ static int _lua_A_pushverror(struct lua_State* L, const char *fmt, va_list ap)
     return 1;
 }
 
-static int _lua_A_error(struct lua_State* L, const char *fmt, ...)
+static int _lua_A_error(lua_State* L, const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
@@ -376,7 +376,7 @@ static int _lua_A_error(struct lua_State* L, const char *fmt, ...)
     return lua_error(L);
 }
 
-static int _lua_A_pusherror(struct lua_State* L, const char *fmt, ...)
+static int _lua_A_pusherror(lua_State* L, const char *fmt, ...)
 {
     int ret;
 
@@ -386,6 +386,28 @@ static int _lua_A_pusherror(struct lua_State* L, const char *fmt, ...)
     va_end(ap);
 
     return ret;
+}
+
+static int _lua_A_toboolean(lua_State* L, int idx, int defval)
+{
+    int val_type = lua_type(L, idx);
+    switch(val_type)
+    {
+    case LUA_TNUMBER:
+        if (lua_isinteger(L, idx))
+        {
+            return lua_tointeger(L, idx) != 0;
+        }
+        return lua_tonumber(L, idx) != 0;
+
+    case LUA_TBOOLEAN:
+        return lua_toboolean(L, idx);
+
+    default:
+        break;
+    }
+
+    return defval;
 }
 
 const auto_api_lua_t api_lua = {
@@ -441,6 +463,7 @@ const auto_api_lua_t api_lua = {
     _lua_A_error,
     _lua_A_pusherror,
     _lua_A_pushverror,
+    _lua_A_toboolean,
     _lua_L_checkinteger,
     _lua_L_checklstring,
     _lua_L_checknumber,

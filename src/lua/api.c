@@ -26,6 +26,7 @@
     xx("fs_delete",         auto_lua_fs_delete)     \
     xx("fs_dirname",        auto_lua_fs_dirname)    \
     xx("fs_expand",         auto_lua_fs_expand)     \
+    xx("fs_format",         auto_lua_fs_format)     \
     xx("fs_isfile",         auto_lua_fs_isfile)     \
     xx("fs_isdir",          auto_lua_fs_isdir)      \
     xx("fs_iterdir",        auto_lua_fs_iterdir)    \

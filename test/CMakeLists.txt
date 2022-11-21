@@ -1,5 +1,6 @@
 set(test_list
     coroutine
+    fs_format
     fs_iterdir
     fs_splitpath
     json

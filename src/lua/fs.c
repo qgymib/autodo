@@ -251,3 +251,27 @@ int auto_lua_fs_mkdir(lua_State* L)
 
     return 0;
 }
+
+int auto_lua_fs_format(lua_State* L)
+{
+    luaL_checktype(L, 1, LUA_TSTRING);
+
+    int is_win = api.lua->A_toboolean(L, 2, 0);
+
+    const char* pat = "\\";
+    const char* rep = "/";
+    if (is_win)
+    {
+        pat = "/";
+        rep = "\\";
+    }
+
+    lua_getglobal(L, "string");
+    lua_getfield(L, -1, "gsub");
+    lua_pushvalue(L, 1);
+    lua_pushstring(L, pat);
+    lua_pushstring(L, rep);
+    lua_call(L, 3, 1);
+
+    return 1;
+}

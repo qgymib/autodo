@@ -1311,6 +1311,21 @@ typedef struct auto_api_lua_s
     int (*A_pushverror)(struct lua_State* L, const char *fmt, va_list ap);
 
     /**
+     * @brief Convert value at \p arg into boolean.
+     *
+     * The conversion following rule:
+     * + LUA_TBOOLEAN:  original value.
+     * + LUA_TNUMBER: true if non-zero.
+     * + Anyother value: same as defval.
+     *
+     * @param[in] L         Lua VM.
+     * @param[in] idx       Stack index.
+     * @param[in] defval    Default value.
+     * @return              Boolean.
+     */
+    int (*A_toboolean)(struct lua_State* L, int idx, int defval);
+
+    /**
      * @brief Checks whether the function argument arg is an integer (or can be
      *   converted to an integer) and returns this integer.
      * @see https://www.lua.org/manual/5.4/manual.html#luaL_checkinteger
