@@ -45,6 +45,7 @@ add_executable(${PROJECT_NAME}
     src/lua/coroutine.c
     src/lua/download.c
     src/lua/fs.c
+    src/lua/http_server.c
     src/lua/json.c
     src/lua/process.c
     src/lua/regex.c
@@ -105,6 +106,10 @@ target_link_libraries(${PROJECT_NAME} PRIVATE sqlite)
 # CSV Parser
 include(third_party/csvparser.cmake)
 target_link_libraries(${PROJECT_NAME} PRIVATE csvparser)
+
+# llhttp
+include(third_party/llhttp.cmake)
+target_link_libraries(${PROJECT_NAME} PRIVATE llhttp)
 
 ###############################################################################
 # Test

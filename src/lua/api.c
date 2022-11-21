@@ -3,6 +3,7 @@
 #include "lua/coroutine.h"
 #include "lua/download.h"
 #include "lua/fs.h"
+#include "lua/http_server.h"
 #include "lua/json.h"
 #include "lua/process.h"
 #include "lua/regex.h"
@@ -32,6 +33,7 @@
     xx("fs_iterdir",        auto_lua_fs_iterdir)    \
     xx("fs_mkdir",          auto_lua_fs_mkdir)      \
     xx("fs_splitpath",      auto_lua_fs_splitpath)  \
+    xx("http_server",       auto_lua_http_server)   \
     xx("json",              auto_lua_json)          \
     xx("process",           atd_lua_process)        \
     xx("regex",             auto_lua_regex)         \
