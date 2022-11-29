@@ -45,7 +45,6 @@ add_executable(${PROJECT_NAME}
     src/lua/coroutine.c
     src/lua/download.c
     src/lua/fs.c
-    src/lua/http_server.c
     src/lua/json.c
     src/lua/process.c
     src/lua/regex.c
@@ -54,6 +53,7 @@ add_executable(${PROJECT_NAME}
     src/lua/string.c
     src/lua/uname.c
     src/utils/fts.c
+    src/utils/http_server.c
     src/utils/list.c
     src/utils/map.c
     src/utils/mkdir.c

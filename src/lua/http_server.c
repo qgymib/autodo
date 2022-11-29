@@ -4,53 +4,58 @@
 #include <uv.h>
 #include "lua/regex.h"
 #include "http_server.h"
+#include "utils/http_message.h"
 #include "runtime.h"
 #include "utils.h"
 
 typedef struct http_server_impl
 {
-    auto_runtime_t*     rt;                 /**< Runtime handle. */
-    auto_coroutine_t*   host_co;            /**< Hosting coroutine. */
+    auto_runtime_t*         rt;                 /**< Runtime handle. */
+    auto_coroutine_t*       host_co;            /**< Hosting coroutine. */
 
-    uv_tcp_t            listen_sock;        /**< Listening socket. */
-    auto_map_t          route_table;        /**< #http_server_route_t. */
+    uv_tcp_t                listen_sock;        /**< Listening socket. */
+    auto_map_t              route_table;        /**< #http_server_route_t. */
 
-    auto_list_t         client_queue;       /**< #http_server_connection_t. Client connections. */
+    auto_list_t             client_table;       /**< #http_server_connection_t. Client connections. */
+    auto_list_t             active_queue;       /**< #http_server_connection_t. Active client connections. */
 
     struct
     {
-        char*           listen_url;         /**< Listen URL. e.g. http://127.0.0.1:5000 */
-        char*           listen_protocol;    /**< Listen protocol. e.g. http */
-        char*           listen_address;     /**< Listen address. e.g. 127.0.0.1 */
-        int             listen_port;        /**< Listen port. e.g. 5000 */
+        char*               listen_url;         /**< Listen URL. e.g. http://127.0.0.1:5000 */
+        char*               listen_protocol;    /**< Listen protocol. e.g. http */
+        char*               listen_address;     /**< Listen address. e.g. 127.0.0.1 */
+        int                 listen_port;        /**< Listen port. e.g. 5000 */
     } config;
 } http_server_impl_t;
 
 typedef struct http_server_connection
 {
-    auto_list_node_t    node;               /**< List node. */
+    auto_list_node_t        t_node;             /**< Node for #http_server_impl_t::client_table. */
+    auto_list_node_t        a_node;
 
-    lua_State*          co;                 /**< Coroutine for storage. */
-    int                 co_ref;             /**< Reference to coroutine. */
+    lua_State*              co;                 /**< Coroutine for storage. */
+    int                     co_ref;             /**< Reference to coroutine. */
 
-    http_server_impl_t* belong;             /**< Belong server. */
-    uv_tcp_t            client_sock;        /**< Client socket. */
+    http_server_impl_t*     belong;             /**< Belong server. */
+    uv_tcp_t                client_sock;        /**< Client socket. */
 
-    llhttp_t            parser;             /**< Http parser */
-    llhttp_settings_t   parser_setting;     /**< Http parser settings */
+    http_message_parser_t*  parser;             /**< HTTP message parser. */
+    auto_list_t             in_msg_queue;       /**< Incoming message queue. */
+
+    int                     is_active;
 } http_server_connection_t;
 
 typedef struct http_server_route
 {
-    auto_map_node_t     node;
+    auto_map_node_t         node;
 
-    char*               path;               /**< Route path. */
-    int                 ref_cb;             /**< Callback reference. */
+    char*                   path;               /**< Route path. */
+    int                     ref_cb;             /**< Callback reference. */
 } http_server_route_t;
 
 typedef struct lua_http_server
 {
-    http_server_impl_t* impl;               /**< Real http server. */
+    http_server_impl_t*     impl;               /**< Real http server. */
 } lua_http_server_t;
 
 static void _http_server_on_listen_close(uv_handle_t* handle)
@@ -101,7 +106,7 @@ static void _http_server_on_client_close(uv_handle_t* handle)
 
 static void _http_server_close_connection(lua_State* L, http_server_impl_t* impl, http_server_connection_t* conn)
 {
-    ev_list_erase(&impl->client_queue, &conn->node);
+    ev_list_erase(&impl->client_table, &conn->t_node);
 
     luaL_unref(L, LUA_REGISTRYINDEX, conn->co_ref);
     conn->co = NULL;
@@ -112,9 +117,9 @@ static void _http_server_close_connection(lua_State* L, http_server_impl_t* impl
 static void _http_server_cleanup_clients(lua_State* L, http_server_impl_t* impl)
 {
     auto_list_node_t* it;
-    while ((it = ev_list_begin(&impl->client_queue)) != NULL)
+    while ((it = ev_list_begin(&impl->client_table)) != NULL)
     {
-        http_server_connection_t* conn = container_of(it, http_server_connection_t, node);
+        http_server_connection_t* conn = container_of(it, http_server_connection_t, t_node);
         _http_server_close_connection(L, impl, conn);
     }
 }
@@ -234,165 +239,30 @@ static void _http_server_on_read(uv_stream_t* stream, ssize_t nread, const uv_bu
     http_server_connection_t* conn = container_of((uv_tcp_t*)stream, http_server_connection_t, client_sock);
     http_server_impl_t* impl = conn->belong;
 
-    int ret = llhttp_execute(&conn->parser, buf->base, nread);
-
-    /* Cleanup */
+    http_message_t* msg = NULL;
+    int ret = http_message_parser_execute(conn->parser, buf->base, nread, &msg);
     free(buf->base);
 
-    if (ret != HPE_OK)
+    if (ret != 0)
     {
         _http_server_close_connection(conn->co, impl, conn);
+        return;
     }
-}
 
-static int _http_server_on_llhttp_begin(llhttp_t* parser)
-{
-    http_server_connection_t* conn = container_of(parser, http_server_connection_t, parser);
-
-    lua_settop(conn->co, 0);
-    lua_newtable(conn->co); // SP:1
-
-    return 0;
-}
-
-static int _http_server_on_llhttp_complete(llhttp_t* parser)
-{
-    http_server_connection_t* conn = container_of(parser, http_server_connection_t, parser);
-
-
-
-
-    return 0;
-}
-
-static int _http_server_on_llhttp_header_field(llhttp_t* parser, const char *at, size_t length)
-{
-    http_server_connection_t* conn = container_of(parser, http_server_connection_t, parser);
-    lua_pushlstring(conn->co, at, length);  // SP:2
-    return 0;
-}
-
-static int _http_server_on_llhttp_header_value(llhttp_t* parser, const char* at, size_t length)
-{
-    /* The following fields use the newest value.  */
-    static const char* s_discarded_fields[] = {
-        "age", "authorization", "content-length", "content-type", "etag",
-        "expires", "from", "host", "if-modified-since", "if-unmodified-since",
-        "last-modified", "location", "max-forwards", "proxy-authorization",
-        "referer", "retry-after", "server", "user-agent",
-    };
-    /* The following fields is always an array. */
-    static const char* s_array_fields[] = {
-        "set-cookie",
-    };
-    /* The following fields are joined together with ';' */
-    static const char* s_semicolon_fields[] = {
-        "cookie",
-    };
-
-    size_t i;
-    http_server_connection_t* conn = container_of(parser, http_server_connection_t, parser);
-    const char* field_name = lua_tostring(conn->co, -1);
-
-    for (i = 0; i < ARRAY_SIZE(s_discarded_fields); i++)
+    if (msg == NULL)
     {
-        if (strcmp(field_name, s_discarded_fields[i]) == 0)
-        {
-            lua_pushlstring(conn->co, at, length);  // SP:3
-            lua_rawset(conn->co, 1);    // SP:1
-            return 0;
-        }
+        return;
     }
 
-    for (i = 0; i < ARRAY_SIZE(s_array_fields); i++)
+    /* Add to message queue. */
+    ev_list_push_back(&conn->in_msg_queue, &msg->node);
+
+    /* Active connection */
+    if (!conn->is_active)
     {
-        if (strcmp(field_name, s_array_fields[i]) == 0)
-        {
-            if (lua_gettable(conn->co, 1) != LUA_TTABLE)   // SP:3
-            {
-                lua_pop(conn->co, 1);   // SP:2
-
-                lua_newtable(conn->co); // SP:3
-                lua_pushlstring(conn->co, at, length);  // SP:4
-                lua_rawseti(conn->co, 3, 1);    // SP:3
-
-                lua_rawset(conn->co, 1);    // SP:1
-            }
-            else
-            {
-                lua_pushlstring(conn->co, at, length);  // SP:4
-                lua_rawseti(conn->co, 3, luaL_len(conn->co, 3) + 1);    // SP:3
-                lua_pop(conn->co, 2);   // SP:1
-            }
-
-            return 0;
-        }
+        conn->is_active = 1;
+        ev_list_push_back(&impl->active_queue, &conn->a_node);
     }
-
-    for (i = 0; i < ARRAY_SIZE(s_semicolon_fields); i++)
-    {
-        if (strcmp(field_name, s_semicolon_fields[i]) == 0)
-        {
-            if (lua_gettable(conn->co, 1) != LUA_TSTRING)    // SP:3
-            {
-                lua_pop(conn->co, 1);   // SP:2
-                lua_pushlstring(conn->co, at, length);  // SP:3
-                lua_rawset(conn->co, 1);    // SP:1
-            }
-            else
-            {
-                lua_pushlstring(conn->co, ";", 1);  // SP:4
-                lua_pushlstring(conn->co, at, length);  // SP:5
-                lua_concat(conn->co, 3);    // SP:3
-                lua_rawset(conn->co, 1);    // SP:1
-            }
-
-            return 0;
-        }
-    }
-
-    /* For all other headers, the values are joined together with ','. */
-    if (lua_gettable(conn->co, 1) != LUA_TSTRING)   // SP:3
-    {
-        lua_pop(conn->co, 1);   // SP:2
-        lua_pushlstring(conn->co, at, length);  // SP:3
-        lua_rawset(conn->co, 1);    // SP:1
-    }
-    else
-    {
-        lua_pushlstring(conn->co, ",", 1);  // SP:4
-        lua_pushlstring(conn->co, at, length);  // SP:5
-        lua_concat(conn->co, 3);    // SP:3
-        lua_rawset(conn->co, 1);    // SP:1
-    }
-
-    return 0;
-}
-
-static int _http_server_on_llhttp_url(llhttp_t* parser, const char* at, size_t length)
-{
-    http_server_connection_t* conn = container_of(parser, http_server_connection_t, parser);
-
-    lua_pushlstring(conn->co, at, length);
-    lua_setfield(conn->co, -2, "url");
-    return 0;
-}
-
-static int _http_server_on_llhttp_status(llhttp_t* parser, const char* at, size_t length)
-{
-    (void)length;
-    http_server_connection_t* conn = container_of(parser, http_server_connection_t, parser);
-
-    int status = 0;
-    if (sscanf(at, "%d", &status) != 1)
-    {
-        return 0;
-    }
-
-    lua_pushinteger(conn->co, status);
-    lua_setfield(conn->co, 1, "status");
-
-    return 0;
 }
 
 static void _http_server_on_listen(uv_stream_t* server, int status)
@@ -406,7 +276,16 @@ static void _http_server_on_listen(uv_stream_t* server, int status)
     }
 
     http_server_connection_t* conn = malloc(sizeof(http_server_connection_t));
+    memset(conn, 0, sizeof(*conn));
+
+    if ((conn->parser = http_message_parser_create()) == NULL)
+    {
+        free(conn);
+        return;
+    }
+
     conn->belong = impl;
+    ev_list_init(&conn->in_msg_queue);
     conn->co = lua_newthread(impl->host_co->L);
     conn->co_ref = luaL_ref(impl->host_co->L, LUA_REGISTRYINDEX);
 
@@ -429,16 +308,7 @@ static void _http_server_on_listen(uv_stream_t* server, int status)
         goto error;
     }
 
-    llhttp_settings_init(&conn->parser_setting);
-    conn->parser_setting.on_url = _http_server_on_llhttp_url;
-    conn->parser_setting.on_status = _http_server_on_llhttp_status;
-    conn->parser_setting.on_header_field =_http_server_on_llhttp_header_field;
-    conn->parser_setting.on_header_value = _http_server_on_llhttp_header_value;
-    conn->parser_setting.on_message_begin = _http_server_on_llhttp_begin;
-    conn->parser_setting.on_message_complete = _http_server_on_llhttp_complete;
-    llhttp_init(&conn->parser, HTTP_BOTH, &conn->parser_setting);
-
-    ev_list_push_back(&impl->client_queue, &conn->node);
+    ev_list_push_back(&impl->client_table, &conn->t_node);
 
     return;
 
@@ -562,7 +432,8 @@ static int _http_server_init(lua_State* L, http_server_impl_t* impl)
 {
     int ret;
 
-    ev_list_init(&impl->client_queue);
+    ev_list_init(&impl->client_table);
+    ev_list_init(&impl->active_queue);
     ev_map_init(&impl->route_table, _http_server_on_cmp_route, NULL);
 
     /* Initialize listen socket. */
