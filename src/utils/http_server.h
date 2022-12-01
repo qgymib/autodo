@@ -23,6 +23,13 @@ typedef enum uv_http_event
     UV_HTTP_CLOSE,
 } uv_http_event_t;
 
+typedef enum uv_http_fs_flag
+{
+    UV_HTTP_FS_READ     = 1,
+    UV_HTTP_FS_WRITE    = 2,
+    UV_HTTP_FS_DIR      = 4,
+} uv_http_fs_flag_t;
+
 typedef struct uv_http_str
 {
     char*                   ptr;            /**< String address. */
@@ -77,13 +84,16 @@ typedef struct uv_http_fs
     void (*close)(struct uv_http_fs* self, void* fd);
     int (*read)(struct uv_http_fs* self, void* fd, void* buf, size_t size);
     int (*write)(struct uv_http_fs* self, void* fd, void* buf, size_t size);
+    int (*seek)(struct uv_http_fs* self, void* fd, size_t offset);
 } uv_http_fs_t;
 
 typedef struct uv_http_serve_cfg
 {
     const char*         root_path;          /**< Web root directory, must be non-NULL. */
-    const char*         ssi_pattern;        /**< SSI file name pattern. */
-    const uv_http_fs_t* fs;                 /**< Filesystem instance. */
+    const char*         ssi_pattern;        /**< (Optional) SSI file name pattern. */
+    const char*         extra_headers;      /**< (Optional) Extra HTTP headers to add in responses. */
+    const char*         page404;            /**< (Optional) Path to the 404 page. */
+    uv_http_fs_t*       fs;                 /**< (Optional) Filesystem instance. */
 } uv_http_serve_cfg_t;
 
 /**
