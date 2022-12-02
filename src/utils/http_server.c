@@ -15,14 +15,14 @@ typedef enum uv_http_action_type
 typedef struct uv_http_send_token
 {
     uv_write_t                  req;            /**< Write token */
-    size_t                      size;           /**< Data size */
-    char*                       data;           /**< Data. No need to free. */
+    uv_http_str_t               data;           /**< Data to send. */
 } uv_http_send_token_t;
 
 typedef struct uv_http_serve_token
 {
     uv_work_t                   req;            /**< Request token. */
 
+    uv_http_str_t               method;         /**< METHOD. No need to free. */
     uv_http_str_t               url;            /**< URL. No need to free. */
     uv_http_str_t               root_path;      /**< Root path. No need to free. */
     uv_http_str_t               ssi_pattern;    /**< SSI. No need to free. */
@@ -33,6 +33,9 @@ typedef struct uv_http_serve_token
     uv_http_fs_t*               fs;             /**< Filesystem instance. */
 
     uv_http_str_t               rsp;            /**< Response message. MUST free. */
+    void*                       fd;             /**< File descriptor for read. */
+    size_t                      remain_size;    /**< How many bytes remain to read & send. */
+    int                         error_code;     /**< Error code. */
 } uv_http_serve_token_t;
 
 typedef struct uv_http_action
@@ -515,6 +518,7 @@ static void _uv_http_destroy_action(uv_http_action_t* action)
     switch (action->type)
     {
     case UV_HTTP_ACTION_SEND:
+        _uv_http_str_destroy(&action->as.send.data);
         break;
 
     default:
@@ -571,7 +575,7 @@ static void _uv_http_on_close(uv_handle_t* handle)
 
 static int _uv_http_active_connection_send(uv_http_conn_t* conn, uv_http_send_token_t* token)
 {
-    uv_buf_t buf = uv_buf_init(token->data, token->size);
+    uv_buf_t buf = uv_buf_init(token->data.ptr, token->data.len);
     return uv_write(&token->req, (uv_stream_t*)&conn->client_sock, &buf, 1, _uv_http_send_cb);
 }
 
@@ -682,7 +686,7 @@ static int _uv_http_parse_range(const uv_http_str_t* str, size_t size, size_t* b
     return 0;
 }
 
-static uv_http_str_t** _uv_http_guess_content_type(const uv_http_str_t* path)
+static uv_http_str_t* _uv_http_guess_content_type(const uv_http_str_t* path)
 {
     static uv_http_header_t s_known_types[] = {
         { UV_HTTP_CSTR("html"),     UV_HTTP_CSTR("text/html; charset=utf-8") },
@@ -716,6 +720,24 @@ static uv_http_str_t** _uv_http_guess_content_type(const uv_http_str_t* path)
         { UV_HTTP_CSTR("zip"),      UV_HTTP_CSTR("application/zip") },
         { UV_HTTP_CSTR("3gp"),      UV_HTTP_CSTR("video/3gpp") },
     };
+
+    uv_http_str_t bak_path = *path;
+
+    size_t i = 0;
+    for (; i < path->len && path->ptr[path->len - i - 1] != '.'; i++);
+    bak_path.ptr += bak_path.len - i;
+    bak_path.len = i;
+
+    for (i = 0; i < ARRAY_SIZE(s_known_types); i++)
+    {
+        if (strcmp(bak_path.ptr, s_known_types[i].name.ptr) == 0)
+        {
+            return &s_known_types[i].value;
+        }
+    }
+
+    static uv_http_str_t s_default_content_type = UV_HTTP_CSTR("text/plain; charset=utf-8");
+    return &s_default_content_type;
 }
 
 static int _uv_http_active_connection_serve_file_once(uv_http_serve_token_t* token, uv_http_str_t* file)
@@ -723,6 +745,7 @@ static int _uv_http_active_connection_serve_file_once(uv_http_serve_token_t* tok
     int ret;
     char etag[64]; char range[128];
     uv_http_fs_t* fs = token->fs;
+    int status_code = 200;
 
     /* Open file */
     void* fd = fs->open(fs, file->ptr, UV_HTTP_FS_READ);
@@ -738,6 +761,9 @@ static int _uv_http_active_connection_serve_file_once(uv_http_serve_token_t* tok
         fs->close(fs, fd);
         return UV_ENOENT;
     }
+
+    unsigned long long content_length = (unsigned long long)size;
+    uv_http_str_t* mime = _uv_http_guess_content_type(file);
 
     /* Check etag. */
     snprintf(etag, sizeof(etag), "\"%lld.%lld\"", (long long)mtime, (long long)size);
@@ -758,16 +784,46 @@ static int _uv_http_active_connection_serve_file_once(uv_http_serve_token_t* tok
             _uv_http_gen_reply(&token->rsp, 416, NULL,
                 "ETag: %s\r\n"
                 "Content-Range: bytes */%llu\r\n"
-                "%s\r\n", etag, (unsigned long long)size, token->extra_headers.ptr);
+                "%.*s\r\n",
+                etag,
+                content_length,
+                token->extra_headers.len, token->extra_headers.ptr);
             fs->close(fs, fd);
             return 0;
         }
 
-        _uv_http_str_printf(&token->rsp,
-            "HTTP/1.1 %d %s\r\n",
-            206, _uv_http_status_code_str(206));
+        status_code = 206;
+        content_length = (unsigned long long)(end - beg + 1);
+        snprintf(range, sizeof(range), "Content-Range: bytes %llu-%llu/%llu\r\n",
+            (unsigned long long)beg, (unsigned long long)end, (unsigned long long)size);
+        fs->seek(fs, fd, beg);
     }
 
+    _uv_http_str_printf(&token->rsp,
+        "HTTP/1.1 %d %s\r\n"
+        "Content-Type: %.*s\r\n"
+        "Etag: %s\r\n"
+        "Content-Length: %llu\r\n"
+        "%s"
+        "%.*s"
+        "\r\n",
+        status_code, _uv_http_status_code_str(status_code),
+        (int)mime->len, mime->ptr,
+        etag,
+        content_length,
+        range,
+        (int)token->extra_headers.len, token->extra_headers.ptr);
+
+    if (strcmp(token->method.ptr, "HEAD") == 0)
+    {
+        fs->close(fs, fd);
+        return 0;
+    }
+
+    token->fd = fd;
+    token->remain_size = content_length;
+
+    return 0;
 }
 
 static void _uv_http_active_connection_serve_file(uv_http_serve_token_t* token, uv_http_str_t* file)
@@ -961,6 +1017,96 @@ static void _uv_http_active_connection_serve_dir(uv_http_serve_token_t* token, u
         token->extra_headers.ptr);
 }
 
+static void _uv_http_active_connection_send_file(uv_work_t* req)
+{
+    int ret;
+    uv_http_serve_token_t* token = container_of(req, uv_http_serve_token_t, req);
+    uv_http_fs_t* fs = token->fs;
+
+    size_t max_read_size = 4 * 1024 * 1024;
+    size_t need_read_size = max_read_size < token->remain_size ? max_read_size : token->remain_size;
+
+    if ((ret = _uv_http_str_ensure_size(&token->rsp, need_read_size)) != 0)
+    {
+        token->error_code = ret;
+        return;
+    }
+
+    int read_size = fs->read(fs, token->fd, token->rsp.ptr, need_read_size);
+    if (read_size < 0)
+    {
+        token->error_code = read_size;
+        return;
+    }
+    if ((size_t)read_size > token->remain_size)
+    {
+        abort();
+    }
+
+    token->remain_size -= read_size;
+    return;
+}
+
+static int _uv_http_send(uv_http_conn_t* conn, uv_http_str_t* data)
+{
+    uv_http_action_t* action = malloc(sizeof(uv_http_action_t));
+    if (action == NULL)
+    {
+        return UV_ENOMEM;
+    }
+
+    action->type = UV_HTTP_ACTION_SEND;
+    action->belong = conn;
+    action->as.send.data = *data;
+
+    ev_list_push_back(&conn->action_queue, &action->node);
+    return _uv_http_active_connection(conn);
+}
+
+static void _uv_http_active_connection_after_send_file(uv_work_t* req, int status)
+{
+    (void)status;
+
+    int ret;
+    uv_http_serve_token_t* token = container_of(req, uv_http_serve_token_t, req);
+    uv_http_action_t* action = container_of(token, uv_http_action_t, as.serve);
+    uv_http_conn_t* conn = action->belong;
+    uv_http_t* http = conn->belong;
+
+    /* Let's check error code first. */
+    if (token->error_code != 0)
+    {
+        goto error;
+    }
+
+    /* Send content. */
+    ret = _uv_http_send(conn, &token->rsp);
+
+    /* Send file again if necessary. */
+    if (token->remain_size > 0)
+    {
+        ret = uv_queue_work(http->loop, req,
+            _uv_http_active_connection_send_file,
+            _uv_http_active_connection_after_send_file);
+        if (ret != 0)
+        {
+            goto error;
+        }
+        return;
+    }
+
+    /* Cleanup and active next action. */
+    _uv_http_destroy_action(action);
+    _uv_http_active_connection(conn);
+
+    return;
+
+error:
+    _uv_http_destroy_action(action);
+    _uv_http_close_connection(http, conn, 1);
+    return;
+}
+
 static void _uv_http_active_connection_serve_work(uv_work_t* req)
 {
     uv_http_serve_token_t* token = container_of(req, uv_http_serve_token_t, req);
@@ -984,19 +1130,36 @@ static void _uv_http_active_connection_serve_after_work(uv_work_t* req, int stat
     uv_http_serve_token_t* token = container_of(req, uv_http_serve_token_t, req);
     uv_http_action_t* action = container_of(token, uv_http_action_t, as.serve);
     uv_http_conn_t* conn = action->belong;
+    uv_http_t* http = conn->belong;
 
     /* Send response. */
     int ret = uv_http_send(conn, token->rsp.ptr, token->rsp.len);
-    _uv_http_destroy_action(action);
+    if (ret != 0)
+    {
+        goto error;
+    }
 
-    if (ret == 0)
+    /* Check if we have file to send. */
+    if (token->fd != NULL)
     {
-        _uv_http_active_connection(conn);
+        ret = uv_queue_work(http->loop, req,
+            _uv_http_active_connection_send_file,
+            _uv_http_active_connection_after_send_file);
+        if (ret != 0)
+        {
+            goto error;
+        }
     }
-    else
-    {
-        _uv_http_close_connection(conn->belong, conn, 1);
-    }
+
+    /* Nothing left to do, let's try next action. */
+    _uv_http_destroy_action(action);
+    _uv_http_active_connection(conn);
+
+    return;
+
+error:
+    _uv_http_destroy_action(action);
+    _uv_http_close_connection(conn->belong, conn, 1);
 }
 
 static int _uv_http_active_connection_serve(uv_http_conn_t* conn, uv_http_serve_token_t* token)
@@ -1101,23 +1264,29 @@ int uv_http_listen(uv_http_t* http, const char* url, uv_http_cb cb, void* arg)
 
 int uv_http_send(uv_http_conn_t* conn, const void* data, size_t size)
 {
-    size_t malloc_size = sizeof(uv_http_action_t) + size;
-    uv_http_action_t* action = malloc(malloc_size);
-    if (action == NULL)
+    if (size == 0)
+    {
+        return 0;
+    }
+
+    void* copy_data = malloc(size);
+    if (copy_data == NULL)
     {
         return UV_ENOMEM;
     }
+    memcpy(copy_data, data, size);
 
-    action->type = UV_HTTP_ACTION_SEND;
-    action->belong = conn;
+    uv_http_str_t dat = UV_HTTP_STR_INIT;
+    _uv_http_str_append(&dat, data, size);
 
-    action->as.send.size = size;
-    action->as.send.data = (char*)(action + 1);
-    memcpy(action->as.send.data, data, size);
+    int ret = _uv_http_send(conn, &dat);
+    if (ret != 0)
+    {
+        _uv_http_str_destroy(&dat);
+        return ret;
+    }
 
-    ev_list_push_back(&conn->action_queue, &action->node);
-
-    return _uv_http_active_connection(conn);
+    return 0;
 }
 
 static int _uv_http_reply_v(uv_http_conn_t* conn, int status_code,
@@ -1298,8 +1467,8 @@ int uv_http_serve_dir(uv_http_conn_t* conn, uv_http_message_t* msg,
     size_t if_none_match_len = if_none_match->len ;
     size_t range_len = range->len;
 
-    size_t malloc_size = sizeof(uv_http_action_t) + msg->url.len + 1 + root_path_len + 1
-        + ssi_pattern_len + 1 + extra_headers_len + 1 + page404_len + 1
+    size_t malloc_size = sizeof(uv_http_action_t) + msg->method.len + 1 + msg->url.len + 1
+        + root_path_len + 1 + ssi_pattern_len + 1 + extra_headers_len + 1 + page404_len + 1
         + if_none_match_len + 1 + range_len + 1;
     uv_http_action_t* action = malloc(malloc_size);
     if (action == NULL)
@@ -1310,8 +1479,15 @@ int uv_http_serve_dir(uv_http_conn_t* conn, uv_http_message_t* msg,
 
     action->belong = conn;
     action->type = UV_HTTP_ACTION_SERVE;
-
     pos = (char*)(action + 1);
+
+    action->as.serve.method.cap = 0;
+    action->as.serve.method.len = msg->method.len;
+    action->as.serve.method.ptr = pos;
+    memcpy(action->as.serve.method.ptr, msg->method.ptr, msg->method.len);
+    action->as.serve.method.ptr[action->as.serve.method.len] = '\0';
+    pos += msg->method.len + 1;
+
     action->as.serve.url.cap = 0;
     action->as.serve.url.len = msg->url.len;
     action->as.serve.url.ptr = pos;
