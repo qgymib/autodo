@@ -4,6 +4,8 @@
 #include <assert.h>
 #include "utils.h"
 
+#define UV_HTTP_CSTR(x) { x, sizeof(x) - 1, 0 }
+
 typedef enum uv_http_action_type
 {
     UV_HTTP_ACTION_SEND,
@@ -549,6 +551,7 @@ static const char* _uv_http_status_code_str(int status_code)
     case 401: return "Unauthorized";
     case 403: return "Forbidden";
     case 404: return "Not Found";
+    case 416: return "Range Not Satisfiable";
     case 418: return "I'm a teapot";
     case 500: return "Internal Server Error";
     case 501: return "Not Implemented";
@@ -616,9 +619,109 @@ static int _uv_http_gen_reply(uv_http_str_t* str, int status_code,
     return ret;
 }
 
+static int _uv_http_parse_range(const uv_http_str_t* str, size_t size, size_t* beg, size_t* end)
+{
+    unsigned long long a, b;
+    if (str->len < 6 || memcmp(str->ptr, "bytes=", 6) != 0)
+    {
+        return UV_ENOENT;
+    }
+
+    const char* p_beg = str->ptr + 6;
+    const char* p_end = strstr(p_beg, ",");
+    p_end = p_end != NULL ? p_end : str->ptr + str->len;
+
+    const char* p_minus = strstr(p_beg, "-");
+
+    /* last n bytes */
+    if (p_minus == p_beg)
+    {
+        if (sscanf(p_beg, "-%llu", &a) != 1)
+        {
+            return UV_EINVAL;
+        }
+
+        if (a > size)
+        {
+            return UV_EINVAL;
+        }
+
+        *beg = size - a;
+        *end = size;
+        return 0;
+    }
+
+    /* start from n */
+    if (p_minus == p_end)
+    {
+        if (sscanf(p_beg, "%llu-", &a) != 1)
+        {
+            return UV_EINVAL;
+        }
+        if (a > size)
+        {
+            return UV_EINVAL;
+        }
+
+        *beg = a;
+        *end = size;
+        return 0;
+    }
+
+    if (sscanf(p_beg, "%llu-%llu", &a, &b) != 2)
+    {
+        return UV_EINVAL;
+    }
+    if (a > b || b >= size)
+    {
+        return UV_EINVAL;
+    }
+
+    *beg = a;
+    *end = b;
+    return 0;
+}
+
+static uv_http_str_t** _uv_http_guess_content_type(const uv_http_str_t* path)
+{
+    static uv_http_header_t s_known_types[] = {
+        { UV_HTTP_CSTR("html"),     UV_HTTP_CSTR("text/html; charset=utf-8") },
+        { UV_HTTP_CSTR("htm"),      UV_HTTP_CSTR("text/html; charset=utf-8") },
+        { UV_HTTP_CSTR("css"),      UV_HTTP_CSTR("text/css; charset=utf-8") },
+        { UV_HTTP_CSTR("js"),       UV_HTTP_CSTR("text/javascript; charset=utf-8") },
+        { UV_HTTP_CSTR("gif"),      UV_HTTP_CSTR("image/gif") },
+        { UV_HTTP_CSTR("png"),      UV_HTTP_CSTR("image/png") },
+        { UV_HTTP_CSTR("jpg"),      UV_HTTP_CSTR("image/jpeg") },
+        { UV_HTTP_CSTR("jpeg"),     UV_HTTP_CSTR("image/jpeg") },
+        { UV_HTTP_CSTR("woff"),     UV_HTTP_CSTR("font/woff") },
+        { UV_HTTP_CSTR("ttf"),      UV_HTTP_CSTR("font/ttf") },
+        { UV_HTTP_CSTR("svg"),      UV_HTTP_CSTR("image/svg+xml") },
+        { UV_HTTP_CSTR("txt"),      UV_HTTP_CSTR("text/plain; charset=utf-8") },
+        { UV_HTTP_CSTR("avi"),      UV_HTTP_CSTR("video/x-msvideo") },
+        { UV_HTTP_CSTR("csv"),      UV_HTTP_CSTR("text/csv") },
+        { UV_HTTP_CSTR("doc"),      UV_HTTP_CSTR("application/msword") },
+        { UV_HTTP_CSTR("exe"),      UV_HTTP_CSTR("application/octet-stream") },
+        { UV_HTTP_CSTR("gz"),       UV_HTTP_CSTR("application/gzip") },
+        { UV_HTTP_CSTR("ico"),      UV_HTTP_CSTR("image/x-icon") },
+        { UV_HTTP_CSTR("json"),     UV_HTTP_CSTR("application/json") },
+        { UV_HTTP_CSTR("mov"),      UV_HTTP_CSTR("video/quicktime") },
+        { UV_HTTP_CSTR("mp3"),      UV_HTTP_CSTR("audio/mpeg") },
+        { UV_HTTP_CSTR("mp4"),      UV_HTTP_CSTR("video/mp4") },
+        { UV_HTTP_CSTR("mpeg"),     UV_HTTP_CSTR("video/mpeg") },
+        { UV_HTTP_CSTR("pdf"),      UV_HTTP_CSTR("application/pdf") },
+        { UV_HTTP_CSTR("shtml"),    UV_HTTP_CSTR("text/html; charset=utf-8") },
+        { UV_HTTP_CSTR("tgz"),      UV_HTTP_CSTR("application/tar-gz") },
+        { UV_HTTP_CSTR("wav"),      UV_HTTP_CSTR("audio/wav") },
+        { UV_HTTP_CSTR("webp"),     UV_HTTP_CSTR("image/webp") },
+        { UV_HTTP_CSTR("zip"),      UV_HTTP_CSTR("application/zip") },
+        { UV_HTTP_CSTR("3gp"),      UV_HTTP_CSTR("video/3gpp") },
+    };
+}
+
 static int _uv_http_active_connection_serve_file_once(uv_http_serve_token_t* token, uv_http_str_t* file)
 {
-    char etag[64];
+    int ret;
+    char etag[64]; char range[128];
     uv_http_fs_t* fs = token->fs;
 
     /* Open file */
@@ -630,8 +733,7 @@ static int _uv_http_active_connection_serve_file_once(uv_http_serve_token_t* tok
 
     /* Get file information. */
     size_t size; time_t mtime;
-    int flags = fs->stat(fs, file->ptr, &size, &mtime);
-    if (flags == 0)
+    if ((ret = fs->stat(fs, file->ptr, &size, &mtime)) == 0)
     {
         fs->close(fs, fd);
         return UV_ENOENT;
@@ -647,6 +749,25 @@ static int _uv_http_active_connection_serve_file_once(uv_http_serve_token_t* tok
     }
 
     /* Check range. */
+    range[0] = '\0';
+    if (token->range.len != 0)
+    {
+        size_t beg, end;
+        if ((ret = _uv_http_parse_range(&token->range, size, &beg, &end)) != 0)
+        {
+            _uv_http_gen_reply(&token->rsp, 416, NULL,
+                "ETag: %s\r\n"
+                "Content-Range: bytes */%llu\r\n"
+                "%s\r\n", etag, (unsigned long long)size, token->extra_headers.ptr);
+            fs->close(fs, fd);
+            return 0;
+        }
+
+        _uv_http_str_printf(&token->rsp,
+            "HTTP/1.1 %d %s\r\n",
+            206, _uv_http_status_code_str(206));
+    }
+
 }
 
 static void _uv_http_active_connection_serve_file(uv_http_serve_token_t* token, uv_http_str_t* file)
