@@ -26,6 +26,8 @@ typedef struct uv_http_serve_token
     uv_http_str_t               ssi_pattern;    /**< SSI. No need to free. */
     uv_http_str_t               extra_headers;  /**< Extra headers. No need to free. */
     uv_http_str_t               page404;        /**< Path to 404 page. No need to free. */
+    uv_http_str_t               if_none_match;  /**< Value of `If-None-Match`. No need to free. */
+    uv_http_str_t               range;          /**< Value of `Range`. No need to free. */
     uv_http_fs_t*               fs;             /**< Filesystem instance. */
 
     uv_http_str_t               rsp;            /**< Response message. MUST free. */
@@ -44,6 +46,8 @@ typedef struct uv_http_action
         uv_http_serve_token_t   serve;
     } as;
 } uv_http_action_t;
+
+static uv_http_str_t s_empty_str = UV_HTTP_STR_INIT;
 
 /**
  * @brief Active HTTP connection.
@@ -572,6 +576,7 @@ static int _uv_http_gen_reply_v(uv_http_str_t* str, int status_code,
     const uv_http_str_t* body, const char* header_fmt, va_list ap)
 {
     int ret;
+    body = body != NULL ? body : &s_empty_str;
 
     ret = _uv_http_str_printf(str, "HTTP/1.1 %d %s\r\n",
         status_code, _uv_http_status_code_str(status_code));
@@ -613,6 +618,7 @@ static int _uv_http_gen_reply(uv_http_str_t* str, int status_code,
 
 static int _uv_http_active_connection_serve_file_once(uv_http_serve_token_t* token, uv_http_str_t* file)
 {
+    char etag[64];
     uv_http_fs_t* fs = token->fs;
 
     /* Open file */
@@ -631,7 +637,16 @@ static int _uv_http_active_connection_serve_file_once(uv_http_serve_token_t* tok
         return UV_ENOENT;
     }
 
+    /* Check etag. */
+    snprintf(etag, sizeof(etag), "\"%lld.%lld\"", (long long)mtime, (long long)size);
+    if (strcasecmp(etag, token->if_none_match.ptr) == 0)
+    {
+        fs->close(fs, fd);
+        _uv_http_gen_reply(&token->rsp, 304, NULL, "%s", token->extra_headers.ptr);
+        return 0;
+    }
 
+    /* Check range. */
 }
 
 static void _uv_http_active_connection_serve_file(uv_http_serve_token_t* token, uv_http_str_t* file)
@@ -1150,13 +1165,21 @@ int uv_http_serve_dir(uv_http_conn_t* conn, uv_http_message_t* msg,
     };
 
     char* pos;
+    uv_http_str_t* if_none_match = uv_http_get_header(msg, "If-None-Match");
+    if_none_match = if_none_match != NULL ? if_none_match : &s_empty_str;
+    uv_http_str_t* range = uv_http_get_header(msg, "Range");
+    range = range != NULL ? range : &s_empty_str;
+
     size_t root_path_len = strlen(cfg->root_path);
     size_t ssi_pattern_len = cfg->ssi_pattern != NULL ? strlen(cfg->ssi_pattern) : 0;
     size_t extra_headers_len = cfg->extra_headers != NULL ? strlen(cfg->extra_headers) : 0;
     size_t page404_len = cfg->page404 != NULL ? strlen(cfg->page404) : 0;
+    size_t if_none_match_len = if_none_match->len ;
+    size_t range_len = range->len;
 
     size_t malloc_size = sizeof(uv_http_action_t) + msg->url.len + 1 + root_path_len + 1
-        + ssi_pattern_len + 1 + extra_headers_len + 1 + page404_len + 1;
+        + ssi_pattern_len + 1 + extra_headers_len + 1 + page404_len + 1
+        + if_none_match_len + 1 + range_len + 1;
     uv_http_action_t* action = malloc(malloc_size);
     if (action == NULL)
     {
@@ -1203,9 +1226,42 @@ int uv_http_serve_dir(uv_http_conn_t* conn, uv_http_message_t* msg,
     action->as.serve.page404.ptr[page404_len] = '\0';
     pos += page404_len + 1;
 
+    action->as.serve.if_none_match.cap = 0;
+    action->as.serve.if_none_match.len = if_none_match_len;
+    action->as.serve.if_none_match.ptr = pos;
+    memcpy(action->as.serve.if_none_match.ptr, if_none_match->ptr, if_none_match_len);
+    action->as.serve.if_none_match.ptr[if_none_match_len] = '\0';
+    pos += if_none_match_len + 1;
+
+    action->as.serve.range.cap = 0;
+    action->as.serve.range.len = range_len;
+    action->as.serve.range.ptr = pos;
+    memcpy(action->as.serve.range.ptr, range->ptr, range_len);
+    action->as.serve.range.ptr[range_len] = '\0';
+    pos += range_len + 1;
+
     action->as.serve.fs = cfg->fs != NULL ? cfg->fs : &s_builtin_fs;
     action->as.serve.rsp = (uv_http_str_t)UV_HTTP_STR_INIT;
 
     ev_list_push_back(&conn->action_queue, &action->node);
     return _uv_http_active_connection(conn);
+}
+
+uv_http_str_t* uv_http_get_header(uv_http_message_t* msg, const char* name)
+{
+    size_t i;
+    size_t name_len = strlen(name);
+    uv_http_header_t* hdr;
+
+    for (i = 0; i < msg->header_len; i++)
+    {
+        hdr = &msg->headers[i];
+        if (hdr->name.len == name_len &&
+            strncasecmp(hdr->name.ptr, name, name_len) == 0)
+        {
+            return &msg->headers[i].value;
+        }
+    }
+
+    return NULL;
 }

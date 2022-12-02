@@ -181,6 +181,14 @@ int uv_http_reply(uv_http_conn_t* conn, int status_code,
 int uv_http_serve_dir(uv_http_conn_t* conn, uv_http_message_t* msg,
     uv_http_serve_cfg_t* cfg);
 
+/**
+ * @brief Get header value.
+ * @param[in] msg   HTTP message.
+ * @param[in] name  Field name
+ * @return          Field value.
+ */
+uv_http_str_t* uv_http_get_header(uv_http_message_t* msg, const char* name);
+
 #ifdef __cplusplus
 }
 #endif
