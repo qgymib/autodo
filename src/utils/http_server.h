@@ -12,7 +12,7 @@ extern "C" {
 /**
  * @brief Static initializer for #uv_http_str_t.
  */
-#define UV_HTTP_STR_INIT    { NULL, 0 }
+#define UV_HTTP_STR_INIT    { NULL, 0, 0 }
 
 typedef struct uv_http_s uv_http_t;
 
@@ -34,6 +34,7 @@ typedef struct uv_http_str
 {
     char*                   ptr;            /**< String address. */
     size_t                  len;            /**< String length, not including NULL terminator. */
+    size_t                  cap;            /**< String container capacity, not including NULL terminator. */
 } uv_http_str_t;
 
 typedef struct
@@ -50,7 +51,7 @@ typedef struct uv_http_message_s
     uv_http_str_t           version;        /**< HTTP version. */
 
     uv_http_header_t*       headers;        /**< HTTP header array. */
-    size_t                  header_sz;      /**< HTTP header array size. */
+    size_t                  header_len;     /**< HTTP header array length. */
     size_t                  header_cap;     /**< HTTP header array capacity. */
 
     uv_http_str_t           body;           /**< HTTP body. */
@@ -161,13 +162,14 @@ int uv_http_send(uv_http_conn_t* conn, const void* data, size_t size);
  * @brief Send HTTP response.
  * @param[in] conn          HTTP connection.
  * @param[in] status_code   HTTP response code.
- * @param[in] headers       Extra headers. If not NULL, must end with `\r\n`.
  * @param[in] body          Body data.
  * @param[in] body_sz       Body length in bytes.
+ * @param[in] header_fmt    Extra header format. If not NULL, must end with `\r\n`.
+ * @param[in] ...           Extra header argument list.
  * @return                  UV error code.
  */
-int uv_http_reply(uv_http_conn_t* conn, int status_code, const char* headers,
-    const void* body, size_t body_sz);
+int uv_http_reply(uv_http_conn_t* conn, int status_code,
+    const void* body, size_t body_sz, const char* header_fmt, ...);
 
 /**
  * @brief Generate serve dir response message.
